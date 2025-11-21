@@ -13,9 +13,6 @@ export const Inventory: React.FC<InventoryProps> = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  // New state for stats
-  const [totalAvailable, setTotalAvailable] = useState<number>(0);
-  const [topSearched, setTopSearched] = useState<Array<{ productId: string; productName: string; count: number }>>([]);
 
 
   // Debounce search input
@@ -33,14 +30,8 @@ export const Inventory: React.FC<InventoryProps> = () => {
         const results = await inventoryService.searchProducts(query);
         setProducts(results);
       } else {
-        // No search query: fetch stats instead of product list
-        const [total, top] = await Promise.all([
-          inventoryService.getTotalAvailable(),
-          inventoryService.getTopSearched(5)
-        ]);
-        setTotalAvailable(total);
-        setTopSearched(top);
-        setProducts([]); // Ensure no product cards are shown
+        // No search query: show nothing
+        setProducts([]);
       }
     } catch (error) {
       console.error("Failed to fetch data", error);
@@ -99,21 +90,7 @@ export const Inventory: React.FC<InventoryProps> = () => {
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20">
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">Estoque Disponível</h2>
-            <p className="text-lg text-slate-700">Total de itens disponíveis: <span className="font-semibold text-brand-600">{totalAvailable}</span></p>
-            <h3 className="mt-6 text-xl font-semibold text-slate-800">Top {topSearched.length} itens mais buscados</h3>
-            <ul className="mt-2 space-y-2">
-              {topSearched.map((item) => (
-                <li key={item.productId} className="flex justify-between text-slate-600">
-                  <span>{item.productName}</span>
-                  <span className="font-medium text-brand-600">{item.count} buscas</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        ) : null}
         {!loading && products.length > 0 && (
           <div className="mt-10 text-center text-sm text-slate-400 border-t border-slate-200 pt-6">
             Exibindo {products.length} resultados encontrados.

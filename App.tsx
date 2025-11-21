@@ -148,26 +148,28 @@ function App() {
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex gap-1 -mb-px">
+          <div className="flex gap-0.5 sm:gap-1 -mb-px overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveTab('inventory')}
-              className={`flex items-center gap-2 px-6 py-3 font-semibold transition-all ${activeTab === 'inventory'
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'inventory'
                 ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50'
                 : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                 }`}
             >
               <Package className="w-5 h-5" />
-              Consulta de Estoque
+              <span className="hidden sm:inline">Consulta de Estoque</span>
+              <span className="sm:hidden text-xs">Consulta</span>
             </button>
             <button
               onClick={() => setActiveTab('reservations')}
-              className={`flex items-center gap-2 px-6 py-3 font-semibold transition-all ${activeTab === 'reservations'
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'reservations'
                 ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50'
                 : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                 }`}
             >
               <ClipboardList className="w-5 h-5" />
-              Reservas
+              <span className="hidden sm:inline">Reservas</span>
+              <span className="sm:hidden text-xs">Reservas</span>
             </button>
 
             {/* Master User Only Tabs */}
@@ -175,23 +177,25 @@ function App() {
               <>
                 <button
                   onClick={() => setActiveTab('upload')}
-                  className={`flex items-center gap-2 px-6 py-3 font-semibold transition-all ${activeTab === 'upload'
+                  className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'upload'
                     ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50'
                     : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                     }`}
                 >
                   <UploadIcon className="w-5 h-5" />
-                  Upload
+                  <span className="hidden sm:inline">Upload</span>
+                  <span className="sm:hidden text-xs">Upload</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('maintenance')}
-                  className={`flex items-center gap-2 px-6 py-3 font-semibold transition-all ${activeTab === 'maintenance'
+                  className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'maintenance'
                     ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50'
                     : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                     }`}
                 >
                   <Wrench className="w-5 h-5" />
-                  Manutenção
+                  <span className="hidden sm:inline">Manutenção</span>
+                  <span className="sm:hidden text-xs">Manutenção</span>
                 </button>
               </>
             )}

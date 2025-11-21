@@ -17,19 +17,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       onClick={() => setIsExpanded(!isExpanded)}
       className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all duration-200 flex flex-col h-full group cursor-pointer ${isExpanded ? 'ring-2 ring-brand-500 ring-offset-2' : ''}`}
     >
-      <div className="p-5 flex-grow">
-        <div className="flex justify-between items-start mb-2">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+      <div className="p-4 sm:p-5 flex-grow">
+        <div className="flex justify-between items-start mb-3 gap-2 flex-wrap">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800 whitespace-nowrap">
             COD: {product.id}
           </span>
           {product.brand && (
-            <span className="text-xs font-semibold text-brand-600 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-brand-600 uppercase tracking-wider truncate max-w-[120px] sm:max-w-none">
               {product.brand}
             </span>
           )}
         </div>
 
-        <h3 className="text-lg font-bold text-slate-900 leading-snug mb-4 group-hover:text-brand-600 transition-colors">
+        <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug mb-4 group-hover:text-brand-600 transition-colors break-words line-clamp-2">
           {product.name}
         </h3>
 
@@ -64,7 +64,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
       </div>
 
-      <div className="bg-slate-50 px-5 py-3 border-t border-slate-100 flex justify-between items-center">
+      <div className="bg-slate-50 px-4 sm:px-5 py-3 border-t border-slate-100 flex justify-between items-center gap-3">
         <div className="flex flex-col">
           <span className="text-xs text-slate-500 uppercase font-semibold">Estoque Total</span>
           <div className="flex items-center">
@@ -73,17 +73,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </div>
         </div>
 
-        <div className="text-right">
+        <div className="text-right flex-shrink-0">
           {isOutOfStock ? (
-            <span className="inline-block px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-md">
+            <span className="inline-block px-2.5 sm:px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-md whitespace-nowrap">
               Sem Estoque
             </span>
           ) : isLowStock ? (
-            <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-md">
+            <span className="inline-block px-2.5 sm:px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-md whitespace-nowrap">
               Estoque Baixo
             </span>
           ) : (
-            <span className="inline-block px-3 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-md">
+            <span className="inline-block px-2.5 sm:px-3 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-md whitespace-nowrap">
               Disponível
             </span>
           )}
@@ -92,45 +92,45 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
       {/* Expanded Details */}
       {isExpanded && (
-        <div className="bg-slate-50 px-5 pb-4 border-t border-slate-100 animate-in slide-in-from-top-2 duration-200">
+        <div className="bg-slate-50 px-4 sm:px-5 pb-4 border-t border-slate-100 animate-in slide-in-from-top-2 duration-200">
           <div className="space-y-2 pt-2">
             {product.reserved > 0 && (
-              <div className="text-sm text-orange-600 font-medium flex items-center justify-between p-2 bg-orange-50 rounded-lg border border-orange-100">
-                <div className="flex items-center">
+              <div className="text-xs sm:text-sm text-orange-600 font-medium flex items-center justify-between p-2 bg-orange-50 rounded-lg border border-orange-100 gap-2">
+                <div className="flex items-center flex-shrink-0">
                   <AlertCircle className="w-4 h-4 mr-2" />
                   <span>Reservado</span>
                 </div>
-                <span>{product.reserved} un</span>
+                <span className="whitespace-nowrap">{product.reserved} un</span>
               </div>
             )}
 
             {product.importQuantity && product.importQuantity > 0 && (
-              <div className="text-sm text-blue-600 font-medium flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-100">
-                <div className="flex items-center">
+              <div className="text-xs sm:text-sm text-blue-600 font-medium flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-100 gap-2">
+                <div className="flex items-center flex-shrink-0">
                   <Package className="w-4 h-4 mr-2" />
                   <span>Em Importação</span>
                 </div>
-                <span>{product.importQuantity} un</span>
+                <span className="whitespace-nowrap">{product.importQuantity} un</span>
               </div>
             )}
 
             {product.expectedRestockDate && (
-              <div className="text-sm text-purple-600 font-medium flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-100">
-                <div className="flex items-center">
+              <div className="text-xs sm:text-sm text-purple-600 font-medium flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-100 gap-2">
+                <div className="flex items-center flex-shrink-0">
                   <Calendar className="w-4 h-4 mr-2" />
                   <span>Previsão Reposição</span>
                 </div>
-                <span>{new Date(product.expectedRestockDate).toLocaleDateString('pt-BR')}</span>
+                <span className="whitespace-nowrap text-xs sm:text-sm">{new Date(product.expectedRestockDate).toLocaleDateString('pt-BR')}</span>
               </div>
             )}
 
             {product.observations && (
-              <div className="mt-2 p-3 bg-amber-50 border border-amber-100 rounded-lg">
+              <div className="mt-2 p-2.5 sm:p-3 bg-amber-50 border border-amber-100 rounded-lg">
                 <div className="flex items-start gap-2">
                   <FileText className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <span className="text-xs font-semibold text-amber-900 uppercase block mb-1">Observações</span>
-                    <p className="text-sm text-amber-800 leading-relaxed">{product.observations}</p>
+                    <p className="text-xs sm:text-sm text-amber-800 leading-relaxed break-words">{product.observations}</p>
                   </div>
                 </div>
               </div>

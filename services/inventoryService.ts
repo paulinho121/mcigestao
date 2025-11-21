@@ -151,12 +151,16 @@ export const inventoryService = {
       .sort((a, b) => b.count - a.count)
       .slice(0, limit);
     return entries;
-  }
+  },
 
-  /**
-   * Reserve a product
-   */
-  async reserveProduct(productId: string, quantity: number, reservedBy: string, branch: 'CE' | 'SC' | 'SP', reservedByName?: string): Promise<Reservation | null> {
+  /** Reserve a product */
+  async reserveProduct(
+    productId: string,
+    quantity: number,
+    reservedBy: string,
+    branch: 'CE' | 'SC' | 'SP',
+    reservedByName?: string
+  ): Promise<Reservation | null> {
     if (!supabase) {
       // Mock fallback
       await new Promise(resolve => setTimeout(resolve, 300));
