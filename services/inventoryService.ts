@@ -48,18 +48,22 @@ export const inventoryService = {
 
       if (fallbackError) return [];
 
-      return (fallbackData || []).map((p: any) => ({
+      return (fallbackData || [])
+        .filter((p: any) => !p.id.endsWith('.0'))
+        .map((p: any) => ({
+          ...p,
+          importQuantity: p.import_quantity,
+          expectedRestockDate: p.expected_restock_date
+        })) as Product[];
+    }
+
+    return data
+      .filter((p: any) => !p.id.endsWith('.0'))
+      .map((p: any) => ({
         ...p,
         importQuantity: p.import_quantity,
         expectedRestockDate: p.expected_restock_date
       })) as Product[];
-    }
-
-    return data.map((p: any) => ({
-      ...p,
-      importQuantity: p.import_quantity,
-      expectedRestockDate: p.expected_restock_date
-    })) as Product[];
   },
 
   /**
@@ -81,11 +85,13 @@ export const inventoryService = {
       return [];
     }
 
-    return data.map((p: any) => ({
-      ...p,
-      importQuantity: p.import_quantity,
-      expectedRestockDate: p.expected_restock_date
-    })) as Product[];
+    return data
+      .filter((p: any) => !p.id.endsWith('.0'))
+      .map((p: any) => ({
+        ...p,
+        importQuantity: p.import_quantity,
+        expectedRestockDate: p.expected_restock_date
+      })) as Product[];
   },
 
   /**
@@ -99,14 +105,16 @@ export const inventoryService = {
     }
     const { data, error } = await supabase
       .from('products')
-      .select('total', { count: 'exact', head: false })
+      .select('id, total')
       .not('id', 'like', '%.0');
     if (error) {
       console.error('Supabase error fetching total available:', error);
       return 0;
     }
     // data is array of rows with total field
-    return (data as any[]).reduce((sum, row) => sum + (row.total || 0), 0);
+    return (data as any[])
+      .filter(row => !row.id.endsWith('.0'))
+      .reduce((sum, row) => sum + (row.total || 0), 0);
   },
 
   /**
@@ -125,6 +133,7 @@ export const inventoryService = {
           const prod = MOCK_INVENTORY.find(p => p.id === productId);
           return { productId, productName: prod?.name || productId, count };
         })
+        .filter(item => !item.productId.endsWith('.0'))
         .sort((a, b) => b.count - a.count)
         .slice(0, limit);
       return entries;
@@ -139,13 +148,15 @@ export const inventoryService = {
       return [];
     }
     const countMap: Record<string, { name: string; count: number }> = {};
-    (data as any[]).forEach(r => {
-      const pid = r.product_id;
-      if (!countMap[pid]) {
-        countMap[pid] = { name: r.product_name, count: 0 };
-      }
-      countMap[pid].count += 1;
-    });
+    (data as any[])
+      .filter(r => !r.product_id.endsWith('.0'))
+      .forEach(r => {
+        const pid = r.product_id;
+        if (!countMap[pid]) {
+          countMap[pid] = { name: r.product_name, count: 0 };
+        }
+        countMap[pid].count += 1;
+      });
     const entries = Object.entries(countMap)
       .map(([productId, { name, count }]) => ({ productId, productName: name, count }))
       .sort((a, b) => b.count - a.count)
