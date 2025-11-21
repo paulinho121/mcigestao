@@ -272,9 +272,16 @@ export const inventoryService = {
     const newStock = currentStock - quantity;
     const newReserved = (product.reserved || 0) + quantity;
 
+    // Calculate new total
+    const stock_ce = branch === 'CE' ? newStock : product.stock_ce;
+    const stock_sc = branch === 'SC' ? newStock : product.stock_sc;
+    const stock_sp = branch === 'SP' ? newStock : product.stock_sp;
+    const newTotal = stock_ce + stock_sc + stock_sp;
+
     const updateData: any = {
       reserved: newReserved,
-      [branchColumn]: newStock
+      [branchColumn]: newStock,
+      total: newTotal // Update total!
     };
 
     const { error: updateError } = await supabase
@@ -380,11 +387,18 @@ export const inventoryService = {
       const newStock = product[branchColumn] + reservation.quantity;
       const newReserved = Math.max(0, (product.reserved || 0) - reservation.quantity);
 
+      // Calculate new total
+      const stock_ce = reservation.branch === 'CE' ? newStock : product.stock_ce;
+      const stock_sc = reservation.branch === 'SC' ? newStock : product.stock_sc;
+      const stock_sp = reservation.branch === 'SP' ? newStock : product.stock_sp;
+      const newTotal = stock_ce + stock_sc + stock_sp;
+
       await supabase
         .from('products')
         .update({
           [branchColumn]: newStock,
-          reserved: newReserved
+          reserved: newReserved,
+          total: newTotal // Update total!
         })
         .eq('id', reservation.product_id);
     }
