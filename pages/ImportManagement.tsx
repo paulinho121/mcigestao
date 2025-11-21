@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Save, Calendar, Package as PackageIcon } from 'lucide-react';
 import { Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
 
 interface ImportManagementProps {
-    userEmail: string;
 }
 
-export const ImportManagement: React.FC<ImportManagementProps> = ({ userEmail }) => {
+export const ImportManagement: React.FC<ImportManagementProps> = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(false);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Package, User, Calendar, X, AlertCircle } from 'lucide-react';
 import { inventoryService } from '../services/inventoryService';
 import { Product, Reservation } from '../types';

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Lock, Mail, ArrowRight, UserPlus, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -158,7 +158,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               }}
             />
           </div>
-          <h2 className="text-2xl font-bold text-slate-800">Consulta de Estoque</h2>
+          <h2 className="text-2xl font-bold text-slate-800">Estoque MCI</h2>
           <p className="text-slate-500 text-sm mt-2">
             {mode === 'login' ? 'Acesse o portal corporativo' : 'Crie sua conta de acesso'}
           </p>

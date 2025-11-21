@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Upload as UploadIcon, FileText, CheckCircle, AlertCircle, X, FileSpreadsheet, Settings } from 'lucide-react';
 import Papa from 'papaparse';
 import { Product } from '../types';
@@ -6,7 +6,6 @@ import { inventoryService } from '../services/inventoryService';
 import { ImportManagement } from './ImportManagement';
 
 interface UploadProps {
-    userEmail: string;
 }
 
 interface ParsedRow {
@@ -22,7 +21,7 @@ interface ParsedRow {
 
 type UploadSubTab = 'csv' | 'import';
 
-export const Upload: React.FC<UploadProps> = ({ userEmail }) => {
+export const Upload: React.FC<UploadProps> = () => {
     const [activeSubTab, setActiveSubTab] = useState<UploadSubTab>('csv');
     const [file, setFile] = useState<File | null>(null);
     const [parsedData, setParsedData] = useState<Product[]>([]);
@@ -152,8 +151,8 @@ export const Upload: React.FC<UploadProps> = ({ userEmail }) => {
                         <button
                             onClick={() => setActiveSubTab('csv')}
                             className={`flex items-center gap-2 px-6 py-4 font-semibold transition-all ${activeSubTab === 'csv'
-                                    ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/30'
-                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/30'
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                                 }`}
                         >
                             <FileSpreadsheet className="w-5 h-5" />
@@ -162,8 +161,8 @@ export const Upload: React.FC<UploadProps> = ({ userEmail }) => {
                         <button
                             onClick={() => setActiveSubTab('import')}
                             className={`flex items-center gap-2 px-6 py-4 font-semibold transition-all ${activeSubTab === 'import'
-                                    ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/30'
-                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/30'
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                                 }`}
                         >
                             <Settings className="w-5 h-5" />
@@ -175,7 +174,7 @@ export const Upload: React.FC<UploadProps> = ({ userEmail }) => {
 
             {/* Content */}
             {activeSubTab === 'import' ? (
-                <ImportManagement userEmail={userEmail} />
+                <ImportManagement />
             ) : (
                 <div className="p-6">
                     <div className="max-w-6xl mx-auto">
@@ -203,8 +202,8 @@ export const Upload: React.FC<UploadProps> = ({ userEmail }) => {
                                     onDragOver={handleDrag}
                                     onDrop={handleDrop}
                                     className={`border-2 border-dashed rounded-xl p-12 text-center transition-all ${dragActive
-                                            ? 'border-brand-500 bg-brand-50'
-                                            : 'border-slate-300 hover:border-brand-400 hover:bg-slate-50'
+                                        ? 'border-brand-500 bg-brand-50'
+                                        : 'border-slate-300 hover:border-brand-400 hover:bg-slate-50'
                                         }`}
                                 >
                                     <UploadIcon className="w-16 h-16 mx-auto mb-4 text-slate-400" />

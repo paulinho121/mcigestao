@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Save, Wrench, AlertCircle, Package as PackageIcon, FileText } from 'lucide-react';
 import { Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
 
 interface MaintenanceProps {
-    userEmail: string;
 }
 
 interface StockAdjustment {
@@ -19,7 +18,7 @@ interface ProductEdit {
     observations: string;
 }
 
-export const Maintenance: React.FC<MaintenanceProps> = ({ userEmail }) => {
+export const Maintenance: React.FC<MaintenanceProps> = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(false);

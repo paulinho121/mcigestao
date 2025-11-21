@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Search, PackageX, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, RefreshCw } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
 import { inventoryService } from '../services/inventoryService';
 import { Product } from '../types';
@@ -8,11 +8,15 @@ interface InventoryProps {
   userEmail: string;
 }
 
-export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
+export const Inventory: React.FC<InventoryProps> = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  // New state for stats
+  const [totalAvailable, setTotalAvailable] = useState<number>(0);
+  const [topSearched, setTopSearched] = useState<Array<{ productId: string; productName: string; count: number }>>([]);
+
 
   // Debounce search input
   useEffect(() => {
@@ -25,12 +29,21 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
   const fetchProducts = useCallback(async (query: string) => {
     setLoading(true);
     try {
-      const results = query
-        ? await inventoryService.searchProducts(query)
-        : await inventoryService.getAllProducts(20); // Load recent/top items initially
-      setProducts(results);
+      if (query) {
+        const results = await inventoryService.searchProducts(query);
+        setProducts(results);
+      } else {
+        // No search query: fetch stats instead of product list
+        const [total, top] = await Promise.all([
+          inventoryService.getTotalAvailable(),
+          inventoryService.getTopSearched(5)
+        ]);
+        setTotalAvailable(total);
+        setTopSearched(top);
+        setProducts([]); // Ensure no product cards are shown
+      }
     } catch (error) {
-      console.error("Failed to fetch products", error);
+      console.error("Failed to fetch data", error);
     } finally {
       setLoading(false);
     }
@@ -73,10 +86,12 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
       {/* Content Area */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading && products.length === 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-64 bg-slate-200 rounded-xl border border-slate-300"></div>
-            ))}
+          <div className="flex flex-col items-center justify-center py-20">
+            <svg className="animate-spin h-8 w-8 text-brand-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <p className="mt-2 text-slate-600">Carregando dados...</p>
           </div>
         ) : products.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -85,15 +100,20 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
-              <PackageX className="w-12 h-12 text-slate-300" />
-            </div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">Nenhum produto encontrado</h3>
-            <p className="text-slate-500">Verifique o código ou tente palavras-chave diferentes.</p>
+          <div className="flex flex-col items-center justify-center py-20">
+            <h2 className="text-2xl font-bold text-slate-800 mb-4">Estoque Disponível</h2>
+            <p className="text-lg text-slate-700">Total de itens disponíveis: <span className="font-semibold text-brand-600">{totalAvailable}</span></p>
+            <h3 className="mt-6 text-xl font-semibold text-slate-800">Top {topSearched.length} itens mais buscados</h3>
+            <ul className="mt-2 space-y-2">
+              {topSearched.map((item) => (
+                <li key={item.productId} className="flex justify-between text-slate-600">
+                  <span>{item.productName}</span>
+                  <span className="font-medium text-brand-600">{item.count} buscas</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
-
         {!loading && products.length > 0 && (
           <div className="mt-10 text-center text-sm text-slate-400 border-t border-slate-200 pt-6">
             Exibindo {products.length} resultados encontrados.

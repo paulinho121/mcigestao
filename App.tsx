@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Login } from './pages/Login';
 import { Inventory } from './pages/Inventory';
 import { Reservations } from './pages/Reservations';
@@ -128,7 +128,7 @@ function App() {
               />
               <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
               <div className="flex flex-col justify-center hidden sm:flex">
-                <span className="text-sm font-bold text-slate-700 leading-none">Controle de Estoque</span>
+                <span className="text-sm font-bold text-slate-700 leading-none">Estoque MCI</span>
                 <span className="text-xs text-slate-400 leading-none mt-1">Gestão Corporativa</span>
               </div>
             </div>
@@ -204,8 +204,8 @@ function App() {
       {/* Content */}
       {activeTab === 'inventory' && <Inventory userEmail={user.email} />}
       {activeTab === 'reservations' && <Reservations userEmail={user.email} userName={user.name} isMasterUser={isMaster} />}
-      {activeTab === 'upload' && <Upload userEmail={user.email} />}
-      {activeTab === 'maintenance' && <Maintenance userEmail={user.email} />}
+      {activeTab === 'upload' && <Upload />}
+      {activeTab === 'maintenance' && <Maintenance />}
     </div>
   );
 }

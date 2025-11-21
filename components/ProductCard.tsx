@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState } from 'react';
 import { Product } from '../types';
 import { MapPin, Box, AlertCircle, Package, Calendar, FileText } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -8,7 +8,7 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const isLowStock = product.total < 5 && product.total > 0;
   const isOutOfStock = product.total === 0;
 

@@ -15,6 +15,9 @@ export const inventoryService = {
     await new Promise(resolve => setTimeout(resolve, 400));
 
     const cleanQuery = query.toLowerCase().trim();
+    // Helper to remove punctuation for mock search
+    const normalize = (str: string) => str.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+    const normalizedQuery = normalize(query);
 
     if (!supabase) {
       // Fallback to Mock Data if Supabase isn't configured
@@ -23,24 +26,33 @@ export const inventoryService = {
       if (!cleanQuery) return filteredInventory;
 
       return filteredInventory.filter(item =>
-        item.id.toLowerCase().includes(cleanQuery) ||
-        item.name.toLowerCase().includes(cleanQuery) ||
-        item.brand.toLowerCase().includes(cleanQuery)
+        normalize(item.id).includes(normalizedQuery) ||
+        normalize(item.name).includes(normalizedQuery) ||
+        normalize(item.brand).includes(normalizedQuery)
       );
     }
 
-    // Real Supabase Implementation
-    // Assumes table 'products' with columns matching Product interface
+    // Real Supabase Implementation using RPC for normalized search
     const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .not('id', 'like', '%.0')
-      .or(`id.ilike.%${cleanQuery}%,name.ilike.%${cleanQuery}%,brand.ilike.%${cleanQuery}%`)
-      .limit(50);
+      .rpc('search_products_normalized', { search_query: query });
 
     if (error) {
       console.error('Supabase error:', error);
-      return [];
+      // Fallback to standard search if RPC fails (e.g. function not created yet)
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('products')
+        .select('*')
+        .not('id', 'like', '%.0')
+        .or(`id.ilike.%${cleanQuery}%,name.ilike.%${cleanQuery}%,brand.ilike.%${cleanQuery}%`)
+        .limit(50);
+
+      if (fallbackError) return [];
+
+      return (fallbackData || []).map((p: any) => ({
+        ...p,
+        importQuantity: p.import_quantity,
+        expectedRestockDate: p.expected_restock_date
+      })) as Product[];
     }
 
     return data.map((p: any) => ({
@@ -75,6 +87,71 @@ export const inventoryService = {
       expectedRestockDate: p.expected_restock_date
     })) as Product[];
   },
+
+  /**
+   * Get total available items (sum of total stock across all products)
+   */
+  async getTotalAvailable(): Promise<number> {
+    if (!supabase) {
+      // Mock mode: sum total of mock inventory (excluding .0 ids)
+      return MOCK_INVENTORY.filter(item => !item.id.endsWith('.0'))
+        .reduce((sum, item) => sum + (item.total || 0), 0);
+    }
+    const { data, error } = await supabase
+      .from('products')
+      .select('total', { count: 'exact', head: false })
+      .not('id', 'like', '%.0');
+    if (error) {
+      console.error('Supabase error fetching total available:', error);
+      return 0;
+    }
+    // data is array of rows with total field
+    return (data as any[]).reduce((sum, row) => sum + (row.total || 0), 0);
+  },
+
+  /**
+   * Get top searched items based on reservation count.
+   * Returns array of { productId, productName, count } sorted descending.
+   */
+  async getTopSearched(limit = 5): Promise<Array<{ productId: string; productName: string; count: number }>> {
+    if (!supabase) {
+      // Mock mode: aggregate in-memory reservations
+      const countMap: Record<string, number> = {};
+      reservations.forEach(r => {
+        countMap[r.productId] = (countMap[r.productId] || 0) + 1;
+      });
+      const entries = Object.entries(countMap)
+        .map(([productId, count]) => {
+          const prod = MOCK_INVENTORY.find(p => p.id === productId);
+          return { productId, productName: prod?.name || productId, count };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+      return entries;
+    }
+    // Real Supabase: fetch reservations and aggregate client-side
+    const { data, error } = await supabase
+      .from('reservations')
+      .select('product_id, product_name')
+      .order('reserved_at', { ascending: false });
+    if (error) {
+      console.error('Supabase error fetching reservations for top search:', error);
+      return [];
+    }
+    const countMap: Record<string, { name: string; count: number }> = {};
+    (data as any[]).forEach(r => {
+      const pid = r.product_id;
+      if (!countMap[pid]) {
+        countMap[pid] = { name: r.product_name, count: 0 };
+      }
+      countMap[pid].count += 1;
+    });
+    const entries = Object.entries(countMap)
+      .map(([productId, { name, count }]) => ({ productId, productName: name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+    return entries;
+  }
 
   /**
    * Reserve a product

@@ -1,50 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>StockVision - Consulta de Estoque</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Estoque MCI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              200: '#99f6e4',
+              300: '#5eead4',
+              400: '#2dd4bf',
+              500: '#00bfa5', // Updated Teal matching logo base
+              600: '#009688',
+              700: '#0f766e',
+              800: '#115e59',
+              900: '#134e4a',
+              950: '#042f2e',
             },
-            colors: {
-              brand: {
-                50: '#f0fdfa',
-                100: '#ccfbf1',
-                200: '#99f6e4',
-                300: '#5eead4',
-                400: '#2dd4bf',
-                500: '#00bfa5', // Updated Teal matching logo base
-                600: '#009688',
-                700: '#0f766e',
-                800: '#115e59',
-                900: '#134e4a',
-                950: '#042f2e',
-              },
-              accent: {
-                300: '#bef264',
-                400: '#a3e635',
-                500: '#84cc16',
-                DEFAULT: '#98e05f', // Lime green from logo dot
-              }
+            accent: {
+              300: '#bef264',
+              400: '#a3e635',
+              500: '#84cc16',
+              DEFAULT: '#98e05f', // Lime green from logo dot
             }
           }
         }
       }
-    </script>
-    <style>
-      body {
-        background-color: #f8fafc;
-      }
-    </style>
+    }
+  </script>
+  <style>
+    body {
+      background-color: #f8fafc;
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -57,10 +58,12 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+  <link rel="stylesheet" href="/index.css">
 </head>
-  <body>
-    <div id="root"></div>
+
+<body>
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>
