@@ -7,16 +7,16 @@ import { Maintenance } from './pages/Maintenance';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
 import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut } from 'lucide-react';
+import { supabase } from './lib/supabase';
 
 type Tab = 'inventory' | 'reservations' | 'upload' | 'maintenance';
-
-import { supabase } from './lib/supabase';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('inventory');
   const [isMaster, setIsMaster] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'mock' | 'error'>('checking');
 
   useEffect(() => {
     // Check for persisted session
@@ -46,9 +46,27 @@ function App() {
 
     checkSession();
 
+    // Check connection status
+    const checkConnection = async () => {
+      if (!supabase) {
+        setConnectionStatus('mock');
+        return;
+      }
+      try {
+        const { count, error } = await supabase.from('products').select('*', { count: 'exact', head: true });
+        if (error) throw error;
+        setConnectionStatus('connected');
+      } catch (err) {
+        console.error('Connection check failed:', err);
+        setConnectionStatus('error');
+      }
+    };
+    checkConnection();
+
     // Listen for auth changes
     if (supabase) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      // @ts-ignore
+      const authListener = supabase.auth.onAuthStateChange((_event: any, session: any) => {
         if (session?.user?.email) {
           const userData = {
             id: session.user.id,
@@ -61,9 +79,17 @@ function App() {
           setUser(null);
           setIsMaster(false);
         }
-      });
+      }) as any;
 
-      return () => subscription.unsubscribe();
+      return () => {
+        if (authListener?.subscription?.unsubscribe) {
+          authListener.subscription.unsubscribe();
+        } else if (authListener?.data?.subscription?.unsubscribe) {
+          authListener.data.subscription.unsubscribe();
+        } else if (authListener?.unsubscribe) {
+          authListener.unsubscribe();
+        }
+      };
     }
   }, []);
 
@@ -133,6 +159,11 @@ function App() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <div className="hidden md:block text-right mr-2">
+                {connectionStatus === 'connected' && <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-200">● Online</span>}
+                {connectionStatus === 'mock' && <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full border border-orange-200">● Modo Mock</span>}
+                {connectionStatus === 'error' && <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full border border-red-200">● Erro Conexão</span>}
+              </div>
               <div className="hidden md:block text-right">
                 <div className="text-xs text-slate-400">Logado como</div>
                 <div className="text-sm font-semibold text-brand-700">{user.name || user.email}</div>
