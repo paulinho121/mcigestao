@@ -212,7 +212,7 @@ export const inventoryService = {
     // Real Supabase implementation
     // 1. Get current product data to check stock
     // Try exact ID first
-    let { data: product, error: fetchError } = await supabase
+    let { data: product } = await supabase
       .from('products')
       .select('*')
       .eq('id', productId)
@@ -220,7 +220,7 @@ export const inventoryService = {
 
     // If not found, try with .0 suffix
     if (!product) {
-      const { data: productWithSuffix, error: suffixError } = await supabase
+      const { data: productWithSuffix } = await supabase
         .from('products')
         .select('*')
         .eq('id', `${productId}.0`)
