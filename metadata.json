@@ -1,0 +1,5 @@
+{
+  "name": "StockVision",
+  "description": "A modern, high-performance inventory management dashboard designed for real-time stock checking across multiple warehouse locations. Features secure authentication and instant search capabilities.",
+  "requestFramePermissions": []
+}
