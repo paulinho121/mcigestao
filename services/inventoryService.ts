@@ -46,13 +46,19 @@ export const inventoryService = {
       // We don't filter .0 here anymore, we let cleanAndDeduplicate handle it
       const filteredInventory = cleanAndDeduplicate(MOCK_INVENTORY);
 
-      if (!cleanQuery) return filteredInventory;
+      if (!cleanQuery) {
+        // Sort by total descending
+        return filteredInventory.sort((a, b) => (b.total || 0) - (a.total || 0));
+      }
 
-      return filteredInventory.filter(item =>
+      const results = filteredInventory.filter(item =>
         normalize(item.id).includes(normalizedQuery) ||
         normalize(item.name).includes(normalizedQuery) ||
         normalize(item.brand).includes(normalizedQuery)
       );
+
+      // Sort results by total descending
+      return results.sort((a, b) => (b.total || 0) - (a.total || 0));
     }
 
     // Real Supabase Implementation
@@ -61,6 +67,7 @@ export const inventoryService = {
       .from('products')
       .select('*')
       .or(`id.ilike.%${cleanQuery}%,name.ilike.%${cleanQuery}%,brand.ilike.%${cleanQuery}%`)
+      .order('total', { ascending: false }) // Sort by quantity descending
       .limit(100); // Increased limit to reduce chance of missing items due to duplicates
 
     if (error) {
@@ -76,12 +83,15 @@ export const inventoryService = {
    */
   async getAllProducts(limit = 100): Promise<Product[]> {
     if (!supabase) {
-      return cleanAndDeduplicate(MOCK_INVENTORY).slice(0, limit);
+      // Sort mock data by total descending
+      const sortedMock = [...MOCK_INVENTORY].sort((a, b) => (b.total || 0) - (a.total || 0));
+      return cleanAndDeduplicate(sortedMock).slice(0, limit);
     }
 
     const { data, error } = await supabase
       .from('products')
       .select('*')
+      .order('total', { ascending: false }) // Sort by quantity descending
       .limit(limit);
 
     if (error) {
