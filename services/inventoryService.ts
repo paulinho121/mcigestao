@@ -61,7 +61,7 @@ export const inventoryService = {
       .from('products')
       .select('*')
       .or(`id.ilike.%${cleanQuery}%,name.ilike.%${cleanQuery}%,brand.ilike.%${cleanQuery}%`)
-      .limit(50);
+      .limit(100); // Increased limit to reduce chance of missing items due to duplicates
 
     if (error) {
       console.error('Supabase error:', error);
@@ -74,7 +74,7 @@ export const inventoryService = {
   /**
    * Fetch all products (with limit)
    */
-  async getAllProducts(limit = 50): Promise<Product[]> {
+  async getAllProducts(limit = 100): Promise<Product[]> {
     if (!supabase) {
       return cleanAndDeduplicate(MOCK_INVENTORY).slice(0, limit);
     }
@@ -394,15 +394,32 @@ export const inventoryService = {
   async uploadProducts(products: Product[]): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    // Sanitize and Deduplicate Products BEFORE anything else
+    // This ensures we don't upload "123.0" if "123" is intended, and we merge duplicates
+    const cleanMap = new Map<string, Product>();
+
+    products.forEach(p => {
+      // Remove .0 suffix from ID
+      const cleanId = p.id.endsWith('.0') ? p.id.slice(0, -2) : p.id;
+
+      // If we already have this ID, we might want to merge or just overwrite.
+      // For simplicity in this context, we'll overwrite, but in a real CSV upload 
+      // usually the last entry wins or they should be summed. 
+      // Here we assume the CSV is the source of truth for stock.
+      cleanMap.set(cleanId, { ...p, id: cleanId });
+    });
+
+    const cleanProducts = Array.from(cleanMap.values());
+
     if (!supabase) {
       // Mock mode: Update MOCK_INVENTORY
       console.warn('Supabase not configured. Running in mock mode.');
 
       // Clear existing mock data and replace with new data
       MOCK_INVENTORY.length = 0;
-      MOCK_INVENTORY.push(...products);
+      MOCK_INVENTORY.push(...cleanProducts);
 
-      console.log(`Mock upload: ${products.length} products loaded into memory`);
+      console.log(`Mock upload: ${cleanProducts.length} products loaded into memory`);
       return;
     }
 
@@ -431,10 +448,13 @@ export const inventoryService = {
       const reservationMap = new Map<string, { CE: number, SC: number, SP: number, total: number }>();
 
       activeReservations?.forEach(r => {
-        if (!reservationMap.has(r.product_id)) {
-          reservationMap.set(r.product_id, { CE: 0, SC: 0, SP: 0, total: 0 });
+        // Handle .0 in reservations too just in case
+        const cleanResId = r.product_id.endsWith('.0') ? r.product_id.slice(0, -2) : r.product_id;
+
+        if (!reservationMap.has(cleanResId)) {
+          reservationMap.set(cleanResId, { CE: 0, SC: 0, SP: 0, total: 0 });
         }
-        const entry = reservationMap.get(r.product_id)!;
+        const entry = reservationMap.get(cleanResId)!;
         if (r.branch === 'CE') entry.CE += r.quantity;
         if (r.branch === 'SC') entry.SC += r.quantity;
         if (r.branch === 'SP') entry.SP += r.quantity;
@@ -445,7 +465,7 @@ export const inventoryService = {
       const existingMap = new Map(existingProducts?.map(p => [p.id, p]) || []);
 
       // 3. Map products to match database schema
-      const dbProducts = products.map(p => {
+      const dbProducts = cleanProducts.map(p => {
         const existing = existingMap.get(p.id);
         const reservations = reservationMap.get(p.id) || { CE: 0, SC: 0, SP: 0, total: 0 };
 
@@ -480,7 +500,7 @@ export const inventoryService = {
         throw new Error(`Erro ao atualizar produtos: ${upsertError.message}`);
       }
 
-      console.log(`Successfully uploaded/updated ${products.length} products to Supabase`);
+      console.log(`Successfully uploaded/updated ${cleanProducts.length} products to Supabase`);
     } catch (error: any) {
       console.error('Upload error:', error);
       throw error;
