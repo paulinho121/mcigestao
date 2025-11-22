@@ -7,6 +7,7 @@ export interface Product {
   stock_sp: number; // SÃO PAULO
   total: number; // TOTAL
   reserved: number; // RESERVA
+  price?: number; // Preço de venda em reais
   importQuantity?: number; // Em Importação
   expectedRestockDate?: string; // Data Prevista Reposição (ISO format)
   observations?: string; // Observações de manutenção
@@ -33,4 +34,16 @@ export interface User {
 export interface AuthState {
   user: User | null;
   loading: boolean;
+}
+
+export interface SeasonalBackground {
+  id: string;
+  event_name: string;
+  start_date: string;
+  end_date: string;
+  background_url: string;
+  opacity: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }

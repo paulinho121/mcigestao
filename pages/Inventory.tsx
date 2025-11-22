@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, Mic, MicOff } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
 import { inventoryService } from '../services/inventoryService';
 import { Product } from '../types';
@@ -13,6 +13,42 @@ export const Inventory: React.FC<InventoryProps> = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [isListening, setIsListening] = useState(false);
+
+  const handleVoiceSearch = () => {
+    if (isListening) {
+      setIsListening(false);
+      window.speechSynthesis.cancel();
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Seu navegador não suporta pesquisa por voz.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'pt-BR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setSearchQuery(transcript);
+    };
+
+    recognition.start();
+  };
 
 
   // Debounce search input
@@ -60,16 +96,27 @@ export const Inventory: React.FC<InventoryProps> = () => {
             <input
               type="text"
               className="block w-full pl-14 pr-14 py-4 border-2 border-slate-200 rounded-2xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all text-lg shadow-sm group-hover:border-brand-200"
-              placeholder="Ex: 1896, Sony, Tripé..."
+              placeholder={isListening ? "Ouvindo..." : "Ex: 1896, Sony, Tripé..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               autoFocus
             />
-            {loading && (
-              <div className="absolute inset-y-0 right-0 pr-5 flex items-center pointer-events-none">
+            <div className="absolute inset-y-0 right-0 pr-5 flex items-center gap-2">
+              {loading ? (
                 <RefreshCw className="h-6 w-6 text-brand-500 animate-spin" />
-              </div>
-            )}
+              ) : (
+                <button
+                  onClick={handleVoiceSearch}
+                  className={`p-2 rounded-full transition-colors ${isListening
+                      ? 'text-red-500 bg-red-50 hover:bg-red-100'
+                      : 'text-slate-400 hover:text-brand-500 hover:bg-slate-50'
+                    }`}
+                  title="Pesquisa por voz"
+                >
+                  {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
