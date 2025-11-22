@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Save, Calendar, Package as PackageIcon } from 'lucide-react';
+import { Search, Save, Calendar, Package as PackageIcon, Trash2 } from 'lucide-react';
 import { Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
 
@@ -63,6 +63,19 @@ export const ImportManagement: React.FC<ImportManagementProps> = () => {
         if (!product) return;
 
         const updatedProduct = { ...product, expectedRestockDate: value || undefined };
+
+        setEditedProducts(prev => new Map(prev).set(productId, updatedProduct));
+    };
+
+    const handleRemoveFromImport = (productId: string) => {
+        const product = products.find(p => p.id === productId);
+        if (!product) return;
+
+        const updatedProduct = {
+            ...product,
+            importQuantity: 0,
+            expectedRestockDate: null
+        };
 
         setEditedProducts(prev => new Map(prev).set(productId, updatedProduct));
     };
@@ -192,12 +205,16 @@ export const ImportManagement: React.FC<ImportManagementProps> = () => {
                                         <th className="px-4 py-3 text-center font-semibold text-slate-700 bg-blue-50">
                                             Data Prevista
                                         </th>
+                                        <th className="px-4 py-3 text-center font-semibold text-slate-700 bg-blue-50">
+                                            Ações
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredProducts.map((product) => {
                                         const displayProduct = getDisplayProduct(product);
                                         const isEdited = editedProducts.has(product.id);
+                                        const hasImportData = (displayProduct.importQuantity && displayProduct.importQuantity > 0) || displayProduct.expectedRestockDate;
 
                                         return (
                                             <tr
@@ -231,6 +248,17 @@ export const ImportManagement: React.FC<ImportManagementProps> = () => {
                                                             className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                                                         />
                                                     </div>
+                                                </td>
+                                                <td className="px-4 py-3 bg-blue-50/50 text-center">
+                                                    {hasImportData && (
+                                                        <button
+                                                            onClick={() => handleRemoveFromImport(product.id)}
+                                                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                                            title="Remover da importação"
+                                                        >
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );

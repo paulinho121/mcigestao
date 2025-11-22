@@ -4,12 +4,14 @@ import { Inventory } from './pages/Inventory';
 import { Reservations } from './pages/Reservations';
 import { Upload } from './pages/Upload';
 import { Maintenance } from './pages/Maintenance';
+import { InImport } from './pages/InImport';
+import { ImportManagement } from './pages/ImportManagement';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
-import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut } from 'lucide-react';
+import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
-type Tab = 'inventory' | 'reservations' | 'upload' | 'maintenance';
+type Tab = 'inventory' | 'reservations' | 'in_import' | 'upload' | 'maintenance' | 'import_management';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -202,6 +204,17 @@ function App() {
               <span className="hidden sm:inline">Reservas</span>
               <span className="sm:hidden text-xs">Reservas</span>
             </button>
+            <button
+              onClick={() => setActiveTab('in_import')}
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'in_import'
+                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                }`}
+            >
+              <Ship className="w-5 h-5" />
+              <span className="hidden sm:inline">Em Importação</span>
+              <span className="sm:hidden text-xs">Importação</span>
+            </button>
 
             {/* Master User Only Tabs */}
             {isMaster && (
@@ -228,6 +241,17 @@ function App() {
                   <span className="hidden sm:inline">Manutenção</span>
                   <span className="sm:hidden text-xs">Manutenção</span>
                 </button>
+                <button
+                  onClick={() => setActiveTab('import_management')}
+                  className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'import_management'
+                    ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                    }`}
+                >
+                  <Container className="w-5 h-5" />
+                  <span className="hidden sm:inline">Gestão Importação</span>
+                  <span className="sm:hidden text-xs">Gest. Import.</span>
+                </button>
               </>
             )}
 
@@ -239,8 +263,10 @@ function App() {
       {/* Content */}
       {activeTab === 'inventory' && <Inventory userEmail={user.email} />}
       {activeTab === 'reservations' && <Reservations userEmail={user.email} userName={user.name} isMasterUser={isMaster} />}
+      {activeTab === 'in_import' && <InImport />}
       {activeTab === 'upload' && <Upload />}
       {activeTab === 'maintenance' && <Maintenance />}
+      {activeTab === 'import_management' && <ImportManagement />}
     </div>
   );
 }

@@ -9,7 +9,7 @@ export interface Product {
   reserved: number; // RESERVA
   price?: number; // Preço de venda em reais
   importQuantity?: number; // Em Importação
-  expectedRestockDate?: string; // Data Prevista Reposição (ISO format)
+  expectedRestockDate?: string | null; // Data Prevista Reposição (ISO format)
   observations?: string; // Observações de manutenção
 }
 
