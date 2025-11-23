@@ -46,79 +46,143 @@ export const InImport: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Products Table */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    {loading ? (
-                        <div className="p-12 text-center">
-                            <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4"></div>
-                            <p className="text-slate-600">Carregando dados de importação...</p>
-                        </div>
-                    ) : products.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                            <p className="text-slate-600">
-                                Nenhum produto em importação no momento
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="bg-slate-50 border-b border-slate-200">
-                                    <tr>
-                                        <th className="px-6 py-4 text-left font-semibold text-slate-700">Produto</th>
-                                        <th className="px-6 py-4 text-center font-semibold text-slate-700">Marca</th>
-                                        <th className="px-6 py-4 text-center font-semibold text-slate-700">Qtd. Chegando</th>
-                                        <th className="px-6 py-4 text-center font-semibold text-slate-700">Previsão</th>
-                                        <th className="px-6 py-4 text-center font-semibold text-slate-700">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {products.map((product) => (
-                                        <tr key={product.id} className="hover:bg-slate-50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center">
-                                                    <div>
-                                                        <div className="font-bold text-slate-900">{product.name}</div>
-                                                        <div className="text-sm font-mono text-slate-500">Ref: {product.id}</div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                                                    {product.brand}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
+                {/* Products - Responsive Layout */}
+                {loading ? (
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+                        <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4"></div>
+                        <p className="text-slate-600">Carregando dados de importação...</p>
+                    </div>
+                ) : products.length === 0 ? (
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
+                        <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                        <p className="text-slate-600">
+                            Nenhum produto em importação no momento
+                        </p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Mobile Cards - Hidden on desktop */}
+                        <div className="block lg:hidden space-y-4">
+                            {products.map((product) => (
+                                <div key={product.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                                    <div className="space-y-3">
+                                        {/* Product Name and Ref */}
+                                        <div>
+                                            <div className="font-bold text-slate-900 text-base leading-snug mb-1">
+                                                {product.name}
+                                            </div>
+                                            <div className="text-xs font-mono text-slate-500">
+                                                Ref: {product.id}
+                                            </div>
+                                        </div>
+
+                                        {/* Brand */}
+                                        <div className="flex items-center justify-between py-2 border-t border-slate-100">
+                                            <span className="text-sm text-slate-600 font-medium">Marca</span>
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                                                {product.brand}
+                                            </span>
+                                        </div>
+
+                                        {/* Quantity */}
+                                        <div className="flex items-center justify-between py-2 border-t border-slate-100">
+                                            <span className="text-sm text-slate-600 font-medium">Qtd. Chegando</span>
+                                            <div>
                                                 <span className="font-bold text-blue-600 text-lg">
                                                     {product.importQuantity || 0}
                                                 </span>
                                                 <span className="text-xs text-slate-400 ml-1">unid.</span>
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                {product.expectedRestockDate ? (
-                                                    <div className="flex items-center justify-center text-slate-700 gap-2">
-                                                        <Calendar className="w-4 h-4 text-slate-400" />
-                                                        <span>
-                                                            {new Date(product.expectedRestockDate).toLocaleDateString('pt-BR')}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-slate-400 text-sm italic">Não informada</span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                                                    <Ship className="w-3 h-3 mr-1.5" />
-                                                    Em Trânsito
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                            </div>
+                                        </div>
+
+                                        {/* Expected Date */}
+                                        <div className="flex items-center justify-between py-2 border-t border-slate-100">
+                                            <span className="text-sm text-slate-600 font-medium">Previsão</span>
+                                            {product.expectedRestockDate ? (
+                                                <div className="flex items-center text-slate-700 gap-1.5">
+                                                    <Calendar className="w-4 h-4 text-slate-400" />
+                                                    <span className="text-sm">
+                                                        {new Date(product.expectedRestockDate).toLocaleDateString('pt-BR')}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-400 text-sm italic">Não informada</span>
+                                            )}
+                                        </div>
+
+                                        {/* Status */}
+                                        <div className="pt-2 border-t border-slate-100">
+                                            <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100 w-full justify-center">
+                                                <Ship className="w-4 h-4 mr-2" />
+                                                Em Trânsito
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    )}
-                </div>
+
+                        {/* Desktop Table - Hidden on mobile */}
+                        <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-slate-50 border-b border-slate-200">
+                                        <tr>
+                                            <th className="px-6 py-4 text-left font-semibold text-slate-700">Produto</th>
+                                            <th className="px-6 py-4 text-center font-semibold text-slate-700">Marca</th>
+                                            <th className="px-6 py-4 text-center font-semibold text-slate-700">Qtd. Chegando</th>
+                                            <th className="px-6 py-4 text-center font-semibold text-slate-700">Previsão</th>
+                                            <th className="px-6 py-4 text-center font-semibold text-slate-700">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {products.map((product) => (
+                                            <tr key={product.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center">
+                                                        <div>
+                                                            <div className="font-bold text-slate-900">{product.name}</div>
+                                                            <div className="text-sm font-mono text-slate-500">Ref: {product.id}</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                                                        {product.brand}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className="font-bold text-blue-600 text-lg">
+                                                        {product.importQuantity || 0}
+                                                    </span>
+                                                    <span className="text-xs text-slate-400 ml-1">unid.</span>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    {product.expectedRestockDate ? (
+                                                        <div className="flex items-center justify-center text-slate-700 gap-2">
+                                                            <Calendar className="w-4 h-4 text-slate-400" />
+                                                            <span>
+                                                                {new Date(product.expectedRestockDate).toLocaleDateString('pt-BR')}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-slate-400 text-sm italic">Não informada</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                                        <Ship className="w-3 h-3 mr-1.5" />
+                                                        Em Trânsito
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );
