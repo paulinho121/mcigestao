@@ -245,12 +245,14 @@ export const inventoryService = {
 
     const branchColumn = `stock_${branch.toLowerCase()}`;
     const currentStock = product[branchColumn];
-
     if (quantity > currentStock) {
       throw new Error(`Estoque insuficiente na filial ${branch}. Disponível: ${currentStock}`);
     }
 
-    // 2. Create reservation
+    // 2. Create reservation with 7-day expiration
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
     const { data: reservationData, error: reservationError } = await supabase
       .from('reservations')
       .insert({
@@ -261,7 +263,8 @@ export const inventoryService = {
         branch,
         reserved_by: reservedBy,
         reserved_by_name: reservedByName,
-        status: 'active'
+        status: 'active',
+        expires_at: expiresAt.toISOString()
       })
       .select()
       .single();
@@ -317,6 +320,8 @@ export const inventoryService = {
     const { data, error } = await supabase
       .from('reservations')
       .select('*')
+      .eq('status', 'active')
+      .gt('expires_at', new Date().toISOString())
       .order('reserved_at', { ascending: false });
 
     if (error) {
@@ -336,6 +341,42 @@ export const inventoryService = {
       reservedAt: new Date(r.reserved_at)
     }));
   },
+  /**
+   * Get reservations for a specific product
+   */
+  async getReservationsByProduct(productId: string): Promise<Reservation[]> {
+    if (!supabase) {
+      return reservations.filter(r =>
+        r.productId === productId || r.productId === `${productId}.0`
+      );
+    }
+
+    const { data, error } = await supabase
+      .from('reservations')
+      .select('*')
+      .or(`product_id.eq.${productId},product_id.eq.${productId}.0`)
+      .eq('status', 'active')
+      .gt('expires_at', new Date().toISOString())
+      .order('reserved_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching reservations for product:', error);
+      return [];
+    }
+
+    return data.map(r => ({
+      id: r.id,
+      productId: r.product_id,
+      productName: r.product_name,
+      productBrand: r.product_brand,
+      quantity: r.quantity,
+      branch: r.branch as 'CE' | 'SC' | 'SP',
+      reservedBy: r.reserved_by,
+      reservedByName: r.reserved_by_name,
+      reservedAt: new Date(r.reserved_at)
+    }));
+  },
+
 
   /**
    * Cancel a reservation
@@ -673,6 +714,44 @@ export const inventoryService = {
     } catch (error: any) {
       console.error('Observations update error:', error);
       throw error;
+    }
+  },
+
+  /**
+   * Cleanup expired reservations (calls SQL function)
+   */
+  async cleanupExpiredReservations(): Promise<number> {
+    if (!supabase) {
+      // Mock mode: filter and remove expired reservations
+      const now = new Date();
+      const expiredReservations = reservations.filter(r => {
+        const expiresAt = new Date(r.reservedAt);
+        expiresAt.setDate(expiresAt.getDate() + 7);
+        return expiresAt < now;
+      });
+
+      // Cancel each expired reservation
+      for (const r of expiredReservations) {
+        await this.cancelReservation(r.id);
+      }
+
+      return expiredReservations.length;
+    }
+
+    // Real Supabase: Call the cleanup function
+    try {
+      const { data, error } = await supabase.rpc('cleanup_expired_reservations');
+
+      if (error) {
+        console.error('Error cleaning up expired reservations:', error);
+        return 0;
+      }
+
+      console.log(`Cleaned up ${data || 0} expired reservations`);
+      return data || 0;
+    } catch (error: any) {
+      console.error('Cleanup error:', error);
+      return 0;
     }
   }
 };

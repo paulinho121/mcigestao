@@ -11,9 +11,8 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [reservations, setReservations] = useState<Reservation[]>([]);
-    const availableStock = product.total - (product.reserved || 0);
-    const isLowStock = availableStock < 5 && availableStock > 0;
-    const isOutOfStock = availableStock === 0;
+    const isLowStock = product.total < 5 && product.total > 0;
+    const isOutOfStock = product.total === 0;
 
     // Fetch reservations when card is expanded
     useEffect(() => {
@@ -83,16 +82,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                         <Box className="w-4 h-4 mr-1 text-brand-600" />
                         <span className="text-xl font-bold text-slate-900">{product.total}</span>
                     </div>
-                    {product.reserved > 0 && (
-                        <div className="mt-1 space-y-0.5">
-                            <div className="text-xs text-orange-600 font-medium">
-                                Reservado: {product.reserved} un
-                            </div>
-                            <div className="text-xs text-green-700 font-semibold">
-                                Disponível: {availableStock} un
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 <div className="text-right flex-shrink-0">
