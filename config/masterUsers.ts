@@ -3,6 +3,7 @@
 
 export const MASTER_USERS = [
     'paulofernandoautomacao@gmail.com',
+    'felipe@mcistore.com.br',
     // Add more master user emails below:
     // 'another.user@example.com',
 ];
