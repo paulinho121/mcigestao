@@ -463,21 +463,27 @@ export const InImport: React.FC = () => {
                                             </div>
 
                                             {searchResults.length > 0 && (
-                                                <div className="space-y-2 max-h-64 overflow-y-auto">
+                                                <div className="space-y-2 max-h-96 overflow-y-auto">
                                                     {searchResults.map((product) => (
                                                         <div
                                                             key={product.id}
-                                                            className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100"
+                                                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 gap-3"
                                                         >
-                                                            <div>
-                                                                <div className="font-semibold text-slate-900">{product.name}</div>
-                                                                <div className="text-sm text-slate-600">
-                                                                    {product.id} - {product.brand}
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="font-semibold text-slate-900 text-sm sm:text-base break-words">
+                                                                    {product.name}
+                                                                </div>
+                                                                <div className="text-xs sm:text-sm text-slate-600 mt-1">
+                                                                    <span className="font-mono bg-slate-200 px-2 py-0.5 rounded">
+                                                                        {product.id}
+                                                                    </span>
+                                                                    <span className="mx-2">•</span>
+                                                                    <span>{product.brand}</span>
                                                                 </div>
                                                             </div>
                                                             <button
                                                                 onClick={() => handleOpenAddModal(product)}
-                                                                className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                                                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium whitespace-nowrap w-full sm:w-auto"
                                                             >
                                                                 Adicionar
                                                             </button>
@@ -597,6 +603,6 @@ export const InImport: React.FC = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
