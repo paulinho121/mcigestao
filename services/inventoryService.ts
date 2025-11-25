@@ -901,5 +901,36 @@ export const inventoryService = {
     }
 
     return true;
+  },
+
+  /**
+   * Delete Import Project
+   */
+  async deleteImportProject(projectId: string): Promise<boolean> {
+    if (!supabase) return false;
+
+    // First, delete all items in the project
+    const { error: itemsError } = await supabase
+      .from('import_items')
+      .delete()
+      .eq('project_id', projectId);
+
+    if (itemsError) {
+      console.error('Error deleting project items:', itemsError);
+      return false;
+    }
+
+    // Then, delete the project itself
+    const { error: projectError } = await supabase
+      .from('import_projects')
+      .delete()
+      .eq('id', projectId);
+
+    if (projectError) {
+      console.error('Error deleting project:', projectError);
+      return false;
+    }
+
+    return true;
   }
 };

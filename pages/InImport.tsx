@@ -163,6 +163,26 @@ export const InImport: React.FC = () => {
         }
     };
 
+    const handleDeleteProject = async (projectId: string) => {
+        if (!confirm('Tem certeza que deseja excluir este projeto? Todos os itens serão removidos.')) {
+            return;
+        }
+
+        try {
+            const success = await inventoryService.deleteImportProject(projectId);
+            if (success) {
+                // Clear selection if deleted project was selected
+                if (selectedProject?.id === projectId) {
+                    setSelectedProject(null);
+                    setItems([]);
+                }
+                await loadProjects();
+            }
+        } catch (error) {
+            console.error('Failed to delete project', error);
+        }
+    };
+
 
     return (
         <div className="min-h-screen bg-slate-50 p-6">
@@ -382,14 +402,29 @@ export const InImport: React.FC = () => {
                                             {projects.map((project) => (
                                                 <div
                                                     key={project.id}
-                                                    onClick={() => handleSelectProject(project)}
-                                                    className={`p-3 rounded-lg cursor-pointer transition-colors ${selectedProject?.id === project.id
+                                                    className={`p-3 rounded-lg transition-colors ${selectedProject?.id === project.id
                                                         ? 'bg-blue-50 border-2 border-blue-500'
                                                         : 'bg-slate-50 hover:bg-slate-100 border-2 border-transparent'
                                                         }`}
                                                 >
-                                                    <div className="font-semibold text-slate-900">{project.manufacturer}</div>
-                                                    <div className="text-sm text-slate-600">{project.importNumber}</div>
+                                                    <div
+                                                        onClick={() => handleSelectProject(project)}
+                                                        className="cursor-pointer flex-1"
+                                                    >
+                                                        <div className="font-semibold text-slate-900">{project.manufacturer}</div>
+                                                        <div className="text-sm text-slate-600">{project.importNumber}</div>
+                                                    </div>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteProject(project.id);
+                                                        }}
+                                                        className="mt-2 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors w-full flex items-center justify-center gap-2"
+                                                        title="Excluir projeto"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                        <span className="text-sm">Excluir Projeto</span>
+                                                    </button>
                                                 </div>
                                             ))}
                                         </div>
