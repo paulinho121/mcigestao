@@ -207,9 +207,9 @@ export const InImport: React.FC = () => {
 
                 {/* VIEW TAB */}
                 {subTab === 'view' && (
-                    <div className="grid grid-cols-12 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         {/* Projects List */}
-                        <div className="col-span-4">
+                        <div className="lg:col-span-4">
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
                                 <h3 className="font-semibold text-slate-900 mb-4">Projetos</h3>
                                 {loading ? (
@@ -246,7 +246,7 @@ export const InImport: React.FC = () => {
                         </div>
 
                         {/* Project Items */}
-                        <div className="col-span-8">
+                        <div className="lg:col-span-8">
                             {selectedProject && (
                                 <div className="bg-white rounded-xl shadow-sm border border-slate-200">
                                     <div className="p-4 border-b border-slate-200">
@@ -267,31 +267,31 @@ export const InImport: React.FC = () => {
                                                 <p>Nenhum item neste projeto</p>
                                             </div>
                                         ) : (
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full">
+                                            <div className="overflow-x-auto -mx-4 sm:mx-0">
+                                                <table className="w-full min-w-[640px]">
                                                     <thead className="bg-slate-50 border-b border-slate-200">
                                                         <tr>
-                                                            <th className="px-4 py-3 text-left font-semibold text-slate-700">Código</th>
-                                                            <th className="px-4 py-3 text-left font-semibold text-slate-700">Produto</th>
-                                                            <th className="px-4 py-3 text-left font-semibold text-slate-700">Marca</th>
-                                                            <th className="px-4 py-3 text-center font-semibold text-slate-700">Qtd</th>
-                                                            <th className="px-4 py-3 text-left font-semibold text-slate-700">Previsão</th>
-                                                            <th className="px-4 py-3 text-left font-semibold text-slate-700">Obs</th>
+                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 text-xs sm:text-sm">Código</th>
+                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 text-xs sm:text-sm">Produto</th>
+                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 text-xs sm:text-sm hidden sm:table-cell">Marca</th>
+                                                            <th className="px-3 sm:px-4 py-3 text-center font-semibold text-slate-700 text-xs sm:text-sm">Qtd</th>
+                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 text-xs sm:text-sm hidden md:table-cell">Previsão</th>
+                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 text-xs sm:text-sm hidden lg:table-cell">Obs</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-slate-100">
                                                         {items.map((item) => (
                                                             <tr key={item.id} className="hover:bg-slate-50">
-                                                                <td className="px-4 py-3 font-mono text-slate-900">{item.productId}</td>
-                                                                <td className="px-4 py-3 text-slate-900">{item.productName}</td>
-                                                                <td className="px-4 py-3 text-slate-600">{item.productBrand}</td>
-                                                                <td className="px-4 py-3 text-center">
-                                                                    <span className="font-bold text-blue-600">{item.quantity}</span>
+                                                                <td className="px-3 sm:px-4 py-3 font-mono text-slate-900 text-xs sm:text-sm">{item.productId}</td>
+                                                                <td className="px-3 sm:px-4 py-3 text-slate-900 text-xs sm:text-sm">{item.productName}</td>
+                                                                <td className="px-3 sm:px-4 py-3 text-slate-600 text-xs sm:text-sm hidden sm:table-cell">{item.productBrand}</td>
+                                                                <td className="px-3 sm:px-4 py-3 text-center">
+                                                                    <span className="font-bold text-blue-600 text-xs sm:text-sm">{item.quantity}</span>
                                                                 </td>
-                                                                <td className="px-4 py-3 text-slate-600 text-sm">
+                                                                <td className="px-3 sm:px-4 py-3 text-slate-600 text-xs sm:text-sm hidden md:table-cell">
                                                                     {item.expectedDate ? new Date(item.expectedDate).toLocaleDateString('pt-BR') : '-'}
                                                                 </td>
-                                                                <td className="px-4 py-3 text-slate-600 text-sm truncate max-w-xs" title={item.observation}>
+                                                                <td className="px-3 sm:px-4 py-3 text-slate-600 text-xs sm:text-sm truncate max-w-xs hidden lg:table-cell" title={item.observation}>
                                                                     {item.observation || '-'}
                                                                 </td>
                                                             </tr>
@@ -363,9 +363,9 @@ export const InImport: React.FC = () => {
                         )}
 
                         {/* Manage Projects */}
-                        <div className="grid grid-cols-12 gap-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                             {/* Projects List */}
-                            <div className="col-span-4">
+                            <div className="lg:col-span-4">
                                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
                                     <h3 className="font-semibold text-slate-900 mb-4">Projetos</h3>
                                     {loading ? (
@@ -398,7 +398,7 @@ export const InImport: React.FC = () => {
                             </div>
 
                             {/* Add Products to Project */}
-                            <div className="col-span-8">
+                            <div className="lg:col-span-8">
                                 {selectedProject && (
                                     <div className="space-y-4">
                                         {/* Search Products */}
