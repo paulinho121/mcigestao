@@ -806,40 +806,23 @@ export const inventoryService = {
   /**
    * Add item to Import Project
    */
-  async addImportItem(projectId: string, productId: string, quantity: number, expectedDate?: string, observation?: string): Promise<ImportItem | null> {
+  async addImportItem(projectId: string, productId: string, quantity: number): Promise<ImportItem | null> {
     if (!supabase) return null;
 
     const { data, error } = await supabase
       .from('import_items')
-      .insert({
-        project_id: projectId,
-        product_id: productId,
-        quantity,
-        expected_date: expectedDate,
-        observation: observation
-      })
+      .insert({ project_id: projectId, product_id: productId, quantity })
       .select()
       .single();
 
     if (error) throw new Error(error.message);
-
-    // Fetch product details
-    const { data: product } = await supabase
-      .from('products')
-      .select('name, brand')
-      .eq('id', productId)
-      .single();
 
     return {
       id: data.id,
       projectId: data.project_id,
       productId: data.product_id,
       quantity: data.quantity,
-      createdAt: data.created_at,
-      expectedDate: data.expected_date,
-      observation: data.observation,
-      productName: product?.name || 'Unknown Product',
-      productBrand: product?.brand || 'Unknown Brand'
+      createdAt: data.created_at
     };
   },
 
@@ -877,29 +860,355 @@ export const inventoryService = {
       productId: item.product_id,
       quantity: item.quantity,
       createdAt: item.created_at,
-      expectedDate: item.expected_date,
-      observation: item.observation,
       productName: productMap.get(item.product_id)?.name || 'Unknown Product',
       productBrand: productMap.get(item.product_id)?.brand || 'Unknown Brand'
     }));
+  }
+};
+
+if (r.branch === 'SC') entry.SC += r.quantity;
+if (r.branch === 'SP') entry.SP += r.quantity;
+entry.total += r.quantity;
+  });
+
+// Create a map for quick lookup of existing products
+const existingMap = new Map(existingProducts?.map(p => [p.id, p]) || []);
+
+// 3. Map products to match database schema
+const dbProducts = cleanProducts.map(p => {
+  const existing = existingMap.get(p.id);
+  const reservations = reservationMap.get(p.id) || { CE: 0, SC: 0, SP: 0, total: 0 };
+
+  // Calculate available stock (Physical from CSV - Reserved)
+  const stock_ce = Math.max(0, p.stock_ce - reservations.CE);
+  const stock_sc = Math.max(0, p.stock_sc - reservations.SC);
+  const stock_sp = Math.max(0, p.stock_sp - reservations.SP);
+  const total = stock_ce + stock_sc + stock_sp;
+
+  return {
+    id: p.id,
+    name: p.name,
+    brand: p.brand,
+    stock_ce,
+    stock_sc,
+    stock_sp,
+    total,
+    // Preserve existing data
+    reserved: reservations.total,
+    import_quantity: existing?.import_quantity ?? p.importQuantity,
+    expected_restock_date: existing?.expected_restock_date ?? p.expectedRestockDate,
+    observations: existing?.observations ?? p.observations
+  };
+});
+
+// 4. Upsert (Insert or Update) products
+const { error: upsertError } = await supabase
+  .from('products')
+  .upsert(dbProducts, { onConflict: 'id' });
+
+if (upsertError) {
+  throw new Error(`Erro ao atualizar produtos: ${upsertError.message}`);
+}
+
+console.log(`Successfully uploaded/updated ${cleanProducts.length} products to Supabase`);
+    } catch (error: any) {
+  console.error('Upload error:', error);
+  throw error;
+}
   },
 
   /**
-   * Remove item from Import Project
+   * Update import information for products
    */
-  async removeImportItem(itemId: string): Promise<boolean> {
-    if (!supabase) return false;
+  async updateImportInfo(products: Product[]): Promise < void> {
+  await new Promise(resolve => setTimeout(resolve, 300));
 
-    const { error } = await supabase
-      .from('import_items')
-      .delete()
-      .eq('id', itemId);
+  if(!supabase) {
+    // Mock mode: Update MOCK_INVENTORY
+    console.warn('Supabase not configured. Updating mock data.');
 
-    if (error) {
-      console.error(error);
-      return false;
+    products.forEach(updatedProduct => {
+      const index = MOCK_INVENTORY.findIndex(p => p.id === updatedProduct.id);
+      if (index !== -1) {
+        MOCK_INVENTORY[index] = { ...MOCK_INVENTORY[index], ...updatedProduct };
+      }
+    });
+
+    console.log(`Mock update: ${products.length} products updated`);
+    return;
+  }
+
+    // Real Supabase Implementation
+    try {
+    // Update each product
+    for(const product of products) {
+      const { error } = await supabase
+        .from('products')
+        .update({
+          import_quantity: product.importQuantity,
+          expected_restock_date: product.expectedRestockDate
+        })
+        .eq('id', product.id);
+
+      if (error) {
+        throw new Error(`Erro ao atualizar produto ${product.id}: ${error.message}`);
+      }
     }
 
-    return true;
+      console.log(`Successfully updated ${products.length} products in Supabase`);
+  } catch(error: any) {
+    console.error('Update error:', error);
+    throw error;
+  }
+},
+
+  /**
+   * Adjust stock quantities for a product
+   */
+  async adjustStock(productId: string, adjustments: { ce: number; sc: number; sp: number }): Promise < void> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    if(!supabase) {
+      // Mock mode: Update MOCK_INVENTORY
+      console.warn('Supabase not configured. Updating mock data.');
+
+      const product = MOCK_INVENTORY.find(p => p.id === productId);
+      if (product) {
+        product.stock_ce = Math.max(0, product.stock_ce + adjustments.ce);
+        product.stock_sc = Math.max(0, product.stock_sc + adjustments.sc);
+        product.stock_sp = Math.max(0, product.stock_sp + adjustments.sp);
+        product.total = product.stock_ce + product.stock_sc + product.stock_sp;
+      }
+
+      console.log(`Mock update: Stock adjusted for product ${productId}`);
+      return;
+    }
+
+    // Real Supabase Implementation
+    try {
+      // First, get current stock
+      const { data: currentProduct, error: fetchError } = await supabase
+        .from('products')
+        .select('stock_ce, stock_sc, stock_sp')
+        .eq('id', productId)
+        .single();
+
+      if(fetchError) {
+        throw new Error(`Erro ao buscar produto ${productId}: ${fetchError.message}`);
+      }
+
+      // Calculate new stock values
+      const newStockCe = Math.max(0, currentProduct.stock_ce + adjustments.ce);
+      const newStockSc = Math.max(0, currentProduct.stock_sc + adjustments.sc);
+      const newStockSp = Math.max(0, currentProduct.stock_sp + adjustments.sp);
+      const newTotal = newStockCe + newStockSc + newStockSp;
+
+      // Update stock
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({
+          stock_ce: newStockCe,
+          stock_sc: newStockSc,
+          stock_sp: newStockSp,
+          total: newTotal
+        })
+        .eq('id', productId);
+
+      if(updateError) {
+        throw new Error(`Erro ao ajustar estoque do produto ${productId}: ${updateError.message}`);
+      }
+
+      console.log(`Successfully adjusted stock for product ${productId}`);
+    } catch(error: any) {
+      console.error('Stock adjustment error:', error);
+      throw error;
+    }
+  },
+
+    /**
+     * Update observations for a product
+     */
+    async updateObservations(productId: string, observations: string): Promise < void> {
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      if(!supabase) {
+        // Mock mode: Update MOCK_INVENTORY
+        console.warn('Supabase not configured. Updating mock data.');
+
+        const product = MOCK_INVENTORY.find(p => p.id === productId);
+        if (product) {
+          product.observations = observations;
+        }
+
+        console.log(`Mock update: Observations updated for product ${productId}`);
+        return;
+      }
+
+    // Real Supabase Implementation
+    try {
+        const { error } = await supabase
+          .from('products')
+          .update({ observations })
+          .eq('id', productId);
+
+        if(error) {
+          throw new Error(`Erro ao atualizar observações do produto ${productId}: ${error.message}`);
+        }
+
+      console.log(`Successfully updated observations for product ${productId}`);
+      } catch(error: any) {
+        console.error('Observations update error:', error);
+        throw error;
+      }
+    },
+
+      /**
+       * Cleanup expired reservations (calls SQL function)
+       */
+      async cleanupExpiredReservations(): Promise < number > {
+        if(!supabase) {
+          // Mock mode: filter and remove expired reservations
+          const now = new Date();
+          const expiredReservations = reservations.filter(r => {
+            const expiresAt = new Date(r.reservedAt);
+            expiresAt.setDate(expiresAt.getDate() + 7);
+            return expiresAt < now;
+          });
+
+          // Cancel each expired reservation
+          for (const r of expiredReservations) {
+            await this.cancelReservation(r.id);
+          }
+
+          return expiredReservations.length;
+        }
+
+    // Real Supabase: Call the cleanup function
+    try {
+          const { data, error } = await supabase.rpc('cleanup_expired_reservations');
+
+          if(error) {
+            console.error('Error cleaning up expired reservations:', error);
+            return 0;
+          }
+
+      console.log(`Cleaned up ${data || 0} expired reservations`);
+          return data || 0;
+        } catch(error: any) {
+          console.error('Cleanup error:', error);
+          return 0;
+        }
+      },
+
+        /**
+         * Create a new Import Project
+         */
+        async createImportProject(manufacturer: string, importNumber: string): Promise < ImportProject | null > {
+          if(!supabase) return null;
+
+          const { data, error } = await supabase
+            .from('import_projects')
+            .insert({ manufacturer, import_number: importNumber })
+            .select()
+            .single();
+
+          if(error) throw new Error(error.message);
+
+          return {
+            id: data.id,
+            manufacturer: data.manufacturer,
+            importNumber: data.import_number,
+            status: data.status,
+            createdAt: data.created_at
+          };
+        },
+
+          /**
+           * Get all Import Projects
+           */
+          async getImportProjects(): Promise < ImportProject[] > {
+            if(!supabase) return [];
+
+            const { data, error } = await supabase
+              .from('import_projects')
+              .select('*')
+              .order('created_at', { ascending: false });
+
+            if(error) {
+              console.error(error);
+              return [];
+            }
+
+    return data.map((p: any) => ({
+              id: p.id,
+              manufacturer: p.manufacturer,
+              importNumber: p.import_number,
+              status: p.status,
+              createdAt: p.created_at
+            }));
+          },
+
+            /**
+             * Add item to Import Project
+             */
+            async addImportItem(projectId: string, productId: string, quantity: number): Promise < ImportItem | null > {
+              if(!supabase) return null;
+
+              const { data, error } = await supabase
+                .from('import_items')
+                .insert({ project_id: projectId, product_id: productId, quantity })
+                .select()
+                .single();
+
+              if(error) throw new Error(error.message);
+
+              return {
+                id: data.id,
+                projectId: data.project_id,
+                productId: data.product_id,
+                quantity: data.quantity,
+                createdAt: data.created_at
+              };
+            },
+
+              /**
+               * Get items for a project
+               */
+              async getImportItems(projectId: string): Promise < ImportItem[] > {
+                if(!supabase) return [];
+
+                // 1. Fetch items
+                const { data: items, error } = await supabase
+                  .from('import_items')
+                  .select('*')
+                  .eq('project_id', projectId);
+
+                if(error) {
+                  console.error(error);
+                  return [];
+                }
+
+    if(!items || items.length === 0) return [];
+
+// 2. Fetch product details
+const productIds = items.map((i: any) => i.product_id);
+// Handle .0 suffix logic if needed, but for now assume exact match or simple lookup
+// We'll just fetch all matching IDs
+const { data: products } = await supabase
+  .from('products')
+  .select('id, name, brand')
+  .in('id', productIds);
+
+const productMap = new Map(products?.map((p: any) => [p.id, p]) || []);
+
+return items.map((item: any) => ({
+  id: item.id,
+  projectId: item.project_id,
+  productId: item.product_id,
+  quantity: item.quantity,
+  createdAt: item.created_at,
+  productName: productMap.get(item.product_id)?.name || 'Unknown Product',
+  productBrand: productMap.get(item.product_id)?.brand || 'Unknown Brand'
+}));
   }
 };
