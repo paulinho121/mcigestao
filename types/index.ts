@@ -1,3 +1,9 @@
+export interface User {
+    id: string;
+    email: string;
+    name: string;
+}
+
 export interface Product {
     id: string;
     name: string;
@@ -42,4 +48,15 @@ export interface ImportItem {
     productBrand: string;
     expectedDate?: string;
     observation?: string;
+}
+
+export interface SeasonalBackground {
+    id: string;
+    name: string;
+    image_url: string;
+    start_date: string;
+    end_date: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
 }

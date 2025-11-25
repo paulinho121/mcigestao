@@ -74,7 +74,7 @@ export const ImportManagement: React.FC<ImportManagementProps> = () => {
         const updatedProduct = {
             ...product,
             importQuantity: 0,
-            expectedRestockDate: null
+            expectedRestockDate: undefined
         };
 
         setEditedProducts(prev => new Map(prev).set(productId, updatedProduct));
