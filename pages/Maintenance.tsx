@@ -272,7 +272,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                 <td className="px-4 py-3 bg-green-50/50">
                                                     <input
                                                         type="number"
-                                                        value={edit.adjustments.ce || ''}
+                                                        value={edit.adjustments.ce === 0 ? '' : edit.adjustments.ce}
                                                         onChange={(e) => handleAdjustmentChange(product.id, 'ce', e.target.value)}
                                                         placeholder="0"
                                                         className="w-20 px-2 py-1 border border-slate-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -291,7 +291,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                 <td className="px-4 py-3 bg-blue-50/50">
                                                     <input
                                                         type="number"
-                                                        value={edit.adjustments.sc || ''}
+                                                        value={edit.adjustments.sc === 0 ? '' : edit.adjustments.sc}
                                                         onChange={(e) => handleAdjustmentChange(product.id, 'sc', e.target.value)}
                                                         placeholder="0"
                                                         className="w-20 px-2 py-1 border border-slate-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -310,7 +310,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                 <td className="px-4 py-3 bg-red-50/50">
                                                     <input
                                                         type="number"
-                                                        value={edit.adjustments.sp || ''}
+                                                        value={edit.adjustments.sp === 0 ? '' : edit.adjustments.sp}
                                                         onChange={(e) => handleAdjustmentChange(product.id, 'sp', e.target.value)}
                                                         placeholder="0"
                                                         className="w-20 px-2 py-1 border border-slate-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500"

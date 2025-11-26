@@ -11,15 +11,22 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [reservations, setReservations] = useState<Reservation[]>([]);
+    const [importInfo, setImportInfo] = useState<{ quantity: number; expectedDate?: string } | null>(null);
     const availableStock = product.total - (product.reserved || 0);
     const isLowStock = availableStock < 5 && availableStock > 0;
     const isOutOfStock = availableStock === 0;
 
-    // Fetch reservations when card is expanded
+    // Fetch reservations and import info when card is expanded
     useEffect(() => {
-        if (isExpanded && product.reserved > 0) {
-            inventoryService.getReservationsByProduct(product.id)
-                .then(setReservations)
+        if (isExpanded) {
+            if (product.reserved > 0) {
+                inventoryService.getReservationsByProduct(product.id)
+                    .then(setReservations)
+                    .catch(console.error);
+            }
+            // Fetch import information
+            inventoryService.getImportInfoByProduct(product.id)
+                .then(setImportInfo)
                 .catch(console.error);
         }
     }, [isExpanded, product.id, product.reserved]);
@@ -136,23 +143,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                             </div>
                         )}
 
-                        {product.importQuantity && product.importQuantity > 0 && (
+                        {importInfo && importInfo.quantity > 0 && (
                             <div className="text-xs sm:text-sm text-blue-600 font-medium flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-100 gap-2">
                                 <div className="flex items-center flex-shrink-0">
                                     <Package className="w-4 h-4 mr-2" />
                                     <span>Em Importação</span>
                                 </div>
-                                <span className="whitespace-nowrap">{product.importQuantity} un</span>
+                                <span className="whitespace-nowrap">{importInfo.quantity} un</span>
                             </div>
                         )}
 
-                        {product.expectedRestockDate && (
+                        {(importInfo?.expectedDate || product.expectedRestockDate) && (
                             <div className="text-xs sm:text-sm text-purple-600 font-medium flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-100 gap-2">
                                 <div className="flex items-center flex-shrink-0">
                                     <Calendar className="w-4 h-4 mr-2" />
                                     <span>Previsão Reposição</span>
                                 </div>
-                                <span className="whitespace-nowrap text-xs sm:text-sm">{new Date(product.expectedRestockDate).toLocaleDateString('pt-BR')}</span>
+                                <span className="whitespace-nowrap text-xs sm:text-sm">{new Date(importInfo?.expectedDate || product.expectedRestockDate!).toLocaleDateString('pt-BR')}</span>
                             </div>
                         )}
 
@@ -177,7 +184,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             )}
 
             {/* Hint to open if has hidden details */}
-            {!isExpanded && (product.reserved > 0 || (product.importQuantity && product.importQuantity > 0) || product.expectedRestockDate || product.observations) && (
+            {!isExpanded && (product.reserved > 0 || product.expectedRestockDate || product.observations) && (
                 <div className="bg-slate-50 px-5 pb-2 text-center">
                     <span className="text-xs text-brand-600 font-medium hover:underline">Ver mais detalhes</span>
                 </div>

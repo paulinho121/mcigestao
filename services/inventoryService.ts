@@ -932,5 +932,45 @@ export const inventoryService = {
     }
 
     return true;
+  },
+
+  /**
+   * Get import information for a specific product
+   * Returns total quantity and earliest expected date across all import projects
+   */
+  async getImportInfoByProduct(productId: string): Promise<{ quantity: number; expectedDate?: string } | null> {
+    if (!supabase) return null;
+
+    // Query all import items for this product
+    const { data: items, error } = await supabase
+      .from('import_items')
+      .select('quantity, expected_date')
+      .eq('product_id', productId);
+
+    if (error) {
+      console.error('Error fetching import info for product:', error);
+      return null;
+    }
+
+    if (!items || items.length === 0) {
+      return null;
+    }
+
+    // Sum up quantities
+    const totalQuantity = items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+
+    // Find earliest expected date
+    const dates = items
+      .map((item: any) => item.expected_date)
+      .filter((date: any) => date != null);
+
+    const earliestDate = dates.length > 0
+      ? dates.sort((a: string, b: string) => new Date(a).getTime() - new Date(b).getTime())[0]
+      : undefined;
+
+    return {
+      quantity: totalQuantity,
+      expectedDate: earliestDate
+    };
   }
 };
