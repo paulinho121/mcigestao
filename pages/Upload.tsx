@@ -4,6 +4,7 @@ import Papa from 'papaparse';
 import { Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
 import { ImportManagement } from './ImportManagement';
+import { XmlUpload } from './XmlUpload';
 
 interface UploadProps {
 }
@@ -19,7 +20,7 @@ interface ParsedRow {
     RESERVA?: string;
 }
 
-type UploadSubTab = 'csv' | 'import';
+type UploadSubTab = 'csv' | 'import' | 'xml';
 
 export const Upload: React.FC<UploadProps> = () => {
     const [activeSubTab, setActiveSubTab] = useState<UploadSubTab>('csv');
@@ -168,6 +169,16 @@ export const Upload: React.FC<UploadProps> = () => {
                             <Settings className="w-5 h-5" />
                             Gestão de Importação
                         </button>
+                        <button
+                            onClick={() => setActiveSubTab('xml')}
+                            className={`flex items-center gap-2 px-6 py-4 font-semibold transition-all ${activeSubTab === 'xml'
+                                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/30'
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                }`}
+                        >
+                            <FileText className="w-5 h-5" />
+                            Upload XML (NFe)
+                        </button>
                     </div>
                 </div>
             </div>
@@ -175,6 +186,8 @@ export const Upload: React.FC<UploadProps> = () => {
             {/* Content */}
             {activeSubTab === 'import' ? (
                 <ImportManagement />
+            ) : activeSubTab === 'xml' ? (
+                <XmlUpload />
             ) : (
                 <div className="p-6">
                     <div className="max-w-6xl mx-auto">
