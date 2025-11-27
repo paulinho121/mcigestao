@@ -17,6 +17,9 @@ interface XmlData {
     date: string;
     branchCnpj: string;
     branch: 'CE' | 'SC' | 'SP' | null;
+    natOp: string; // Natureza da Operação
+    isTransfer: boolean; // Se é uma transferência
+    needsOperationSelection: boolean; // Se precisa que usuário selecione entrada/saída
     operation: 'entry' | 'exit'; // entry (add), exit (remove)
     products: XmlProduct[];
     status: 'pending' | 'processing' | 'success' | 'error';
@@ -30,6 +33,7 @@ const DEFAULT_BRANCH_MAPPING: Record<string, 'CE' | 'SC' | 'SP'> = {
 
 export const XmlUpload: React.FC = () => {
     const [xmlItems, setXmlItems] = useState<XmlData[]>([]);
+    const [itemNeedingSelection, setItemNeedingSelection] = useState<XmlData | null>(null);
     const [dragActive, setDragActive] = useState(false);
     const [loading, setLoading] = useState(false);
     const [branchMappings, setBranchMappings] = useState<Record<string, 'CE' | 'SC' | 'SP'>>(DEFAULT_BRANCH_MAPPING);
@@ -111,10 +115,15 @@ export const XmlUpload: React.FC = () => {
                 const series = ide.getElementsByTagName('serie')[0]?.textContent || '';
                 const dhEmi = ide.getElementsByTagName('dhEmi')[0]?.textContent || '';
                 const tpNF = ide.getElementsByTagName('tpNF')[0]?.textContent || '0'; // 0=Entry, 1=Exit
+                const natOp = ide.getElementsByTagName('natOp')[0]?.textContent || '';
+
+                // Detectar se é transferência
+                const isTransfer = natOp.toLowerCase().includes('transfer');
 
                 // Determine operation and relevant CNPJ
                 // tpNF: 0 = Entrada (We received it), 1 = Saída (We sent it)
                 let operation: 'entry' | 'exit' = tpNF === '0' ? 'entry' : 'exit';
+                let needsOperationSelection = isTransfer;
 
                 // If Entry (0), stock increases. Branch is Destinatário (us).
                 // If Exit (1), stock decreases. Branch is Emitente (us).
@@ -145,6 +154,9 @@ export const XmlUpload: React.FC = () => {
                     date: dhEmi,
                     branchCnpj: targetCnpj,
                     branch: branchMappings[targetCnpj] || null,
+                    natOp,
+                    isTransfer,
+                    needsOperationSelection,
                     operation,
                     products,
                     status: 'pending'
@@ -157,6 +169,31 @@ export const XmlUpload: React.FC = () => {
         }
 
         setXmlItems(prev => [...prev, ...newItems]);
+
+        // Verificar se há itens que precisam de seleção
+        const firstNeedingSelection = newItems.find(item => item.needsOperationSelection);
+        if (firstNeedingSelection) {
+            setItemNeedingSelection(firstNeedingSelection);
+        }
+    };
+
+    // Verificar se há itens pendentes de seleção quando a lista muda
+    useEffect(() => {
+        if (!itemNeedingSelection) {
+            const needsSelection = xmlItems.find(item => item.needsOperationSelection);
+            if (needsSelection) {
+                setItemNeedingSelection(needsSelection);
+            }
+        }
+    }, [xmlItems, itemNeedingSelection]);
+
+    const handleOperationSelection = (itemId: string, operation: 'entry' | 'exit') => {
+        setXmlItems(prev => prev.map(item =>
+            item.id === itemId
+                ? { ...item, operation, needsOperationSelection: false }
+                : item
+        ));
+        setItemNeedingSelection(null);
     };
 
     const removeFile = (index: number) => {
@@ -169,6 +206,11 @@ export const XmlUpload: React.FC = () => {
         const itemsToProcess = xmlItems.filter(item => item.status === 'pending' || item.status === 'error');
 
         for (const item of itemsToProcess) {
+            if (item.needsOperationSelection) {
+                setXmlItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'error', message: 'Selecione se é entrada ou saída' } : i));
+                continue;
+            }
+
             if (!item.branch) {
                 setXmlItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'error', message: 'Filial não identificada' } : i));
                 continue;
@@ -275,6 +317,11 @@ export const XmlUpload: React.FC = () => {
                                             <p className="text-sm text-slate-500">
                                                 NFe: {item.nfeNumber} • Série: {item.series} • {new Date(item.date).toLocaleDateString()}
                                             </p>
+                                            {item.isTransfer && (
+                                                <p className="text-xs text-brand-600 font-semibold mt-1">
+                                                    📦 {item.natOp}
+                                                </p>
+                                            )}
                                             <p className="text-xs text-slate-400 mt-1">CNPJ: {item.branchCnpj}</p>
                                         </div>
                                     </div>
@@ -298,10 +345,11 @@ export const XmlUpload: React.FC = () => {
 
                                         {/* Status Indicator */}
                                         <div className="w-32 text-right">
-                                            {item.status === 'success' && <span className="text-green-600 font-semibold flex items-center justify-end gap-1"><CheckCircle className="w-4 h-4" /> Sucesso</span>}
-                                            {item.status === 'error' && <span className="text-red-600 font-semibold flex items-center justify-end gap-1"><AlertCircle className="w-4 h-4" /> Erro</span>}
-                                            {item.status === 'processing' && <span className="text-blue-600 font-semibold">Processando...</span>}
-                                            {item.status === 'pending' && <span className="text-slate-400">Pendente</span>}
+                                            {item.needsOperationSelection && <span className="text-orange-600 font-semibold flex items-center justify-end gap-1"><AlertCircle className="w-4 h-4" /> Aguardando</span>}
+                                            {!item.needsOperationSelection && item.status === 'success' && <span className="text-green-600 font-semibold flex items-center justify-end gap-1"><CheckCircle className="w-4 h-4" /> Sucesso</span>}
+                                            {!item.needsOperationSelection && item.status === 'error' && <span className="text-red-600 font-semibold flex items-center justify-end gap-1"><AlertCircle className="w-4 h-4" /> Erro</span>}
+                                            {!item.needsOperationSelection && item.status === 'processing' && <span className="text-blue-600 font-semibold">Processando...</span>}
+                                            {!item.needsOperationSelection && item.status === 'pending' && <span className="text-slate-400">Pendente</span>}
                                         </div>
 
                                         <button
@@ -350,6 +398,62 @@ export const XmlUpload: React.FC = () => {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                )}
+
+                {/* Modal de Seleção de Operação para Transferências */}
+                {itemNeedingSelection && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8">
+                            <h2 className="text-2xl font-bold text-slate-900 mb-4">Transferência Detectada</h2>
+                            <p className="text-slate-600 mb-6">
+                                Este XML é uma <span className="font-semibold text-brand-600">transferência</span>.
+                                Por favor, selecione se você está <strong>recebendo</strong> (entrada) ou <strong>enviando</strong> (saída) os produtos.
+                            </p>
+
+                            <div className="bg-slate-50 rounded-lg p-4 mb-6">
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                    <div>
+                                        <span className="text-slate-500">NFe:</span>
+                                        <span className="ml-2 font-semibold text-slate-900">{itemNeedingSelection.nfeNumber}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">Série:</span>
+                                        <span className="ml-2 font-semibold text-slate-900">{itemNeedingSelection.series}</span>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <span className="text-slate-500">Natureza:</span>
+                                        <span className="ml-2 font-semibold text-brand-600">{itemNeedingSelection.natOp}</span>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <span className="text-slate-500">CNPJ:</span>
+                                        <span className="ml-2 font-mono text-slate-700">{itemNeedingSelection.branchCnpj}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <button
+                                    onClick={() => handleOperationSelection(itemNeedingSelection.id, 'entry')}
+                                    className="flex flex-col items-center justify-center p-6 bg-green-50 hover:bg-green-100 border-2 border-green-300 hover:border-green-500 rounded-xl transition-all group"
+                                >
+                                    <ArrowRight className="w-12 h-12 text-green-600 mb-3 group-hover:scale-110 transition-transform" />
+                                    <span className="text-lg font-bold text-green-700">Entrada</span>
+                                    <span className="text-sm text-green-600 mt-1">Receber produtos</span>
+                                    <span className="text-xs text-green-500 mt-2">+ Adiciona ao estoque</span>
+                                </button>
+
+                                <button
+                                    onClick={() => handleOperationSelection(itemNeedingSelection.id, 'exit')}
+                                    className="flex flex-col items-center justify-center p-6 bg-red-50 hover:bg-red-100 border-2 border-red-300 hover:border-red-500 rounded-xl transition-all group"
+                                >
+                                    <ArrowLeft className="w-12 h-12 text-red-600 mb-3 group-hover:scale-110 transition-transform" />
+                                    <span className="text-lg font-bold text-red-700">Saída</span>
+                                    <span className="text-sm text-red-600 mt-1">Enviar produtos</span>
+                                    <span className="text-xs text-red-500 mt-2">- Subtrai do estoque</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
