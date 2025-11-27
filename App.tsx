@@ -7,12 +7,13 @@ import { Maintenance } from './pages/Maintenance';
 import { InImport } from './pages/InImport';
 import { ImportManagement } from './pages/ImportManagement';
 import { RentalManagement } from './pages/RentalManagement';
+import { ActivityLogs } from './pages/ActivityLogs';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
-import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock } from 'lucide-react';
+import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, FileText } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
-type Tab = 'inventory' | 'reservations' | 'in_import' | 'upload' | 'maintenance' | 'import_management' | 'rental_management';
+type Tab = 'inventory' | 'reservations' | 'in_import' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'logs';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -268,6 +269,21 @@ function App() {
               </>
             )}
 
+            {/* Logs Tab - Only for paulofernandoautomacao@gmail.com */}
+            {user.email === 'paulofernandoautomacao@gmail.com' && (
+              <button
+                onClick={() => setActiveTab('logs')}
+                className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'logs'
+                  ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                  }`}
+              >
+                <FileText className="w-5 h-5" />
+                <span className="hidden sm:inline">Logs</span>
+                <span className="sm:hidden text-xs">Logs</span>
+              </button>
+            )}
+
             <div className="flex-1"></div>
           </div>
         </div>
@@ -281,6 +297,7 @@ function App() {
       {activeTab === 'maintenance' && <Maintenance />}
       {activeTab === 'import_management' && <ImportManagement />}
       {activeTab === 'rental_management' && <RentalManagement />}
+      {activeTab === 'logs' && <ActivityLogs />}
     </div>
   );
 }

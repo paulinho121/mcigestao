@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { Product, Reservation, ImportProject, ImportItem } from '../types';
 import { MOCK_INVENTORY } from './mockData';
+import { logService } from './logService';
 
 // In-memory reservation storage
 let reservations: Reservation[] = [];
