@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabase';
 
 export interface ActivityLog {
     id?: string;
@@ -29,7 +29,7 @@ class LogService {
     async logActivity(log: Omit<ActivityLog, 'id' | 'created_at' | 'user_id' | 'user_email' | 'user_name'>): Promise<void> {
         try {
             // Obter dados do usuário atual
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await supabase!.auth.getUser();
 
             if (!user) {
                 console.warn('Tentativa de log sem usuário autenticado');
@@ -37,7 +37,7 @@ class LogService {
             }
 
             // Buscar perfil do usuário
-            const { data: profile } = await supabase
+            const { data: profile } = await supabase!
                 .from('profiles')
                 .select('email, name')
                 .eq('id', user.id)
@@ -56,7 +56,7 @@ class LogService {
                 }
             };
 
-            const { error } = await supabase
+            const { error } = await supabase!
                 .from('activity_logs')
                 .insert([logData]);
 
@@ -77,7 +77,7 @@ class LogService {
         pageSize: number = 20
     ): Promise<{ logs: ActivityLog[]; total: number }> {
         try {
-            let query = supabase
+            let query = supabase!
                 .from('activity_logs')
                 .select('*', { count: 'exact' })
                 .order('created_at', { ascending: false });
@@ -299,10 +299,10 @@ class LogService {
      */
     async canViewLogs(): Promise<boolean> {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await supabase!.auth.getUser();
             if (!user) return false;
 
-            const { data: profile } = await supabase
+            const { data: profile } = await supabase!
                 .from('profiles')
                 .select('email')
                 .eq('id', user.id)
