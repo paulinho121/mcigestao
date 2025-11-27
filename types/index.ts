@@ -60,3 +60,23 @@ export interface SeasonalBackground {
     created_at: string;
     updated_at: string;
 }
+
+export interface Rental {
+    id: string;
+    client_name: string;
+    item_name: string;
+    rental_period: string;
+    rental_value: number;
+    status: 'active' | 'returned' | 'overdue';
+    created_at: string;
+}
+
+export interface RentalItem {
+    id: string;
+    name: string;
+    description?: string;
+    total_quantity: number;
+    available_quantity: number;
+    daily_rate: number;
+    created_at: string;
+}
