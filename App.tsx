@@ -12,6 +12,7 @@ import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
 import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, FileText } from 'lucide-react';
 import { supabase } from './lib/supabase';
+import { Analytics } from '@vercel/analytics/react';
 
 type Tab = 'inventory' | 'reservations' | 'in_import' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'logs';
 
@@ -298,6 +299,7 @@ function App() {
       {activeTab === 'import_management' && <ImportManagement />}
       {activeTab === 'rental_management' && <RentalManagement />}
       {activeTab === 'logs' && <ActivityLogs />}
+      <Analytics />
     </div>
   );
 }
