@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Search, Save, Wrench, AlertCircle, Package as PackageIcon, FileText } from 'lucide-react';
+import { Search, Save, Wrench, AlertCircle, Package as PackageIcon, FileText, Download } from 'lucide-react';
 import { Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
+import { backupService } from '../services/backupService';
 
 interface MaintenanceProps {
 }
@@ -151,6 +152,21 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
             edit.observations !== (edit.product.observations || '');
     };
 
+    const handleBackup = async () => {
+        setLoading(true);
+        try {
+            // Fetch all products for backup (ensure we get everything)
+            const allProducts = await inventoryService.getAllProducts(10000); // High limit to get all
+            backupService.exportProductsToCSV(allProducts);
+            setSuccess('Backup gerado com sucesso!');
+        } catch (err) {
+            setError('Erro ao gerar backup');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 p-6">
             <div className="max-w-7xl mx-auto">
@@ -197,9 +213,20 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                     </div>
                 </div>
 
-                {/* Save Button */}
-                {editedProducts.size > 0 && (
-                    <div className="mb-6 flex justify-end">
+                {/* Actions Bar */}
+                <div className="flex justify-between items-center mb-6">
+                    <button
+                        onClick={handleBackup}
+                        disabled={loading}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                        title="Exportar todos os produtos para CSV"
+                    >
+                        <Download className="w-5 h-5" />
+                        Backup de Produtos
+                    </button>
+
+                    {/* Save Button */}
+                    {editedProducts.size > 0 && (
                         <button
                             onClick={handleSave}
                             disabled={saving}
@@ -217,8 +244,8 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                 </>
                             )}
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
 
                 {/* Products Table */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
