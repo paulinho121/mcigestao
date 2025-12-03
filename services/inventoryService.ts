@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { Product, Reservation, ImportProject, ImportItem } from '../types';
 import { MOCK_INVENTORY } from './mockData';
+import { logService } from './logService';
 
 // In-memory reservation storage
 let reservations: Reservation[] = [];
@@ -334,7 +335,7 @@ export const inventoryService = {
       throw new Error(`Erro ao atualizar estoque: ${updateError.message}`);
     }
 
-    return {
+    const result = {
       id: reservationData.id,
       productId: reservationData.product_id,
       productName: reservationData.product_name,
@@ -345,6 +346,17 @@ export const inventoryService = {
       reservedByName: reservationData.reserved_by_name,
       reservedAt: new Date(reservationData.reserved_at)
     };
+
+    // Log reservation creation
+    await logService.logReservationCreated({
+      id: result.id,
+      product_code: result.productId,
+      quantity: result.quantity,
+      branch: result.branch,
+      reserved_by_name: result.reservedByName || result.reservedBy
+    });
+
+    return result;
   },
 
   /**
@@ -486,7 +498,17 @@ export const inventoryService = {
       .delete()
       .eq('id', reservationId);
 
-    return !deleteError;
+    if (!deleteError) {
+      // Log reservation cancellation
+      await logService.logReservationCancelled({
+        id: reservation.id,
+        product_code: reservation.product_id,
+        quantity: reservation.quantity,
+        branch: reservation.branch
+      });
+      return true;
+    }
+    return false;
   },
 
   /**
@@ -680,7 +702,7 @@ export const inventoryService = {
       // First, get current stock
       const { data: currentProduct, error: fetchError } = await supabase
         .from('products')
-        .select('stock_ce, stock_sc, stock_sp')
+        .select('name, stock_ce, stock_sc, stock_sp')
         .eq('id', productId)
         .single();
 
@@ -710,6 +732,17 @@ export const inventoryService = {
       }
 
       console.log(`Successfully adjusted stock for product ${productId}`);
+
+      // Log stock adjustment per branch
+      if (adjustments.ce !== 0) {
+        await logService.logStockAdjustment(productId, currentProduct.name || 'Produto', 'CE', currentProduct.stock_ce, newStockCe, 'Ajuste Manual/Upload');
+      }
+      if (adjustments.sc !== 0) {
+        await logService.logStockAdjustment(productId, currentProduct.name || 'Produto', 'SC', currentProduct.stock_sc, newStockSc, 'Ajuste Manual/Upload');
+      }
+      if (adjustments.sp !== 0) {
+        await logService.logStockAdjustment(productId, currentProduct.name || 'Produto', 'SP', currentProduct.stock_sp, newStockSp, 'Ajuste Manual/Upload');
+      }
     } catch (error: any) {
       console.error('Stock adjustment error:', error);
       throw error;
@@ -799,7 +832,18 @@ export const inventoryService = {
       }
 
       console.log(`Successfully created product ${productId}`);
-      return cleanAndDeduplicate([data])[0];
+
+      const createdProduct = cleanAndDeduplicate([data])[0];
+
+      // Log product creation
+      await logService.logProductCreated({
+        code: createdProduct.id,
+        name: createdProduct.name,
+        brand: createdProduct.brand,
+        category: 'XML Auto-Create'
+      });
+
+      return createdProduct;
     } catch (error: any) {
       console.error('Product creation error:', error);
       throw error;
