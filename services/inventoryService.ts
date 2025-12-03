@@ -103,6 +103,42 @@ export const inventoryService = {
   },
 
   /**
+   * Get all products that have stock in a specific branch
+   */
+  async getProductsByBranch(branch: 'CE' | 'SC' | 'SP', limit = 200): Promise<Product[]> {
+    await new Promise(resolve => setTimeout(resolve, 400));
+
+    const branchKey = `stock_${branch.toLowerCase()}` as 'stock_ce' | 'stock_sc' | 'stock_sp';
+
+    if (!supabase) {
+      // Mock mode: filter products with stock in the specified branch
+      const productsWithStock = cleanAndDeduplicate(MOCK_INVENTORY)
+        .filter(product => product[branchKey] > 0)
+        .sort((a, b) => b[branchKey] - a[branchKey]); // Sort by branch stock descending
+
+      return productsWithStock.slice(0, limit);
+    }
+
+    // Real Supabase Implementation
+    const branchColumn = `stock_${branch.toLowerCase()}`;
+
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .gt(branchColumn, 0) // Only products with stock > 0 in this branch
+      .order(branchColumn, { ascending: false }) // Sort by branch stock descending
+      .limit(limit);
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return [];
+    }
+
+    return cleanAndDeduplicate(data || []);
+  },
+
+
+  /**
    * Get total available items (sum of total stock across all products)
    */
   async getTotalAvailable(): Promise<number> {
