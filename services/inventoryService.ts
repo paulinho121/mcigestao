@@ -681,6 +681,97 @@ export const inventoryService = {
   },
 
   /**
+   * Check if a product exists in the database
+   */
+  async checkProductExists(productId: string): Promise<boolean> {
+    if (!supabase) {
+      // Mock mode
+      return MOCK_INVENTORY.some(p => p.id === productId);
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id')
+        .eq('id', productId)
+        .single();
+
+      if (error) {
+        // If error is "not found", return false
+        if (error.code === 'PGRST116') {
+          return false;
+        }
+        throw error;
+      }
+
+      return !!data;
+    } catch (error: any) {
+      console.error('Error checking product existence:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Create a new product from XML data
+   * Used when uploading XML files with products that don't exist in the database
+   */
+  async createProductFromXml(
+    productId: string,
+    productName: string,
+    productBrand: string = 'Sem Marca'
+  ): Promise<Product> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const newProduct: Product = {
+      id: productId,
+      name: productName,
+      brand: productBrand,
+      stock_ce: 0,
+      stock_sc: 0,
+      stock_sp: 0,
+      total: 0,
+      reserved: 0
+    };
+
+    if (!supabase) {
+      // Mock mode: Add to MOCK_INVENTORY
+      console.warn('Supabase not configured. Adding to mock data.');
+      MOCK_INVENTORY.push(newProduct);
+      console.log(`Mock: Created product ${productId}`);
+      return newProduct;
+    }
+
+    // Real Supabase Implementation
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .insert({
+          id: productId,
+          name: productName,
+          brand: productBrand,
+          stock_ce: 0,
+          stock_sc: 0,
+          stock_sp: 0,
+          total: 0,
+          reserved: 0
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(`Erro ao criar produto ${productId}: ${error.message}`);
+      }
+
+      console.log(`Successfully created product ${productId}`);
+      return cleanAndDeduplicate([data])[0];
+    } catch (error: any) {
+      console.error('Product creation error:', error);
+      throw error;
+    }
+  },
+
+
+  /**
    * Update observations for a product
    */
   async updateObservations(productId: string, observations: string): Promise<void> {
