@@ -97,10 +97,10 @@ export const Inventory: React.FC<InventoryProps> = () => {
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
 
       {/* Search Hero Section */}
-      <div className="bg-gradient-to-b from-white to-slate-50 shadow-sm border-b border-slate-200 pt-10 pb-12 px-4 sm:px-6 lg:px-8">
+      <div className="bg-gradient-to-b from-white to-slate-50 shadow-sm border-b border-slate-200 pt-6 pb-8 sm:pt-10 sm:pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-slate-900 mb-3 tracking-tight">O que você está procurando?</h2>
-          <p className="text-slate-500 mb-8 text-lg">Consulte disponibilidade por código, nome do produto ou filtre por filial.</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-3 tracking-tight">O que você está procurando?</h2>
+          <p className="text-slate-500 mb-6 sm:mb-8 text-base sm:text-lg">Consulte disponibilidade por código, nome do produto ou filtre por filial.</p>
 
           <div className="relative max-w-2xl mx-auto group mb-6">
             <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
@@ -108,7 +108,7 @@ export const Inventory: React.FC<InventoryProps> = () => {
             </div>
             <input
               type="text"
-              className={`block w-full pl-14 pr-14 py-4 border-2 border-slate-200 rounded-2xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all text-lg shadow-sm group-hover:border-brand-200 ${selectedBranch ? 'bg-slate-50 text-slate-500' : ''}`}
+              className={`block w-full pl-14 pr-14 py-3 sm:py-4 border-2 border-slate-200 rounded-2xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all text-base sm:text-lg shadow-sm group-hover:border-brand-200 ${selectedBranch ? 'bg-slate-50 text-slate-500' : ''}`}
               placeholder={isListening ? "Ouvindo..." : selectedBranch ? `Filtrando por filial ${selectedBranch} (Limpe o filtro para buscar)` : "Ex: 1896, Sony, Tripé..."}
               value={searchQuery}
               onChange={(e) => {
@@ -140,34 +140,36 @@ export const Inventory: React.FC<InventoryProps> = () => {
           </div>
 
           {/* Branch Selector */}
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
             <span className="text-sm font-medium text-slate-500 flex items-center gap-1.5">
               <MapPin className="w-4 h-4" />
               Filtrar por Filial:
             </span>
 
-            <button
-              onClick={() => handleBranchSelect(null)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedBranch === null
+            <div className="flex flex-wrap justify-center gap-2">
+              <button
+                onClick={() => handleBranchSelect(null)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedBranch === null
                   ? 'bg-slate-800 text-white shadow-md ring-2 ring-slate-800 ring-offset-2'
                   : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                }`}
-            >
-              Todas (Busca)
-            </button>
-
-            {(['CE', 'SC', 'SP'] as const).map((branch) => (
-              <button
-                key={branch}
-                onClick={() => handleBranchSelect(branch)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedBranch === branch
-                    ? 'bg-brand-600 text-white shadow-md ring-2 ring-brand-600 ring-offset-2'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:border-brand-200 hover:text-brand-600 hover:bg-brand-50'
                   }`}
               >
-                {branch}
+                Todas (Busca)
               </button>
-            ))}
+
+              {(['CE', 'SC', 'SP'] as const).map((branch) => (
+                <button
+                  key={branch}
+                  onClick={() => handleBranchSelect(branch)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedBranch === branch
+                    ? 'bg-brand-600 text-white shadow-md ring-2 ring-brand-600 ring-offset-2'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:border-brand-200 hover:text-brand-600 hover:bg-brand-50'
+                    }`}
+                >
+                  {branch}
+                </button>
+              ))}
+            </div>
           </div>
 
         </div>
