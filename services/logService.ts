@@ -308,7 +308,11 @@ class LogService {
                 .eq('id', user.id)
                 .single();
 
-            return profile?.email === 'paulofernandoautomacao@gmail.com';
+            if (!profile?.email) return false;
+
+            // Check if user is in the master users list
+            const { isMasterUser } = await import('../config/masterUsers');
+            return isMasterUser(profile.email);
         } catch (error) {
             console.error('Erro ao verificar permissão de logs:', error);
             return false;

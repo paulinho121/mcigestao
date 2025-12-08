@@ -185,7 +185,20 @@ export const ActivityLogs: React.FC = () => {
                                     ))}
                                 </select>
                             </div>
-                            <div className="lg:col-span-3">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    <User className="w-4 h-4 inline mr-1" />
+                                    Email do Usuário
+                                </label>
+                                <input
+                                    type="text"
+                                    value={filters.userEmail}
+                                    onChange={(e) => handleFilterChange('userEmail', e.target.value)}
+                                    placeholder="ex: nome@mcistore.com.br"
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                />
+                            </div>
+                            <div className="lg:col-span-2">
                                 <label className="block text-sm font-medium text-slate-700 mb-2">
                                     Buscar
                                 </label>
