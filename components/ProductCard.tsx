@@ -34,11 +34,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     return (
         <div
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all duration-200 flex flex-col h-full group cursor-pointer ${isExpanded ? 'ring-2 ring-brand-500 ring-offset-2' : ''}`}
+            className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all duration-200 flex flex-col h-full group cursor-pointer ${isExpanded ? 'ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-slate-900' : ''} dark:bg-slate-800 dark:border-slate-700`}
         >
             <div className="p-4 sm:p-5 flex-grow">
                 <div className="flex justify-between items-start mb-3 gap-2 flex-wrap">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800 whitespace-nowrap">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800 whitespace-nowrap dark:bg-slate-700 dark:text-slate-300">
                         COD: {product.id}
                     </span>
                     {product.brand && (
@@ -48,47 +48,47 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     )}
                 </div>
 
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug mb-4 group-hover:text-brand-600 transition-colors break-words line-clamp-2">
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug mb-4 group-hover:text-brand-600 transition-colors break-words line-clamp-2 dark:text-slate-100 dark:group-hover:text-brand-400">
                     {product.name}
                 </h3>
 
                 <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center text-green-700">
+                        <div className="flex items-center text-green-700 dark:text-green-500">
                             <MapPin className="w-4 h-4 mr-2 text-green-500" />
                             <span>Ceará</span>
                         </div>
-                        <span className={clsx("font-mono font-medium", product.stock_ce > 0 ? "text-slate-900" : "text-slate-300")}>
+                        <span className={clsx("font-mono font-medium", product.stock_ce > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
                             {product.stock_ce}
                         </span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center text-blue-700">
+                        <div className="flex items-center text-blue-700 dark:text-blue-500">
                             <MapPin className="w-4 h-4 mr-2 text-blue-500" />
                             <span>Santa Catarina</span>
                         </div>
-                        <span className={clsx("font-mono font-medium", product.stock_sc > 0 ? "text-slate-900" : "text-slate-300")}>
+                        <span className={clsx("font-mono font-medium", product.stock_sc > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
                             {product.stock_sc}
                         </span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center text-red-700">
+                        <div className="flex items-center text-red-700 dark:text-red-500">
                             <MapPin className="w-4 h-4 mr-2 text-red-500" />
                             <span>São Paulo</span>
                         </div>
-                        <span className={clsx("font-mono font-medium", product.stock_sp > 0 ? "text-slate-900" : "text-slate-300")}>
+                        <span className={clsx("font-mono font-medium", product.stock_sp > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
                             {product.stock_sp}
                         </span>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-slate-50 px-4 sm:px-5 py-3 border-t border-slate-100 flex justify-between items-center gap-3">
+            <div className="bg-slate-50 px-4 sm:px-5 py-3 border-t border-slate-100 flex justify-between items-center gap-3 dark:bg-slate-900/50 dark:border-slate-700">
                 <div className="flex flex-col">
-                    <span className="text-xs text-slate-500 uppercase font-semibold">Estoque Total</span>
+                    <span className="text-xs text-slate-500 uppercase font-semibold dark:text-slate-400">Estoque Total</span>
                     <div className="flex items-center">
-                        <Box className="w-4 h-4 mr-1 text-brand-600" />
-                        <span className="text-xl font-bold text-slate-900">{product.total}</span>
+                        <Box className="w-4 h-4 mr-1 text-brand-600 dark:text-brand-500" />
+                        <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{product.total}</span>
                     </div>
                     {product.reserved > 0 && (
                         <div className="mt-1 space-y-0.5">
@@ -121,7 +121,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
             {/* Expanded Details */}
             {isExpanded && (
-                <div className="bg-slate-50 px-4 sm:px-5 pb-4 border-t border-slate-100 animate-in slide-in-from-top-2 duration-200">
+                <div className="bg-slate-50 px-4 sm:px-5 pb-4 border-t border-slate-100 animate-in slide-in-from-top-2 duration-200 dark:bg-slate-900/50 dark:border-slate-700">
                     <div className="space-y-2 pt-2">
                         {reservations.length > 0 && (
                             <div className="space-y-2">
@@ -185,8 +185,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
             {/* Hint to open if has hidden details */}
             {!isExpanded && (product.reserved > 0 || product.expectedRestockDate || product.observations) && (
-                <div className="bg-slate-50 px-5 pb-2 text-center">
-                    <span className="text-xs text-brand-600 font-medium hover:underline">Ver mais detalhes</span>
+                <div className="bg-slate-50 px-5 pb-2 text-center dark:bg-slate-900/50">
+                    <span className="text-xs text-brand-600 font-medium hover:underline dark:text-brand-400">Ver mais detalhes</span>
                 </div>
             )}
         </div>

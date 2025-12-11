@@ -94,13 +94,13 @@ export const Inventory: React.FC<InventoryProps> = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors flex flex-col font-sans">
 
       {/* Search Hero Section */}
-      <div className="bg-gradient-to-b from-white to-slate-50 shadow-sm border-b border-slate-200 pt-6 pb-8 sm:pt-10 sm:pb-12 px-4 sm:px-6 lg:px-8">
+      <div className="bg-gradient-to-b from-white to-slate-50 shadow-sm border-b border-slate-200 pt-6 pb-8 sm:pt-10 sm:pb-12 px-4 sm:px-6 lg:px-8 dark:from-slate-800 dark:to-slate-900 dark:border-slate-700 transition-colors">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-3 tracking-tight">O que você está procurando?</h2>
-          <p className="text-slate-500 mb-6 sm:mb-8 text-base sm:text-lg">Consulte disponibilidade por código, nome do produto ou filtre por filial.</p>
+          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-3 tracking-tight dark:text-slate-100">O que você está procurando?</h2>
+          <p className="text-slate-500 mb-6 sm:mb-8 text-base sm:text-lg dark:text-slate-400">Consulte disponibilidade por código, nome do produto ou filtre por filial.</p>
 
           <div className="relative max-w-2xl mx-auto group mb-6">
             <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
@@ -108,7 +108,7 @@ export const Inventory: React.FC<InventoryProps> = () => {
             </div>
             <input
               type="text"
-              className={`block w-full pl-14 pr-14 py-3 sm:py-4 border-2 border-slate-200 rounded-2xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all text-base sm:text-lg shadow-sm group-hover:border-brand-200 ${selectedBranch ? 'bg-slate-50 text-slate-500' : ''}`}
+              className={`block w-full pl-14 pr-14 py-3 sm:py-4 border-2 border-slate-200 rounded-2xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all text-base sm:text-lg shadow-sm group-hover:border-brand-200 dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:placeholder-slate-500 ${selectedBranch ? 'bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-500' : ''}`}
               placeholder={isListening ? "Ouvindo..." : selectedBranch ? `Filtrando por filial ${selectedBranch} (Limpe o filtro para buscar)` : "Ex: 1896, Sony, Tripé..."}
               value={searchQuery}
               onChange={(e) => {
@@ -141,7 +141,7 @@ export const Inventory: React.FC<InventoryProps> = () => {
 
           {/* Branch Selector */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
-            <span className="text-sm font-medium text-slate-500 flex items-center gap-1.5">
+            <span className="text-sm font-medium text-slate-500 flex items-center gap-1.5 dark:text-slate-400">
               <MapPin className="w-4 h-4" />
               Filtrar por Filial:
             </span>
@@ -150,8 +150,8 @@ export const Inventory: React.FC<InventoryProps> = () => {
               <button
                 onClick={() => handleBranchSelect(null)}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedBranch === null
-                  ? 'bg-slate-800 text-white shadow-md ring-2 ring-slate-800 ring-offset-2'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                  ? 'bg-slate-800 text-white shadow-md ring-2 ring-slate-800 ring-offset-2 dark:bg-slate-700 dark:ring-slate-700'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700'
                   }`}
               >
                 Todas (Busca)
@@ -163,7 +163,7 @@ export const Inventory: React.FC<InventoryProps> = () => {
                   onClick={() => handleBranchSelect(branch)}
                   className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedBranch === branch
                     ? 'bg-brand-600 text-white shadow-md ring-2 ring-brand-600 ring-offset-2'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:border-brand-200 hover:text-brand-600 hover:bg-brand-50'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:border-brand-200 hover:text-brand-600 hover:bg-brand-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-brand-400'
                     }`}
                 >
                   {branch}
@@ -188,13 +188,13 @@ export const Inventory: React.FC<InventoryProps> = () => {
         ) : products.length > 0 ? (
           <>
             <div className="flex justify-between items-center mb-6">
-              <div className="text-sm text-slate-500">
+              <div className="text-sm text-slate-500 dark:text-slate-400">
                 {selectedBranch
                   ? `Exibindo produtos com estoque em ${selectedBranch}`
                   : `Resultados da busca`
                 }
               </div>
-              <div className="text-sm font-medium text-slate-700 bg-slate-100 px-3 py-1 rounded-full">
+              <div className="text-sm font-medium text-slate-700 bg-slate-100 px-3 py-1 rounded-full dark:bg-slate-800 dark:text-slate-300">
                 {products.length} produtos encontrados
               </div>
             </div>
@@ -207,11 +207,11 @@ export const Inventory: React.FC<InventoryProps> = () => {
         ) : (
           !loading && (
             <div className="text-center py-20">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4 dark:bg-slate-800">
                 <Search className="w-8 h-8 text-slate-400" />
               </div>
-              <h3 className="text-lg font-medium text-slate-900 mb-1">Nenhum produto encontrado</h3>
-              <p className="text-slate-500">
+              <h3 className="text-lg font-medium text-slate-900 mb-1 dark:text-white">Nenhum produto encontrado</h3>
+              <p className="text-slate-500 dark:text-slate-400">
                 {selectedBranch
                   ? `Não há produtos com estoque na filial ${selectedBranch}.`
                   : "Tente buscar por outro termo ou código."}

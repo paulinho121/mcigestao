@@ -10,9 +10,10 @@ import { RentalManagement } from './pages/RentalManagement';
 import { ActivityLogs } from './pages/ActivityLogs';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
-import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, FileText } from 'lucide-react';
+import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, FileText, Sun, Moon } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { Analytics } from '@vercel/analytics/react';
+import { useTheme } from './context/ThemeContext';
 
 type Tab = 'inventory' | 'reservations' | 'in_import' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'logs';
 
@@ -22,6 +23,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('inventory');
   const [isMaster, setIsMaster] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'mock' | 'error'>('checking');
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     // Check for persisted session
@@ -131,9 +133,9 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
       {/* Top Navigation */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm dark:bg-slate-800 dark:border-slate-700 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center gap-4">
@@ -157,9 +159,9 @@ function App() {
                   }
                 }}
               />
-              <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
+              <div className="h-8 w-px bg-slate-200 hidden sm:block dark:bg-slate-700"></div>
               <div className="flex flex-col justify-center hidden sm:flex">
-                <span className="text-sm font-bold text-slate-700 leading-none">Estoque MCI</span>
+                <span className="text-sm font-bold text-slate-700 leading-none dark:text-slate-200">Estoque MCI</span>
                 <span className="text-xs text-slate-400 leading-none mt-1">Gestão Corporativa</span>
               </div>
             </div>
@@ -171,8 +173,15 @@ function App() {
               </div>
               <div className="hidden md:block text-right">
                 <div className="text-xs text-slate-400">Logado como</div>
-                <div className="text-sm font-semibold text-brand-700">{user.name || user.email}</div>
+                <div className="text-sm font-semibold text-brand-700 dark:text-brand-400">{user.name || user.email}</div>
               </div>
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-full text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-colors border border-transparent hover:border-brand-100 dark:hover:bg-slate-700 dark:hover:text-amber-400"
+                title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+              >
+                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
               <button
                 onClick={handleLogout}
                 className="p-2 rounded-full text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-colors border border-transparent hover:border-brand-100"
@@ -188,8 +197,8 @@ function App() {
             <button
               onClick={() => setActiveTab('inventory')}
               className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'inventory'
-                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50 dark:bg-brand-900/20 dark:text-brand-400'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700'
                 }`}
             >
               <Package className="w-5 h-5" />
@@ -199,8 +208,8 @@ function App() {
             <button
               onClick={() => setActiveTab('reservations')}
               className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'reservations'
-                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50 dark:bg-brand-900/20 dark:text-brand-400'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700'
                 }`}
             >
               <ClipboardList className="w-5 h-5" />
@@ -210,8 +219,8 @@ function App() {
             <button
               onClick={() => setActiveTab('in_import')}
               className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'in_import'
-                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50 dark:bg-brand-900/20 dark:text-brand-400'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700'
                 }`}
             >
               <Ship className="w-5 h-5" />
@@ -222,8 +231,8 @@ function App() {
             <button
               onClick={() => setActiveTab('rental_management')}
               className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'rental_management'
-                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50 dark:bg-brand-900/20 dark:text-brand-400'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700'
                 }`}
             >
               <CalendarClock className="w-5 h-5" />
@@ -237,8 +246,8 @@ function App() {
                 <button
                   onClick={() => setActiveTab('upload')}
                   className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'upload'
-                    ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                    ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50 dark:bg-brand-900/20 dark:text-brand-400'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700'
                     }`}
                 >
                   <UploadIcon className="w-5 h-5" />
@@ -248,8 +257,8 @@ function App() {
                 <button
                   onClick={() => setActiveTab('maintenance')}
                   className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'maintenance'
-                    ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                    ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50 dark:bg-brand-900/20 dark:text-brand-400'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700'
                     }`}
                 >
                   <Wrench className="w-5 h-5" />
@@ -259,8 +268,8 @@ function App() {
                 <button
                   onClick={() => setActiveTab('import_management')}
                   className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'import_management'
-                    ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                    ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50 dark:bg-brand-900/20 dark:text-brand-400'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700'
                     }`}
                 >
                   <Container className="w-5 h-5" />

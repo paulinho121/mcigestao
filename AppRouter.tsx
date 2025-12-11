@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import App from './App';
 import { EmailConfirmation } from './pages/EmailConfirmation';
 
+import { ThemeProvider } from './context/ThemeContext';
+
 export const AppRouter = () => {
     const [showConfirmation, setShowConfirmation] = useState(false);
 
@@ -15,12 +17,20 @@ export const AppRouter = () => {
     }, []);
 
     if (showConfirmation) {
-        return <EmailConfirmation onNavigateToLogin={() => {
-            // Clear the hash and reload to show login
-            window.location.hash = '';
-            setShowConfirmation(false);
-        }} />;
+        return (
+            <ThemeProvider>
+                <EmailConfirmation onNavigateToLogin={() => {
+                    // Clear the hash and reload to show login
+                    window.location.hash = '';
+                    setShowConfirmation(false);
+                }} />
+            </ThemeProvider>
+        );
     }
 
-    return <App />;
+    return (
+        <ThemeProvider>
+            <App />
+        </ThemeProvider>
+    );
 };
