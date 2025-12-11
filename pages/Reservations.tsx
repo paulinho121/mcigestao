@@ -122,29 +122,29 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 p-6">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6 transition-colors">
             <div className="max-w-6xl mx-auto">
-                <h1 className="text-3xl font-bold text-slate-900 mb-8">Reserva de Produtos</h1>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-8">Reserva de Produtos</h1>
 
                 {/* Success/Error Messages */}
                 {success && (
-                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 flex items-center">
+                    <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-xl flex items-center">
                         <span className="mr-2">✓</span> {success}
                     </div>
                 )}
                 {error && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-center">
+                    <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl flex items-center">
                         <AlertCircle className="w-5 h-5 mr-2" /> {error}
                     </div>
                 )}
 
                 {/* Reservation Form */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
-                    <h2 className="text-xl font-bold text-slate-900 mb-4">Nova Reserva</h2>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-8 transition-colors">
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Nova Reserva</h2>
 
                     {/* Product Search */}
                     <div className="mb-4">
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                             Buscar Produto (Código ou Descrição)
                         </label>
                         <div className="flex gap-2">
@@ -155,7 +155,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                                    className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+                                    className="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                     placeholder="Digite o código ou nome do produto..."
                                 />
                             </div>
@@ -170,17 +170,17 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
 
                         {/* Search Results */}
                         {searchResults.length > 0 && (
-                            <div className="mt-2 border border-slate-200 rounded-xl max-h-60 overflow-y-auto">
+                            <div className="mt-2 border border-slate-200 dark:border-slate-700 rounded-xl max-h-60 overflow-y-auto bg-white dark:bg-slate-800">
                                 {searchResults.map((product) => (
                                     <button
                                         key={product.id}
                                         onClick={() => handleSelectProduct(product)}
-                                        className="w-full p-3 hover:bg-slate-50 text-left border-b border-slate-100 last:border-b-0 transition-colors"
+                                        className="w-full p-3 hover:bg-slate-50 dark:hover:bg-slate-700 text-left border-b border-slate-100 dark:border-slate-700 last:border-b-0 transition-colors"
                                     >
-                                        <div className="font-semibold text-slate-900">
+                                        <div className="font-semibold text-slate-900 dark:text-white">
                                             {product.id} - {product.name}
                                         </div>
-                                        <div className="text-sm text-slate-500">
+                                        <div className="text-sm text-slate-500 dark:text-slate-400">
                                             Disponível: {product.total - product.reserved} unidades
                                         </div>
                                     </button>
@@ -191,16 +191,16 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
 
                     {/* Selected Product */}
                     {selectedProduct && (
-                        <div className="mb-4 p-4 bg-brand-50 border border-brand-200 rounded-xl">
+                        <div className="mb-4 p-4 bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-xl">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <div className="font-bold text-slate-900">
+                                    <div className="font-bold text-slate-900 dark:text-white">
                                         {selectedProduct.id} - {selectedProduct.name}
                                     </div>
-                                    <div className="text-sm text-slate-600 mt-1">
+                                    <div className="text-sm text-slate-600 dark:text-slate-300 mt-1">
                                         Marca: {selectedProduct.brand}
                                     </div>
-                                    <div className="text-sm text-slate-600">
+                                    <div className="text-sm text-slate-600 dark:text-slate-300">
                                         Estoque Total: {selectedProduct.total} | Reservado: {selectedProduct.reserved} | Disponível: {availableStock}
                                     </div>
                                 </div>
@@ -214,7 +214,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
 
                             {/* Branch Selection */}
                             <div className="mt-4">
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                     Filial para Reserva
                                 </label>
                                 <div className="grid grid-cols-3 gap-2">
@@ -223,7 +223,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                                         onClick={() => setSelectedBranch('CE')}
                                         className={`px-4 py-3 rounded-xl font-semibold transition-all ${selectedBranch === 'CE'
                                             ? 'bg-green-600 text-white shadow-lg'
-                                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
                                             }`}
                                     >
                                         Ceará ({selectedProduct.stock_ce})
@@ -233,7 +233,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                                         onClick={() => setSelectedBranch('SC')}
                                         className={`px-4 py-3 rounded-xl font-semibold transition-all ${selectedBranch === 'SC'
                                             ? 'bg-blue-600 text-white shadow-lg'
-                                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
                                             }`}
                                     >
                                         Santa Catarina ({selectedProduct.stock_sc})
@@ -243,7 +243,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                                         onClick={() => setSelectedBranch('SP')}
                                         className={`px-4 py-3 rounded-xl font-semibold transition-all ${selectedBranch === 'SP'
                                             ? 'bg-red-600 text-white shadow-lg'
-                                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
                                             }`}
                                     >
                                         São Paulo ({selectedProduct.stock_sp})
@@ -253,7 +253,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
 
                             {/* Quantity Input */}
                             <div className="mt-4">
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                     Quantidade a Reservar (Disponível na {getBranchName(selectedBranch)}: {availableStock})
                                 </label>
                                 <div className="flex gap-4 items-end">
@@ -263,7 +263,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                                         max={availableStock}
                                         value={quantity}
                                         onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                                        className="w-32 px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                        className="w-32 px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 dark:bg-slate-700 dark:text-white"
                                     />
                                     <button
                                         onClick={handleReserve}
@@ -284,12 +284,12 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                 </div>
 
                 {/* Reservations List */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                    <h2 className="text-xl font-bold text-slate-900 mb-4">Reservas Ativas</h2>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Reservas Ativas</h2>
 
                     {reservations.length === 0 ? (
-                        <div className="text-center py-12 text-slate-400">
-                            <Package className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                        <div className="text-center py-12 text-slate-400 dark:text-slate-500">
+                            <Package className="w-16 h-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
                             <p>Nenhuma reserva encontrada</p>
                         </div>
                     ) : (
@@ -297,14 +297,14 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                             {reservations.map((reservation) => (
                                 <div
                                     key={reservation.id}
-                                    className="p-4 border border-slate-200 rounded-xl hover:border-brand-300 transition-colors"
+                                    className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-brand-300 dark:hover:border-brand-500 transition-colors"
                                 >
                                     <div className="flex justify-between items-start">
                                         <div className="flex-grow">
-                                            <div className="font-bold text-slate-900">
+                                            <div className="font-bold text-slate-900 dark:text-white">
                                                 {reservation.productId} - {reservation.productName}
                                             </div>
-                                            <div className="flex gap-4 mt-2 text-sm text-slate-600 flex-wrap">
+                                            <div className="flex gap-4 mt-2 text-sm text-slate-600 dark:text-slate-300 flex-wrap">
                                                 <div className="flex items-center">
                                                     <Package className="w-4 h-4 mr-1" />
                                                     Quantidade: {reservation.quantity}
@@ -330,7 +330,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                                         {(reservation.reservedBy === userEmail || isMasterUser) && (
                                             <button
                                                 onClick={() => handleCancelReservation(reservation.id)}
-                                                className="ml-4 px-4 py-2 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                                                className="ml-4 px-4 py-2 text-sm bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                                             >
                                                 Cancelar
                                             </button>

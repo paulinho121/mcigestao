@@ -299,28 +299,28 @@ export const XmlUpload: React.FC = () => {
     };
 
     return (
-        <div className="p-6">
+        <div className="p-6 bg-slate-50 dark:bg-slate-900 min-h-screen transition-colors">
             <div className="max-w-6xl mx-auto">
-                <h1 className="text-3xl font-bold text-slate-900 mb-2">Upload de XML (NFe)</h1>
-                <p className="text-slate-600 mb-8">Envie arquivos XML de notas fiscais para atualizar o estoque automaticamente.</p>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Upload de XML (NFe)</h1>
+                <p className="text-slate-600 dark:text-slate-400 mb-8">Envie arquivos XML de notas fiscais para atualizar o estoque automaticamente.</p>
 
                 {/* Upload Area */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 mb-8">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 mb-8 transition-colors">
                     <div
                         onDragEnter={handleDrag}
                         onDragLeave={handleDrag}
                         onDragOver={handleDrag}
                         onDrop={handleDrop}
                         className={`border-2 border-dashed rounded-xl p-12 text-center transition-all ${dragActive
-                            ? 'border-brand-500 bg-brand-50'
-                            : 'border-slate-300 hover:border-brand-400 hover:bg-slate-50'
+                            ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
+                            : 'border-slate-300 dark:border-slate-600 hover:border-brand-400 hover:bg-slate-50 dark:hover:bg-slate-700/50'
                             }`}
                     >
-                        <FileCode className="w-16 h-16 mx-auto mb-4 text-slate-400" />
-                        <p className="text-lg font-semibold text-slate-700 mb-2">
+                        <FileCode className="w-16 h-16 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
+                        <p className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">
                             Arraste e solte arquivos XML aqui
                         </p>
-                        <p className="text-sm text-slate-500 mb-4">ou</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">ou</p>
                         <label className="inline-block px-6 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-colors cursor-pointer font-semibold">
                             Selecionar Arquivos
                             <input
@@ -338,7 +338,7 @@ export const XmlUpload: React.FC = () => {
                 {xmlItems.length > 0 && (
                     <div className="space-y-4">
                         <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-slate-900">Arquivos Identificados ({xmlItems.length})</h2>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Arquivos Identificados ({xmlItems.length})</h2>
                             <button
                                 onClick={processStock}
                                 disabled={loading || xmlItems.every(i => i.status === 'success')}
@@ -359,34 +359,34 @@ export const XmlUpload: React.FC = () => {
                         </div>
 
                         {xmlItems.map((item, index) => (
-                            <div key={item.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <div key={item.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-4">
-                                        <div className={`p-3 rounded-lg ${item.operation === 'entry' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                        <div className={`p-3 rounded-lg ${item.operation === 'entry' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
                                             {item.operation === 'entry' ? <ArrowRight className="w-6 h-6" /> : <ArrowLeft className="w-6 h-6" />}
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-slate-900">{item.fileName}</h3>
-                                            <p className="text-sm text-slate-500">
+                                            <h3 className="font-bold text-slate-900 dark:text-white">{item.fileName}</h3>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400">
                                                 NFe: {item.nfeNumber} • Série: {item.series} • {new Date(item.date).toLocaleDateString()}
                                             </p>
                                             {item.isTransfer && (
-                                                <p className="text-xs text-brand-600 font-semibold mt-1">
+                                                <p className="text-xs text-brand-600 dark:text-brand-400 font-semibold mt-1">
                                                     📦 {item.natOp}
                                                 </p>
                                             )}
-                                            <p className="text-xs text-slate-400 mt-1">CNPJ: {item.branchCnpj}</p>
+                                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">CNPJ: {item.branchCnpj}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4">
                                         {/* Branch Selector */}
                                         <div className="flex flex-col items-end">
-                                            <label className="text-xs text-slate-500 mb-1">Filial</label>
+                                            <label className="text-xs text-slate-500 dark:text-slate-400 mb-1">Filial</label>
                                             <select
                                                 value={item.branch || ''}
                                                 onChange={(e) => updateBranchMapping(item.branchCnpj, e.target.value as any)}
                                                 disabled={item.status === 'success'}
-                                                className={`px-3 py-1.5 rounded-lg border text-sm font-semibold ${!item.branch ? 'border-red-300 bg-red-50 text-red-700' : 'border-slate-300 bg-white text-slate-700'
+                                                className={`px-3 py-1.5 rounded-lg border text-sm font-semibold ${!item.branch ? 'border-red-300 bg-red-50 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400' : 'border-slate-300 bg-white text-slate-700 dark:bg-slate-700 dark:border-slate-600 dark:text-white'
                                                     }`}
                                             >
                                                 <option value="">Selecione...</option>
@@ -398,11 +398,11 @@ export const XmlUpload: React.FC = () => {
 
                                         {/* Status Indicator */}
                                         <div className="w-32 text-right">
-                                            {item.needsOperationSelection && <span className="text-orange-600 font-semibold flex items-center justify-end gap-1"><AlertCircle className="w-4 h-4" /> Aguardando</span>}
-                                            {!item.needsOperationSelection && item.status === 'success' && <span className="text-green-600 font-semibold flex items-center justify-end gap-1"><CheckCircle className="w-4 h-4" /> Sucesso</span>}
-                                            {!item.needsOperationSelection && item.status === 'error' && <span className="text-red-600 font-semibold flex items-center justify-end gap-1"><AlertCircle className="w-4 h-4" /> Erro</span>}
-                                            {!item.needsOperationSelection && item.status === 'processing' && <span className="text-blue-600 font-semibold">Processando...</span>}
-                                            {!item.needsOperationSelection && item.status === 'pending' && <span className="text-slate-400">Pendente</span>}
+                                            {item.needsOperationSelection && <span className="text-orange-600 dark:text-orange-400 font-semibold flex items-center justify-end gap-1"><AlertCircle className="w-4 h-4" /> Aguardando</span>}
+                                            {!item.needsOperationSelection && item.status === 'success' && <span className="text-green-600 dark:text-green-400 font-semibold flex items-center justify-end gap-1"><CheckCircle className="w-4 h-4" /> Sucesso</span>}
+                                            {!item.needsOperationSelection && item.status === 'error' && <span className="text-red-600 dark:text-red-400 font-semibold flex items-center justify-end gap-1"><AlertCircle className="w-4 h-4" /> Erro</span>}
+                                            {!item.needsOperationSelection && item.status === 'processing' && <span className="text-blue-600 dark:text-blue-400 font-semibold">Processando...</span>}
+                                            {!item.needsOperationSelection && item.status === 'pending' && <span className="text-slate-400 dark:text-slate-500">Pendente</span>}
                                         </div>
 
                                         <button
@@ -416,27 +416,27 @@ export const XmlUpload: React.FC = () => {
                                 </div>
 
                                 {item.message && (
-                                    <div className={`mb-4 p-3 rounded-lg text-sm ${item.status === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                                    <div className={`mb-4 p-3 rounded-lg text-sm ${item.status === 'error' ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'}`}>
                                         {item.message}
                                     </div>
                                 )}
 
                                 {/* New Products Badge */}
                                 {item.productsChecked && item.newProductsCount && item.newProductsCount > 0 && item.status === 'pending' && (
-                                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
-                                        <PackagePlus className="w-5 h-5 text-blue-600" />
-                                        <span className="text-sm font-semibold text-blue-700">
+                                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center gap-2">
+                                        <PackagePlus className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                        <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
                                             {item.newProductsCount} produto(s) novo(s) serão cadastrados automaticamente
                                         </span>
                                     </div>
                                 )}
 
                                 {/* Products Preview */}
-                                <div className="bg-slate-50 rounded-lg p-4">
-                                    <p className="text-sm font-semibold text-slate-700 mb-2">Produtos ({item.products.length})</p>
-                                    <div className="max-h-40 overflow-y-auto">
+                                <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 transition-colors">
+                                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Produtos ({item.products.length})</p>
+                                    <div className="max-h-40 overflow-y-auto custom-scrollbar">
                                         <table className="w-full text-sm">
-                                            <thead className="text-xs text-slate-500 uppercase bg-slate-100 sticky top-0">
+                                            <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-100 dark:bg-slate-800 sticky top-0">
                                                 <tr>
                                                     <th className="px-2 py-1 text-left">Cód.</th>
                                                     <th className="px-2 py-1 text-left">Nome</th>
@@ -447,24 +447,24 @@ export const XmlUpload: React.FC = () => {
                                             </thead>
                                             <tbody>
                                                 {item.products.map((prod, idx) => (
-                                                    <tr key={idx} className="border-b border-slate-100 last:border-0">
-                                                        <td className="px-2 py-1 font-mono text-slate-600">{prod.code}</td>
-                                                        <td className="px-2 py-1 text-slate-900 truncate max-w-[200px]">{prod.name}</td>
-                                                        <td className={`px-2 py-1 text-right font-semibold ${item.operation === 'entry' ? 'text-green-600' : 'text-red-600'}`}>
+                                                    <tr key={idx} className="border-b border-slate-100 dark:border-slate-700 last:border-0 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 transition-colors">
+                                                        <td className="px-2 py-1 font-mono text-slate-600 dark:text-slate-400">{prod.code}</td>
+                                                        <td className="px-2 py-1 text-slate-900 dark:text-slate-300 truncate max-w-[200px]">{prod.name}</td>
+                                                        <td className={`px-2 py-1 text-right font-semibold ${item.operation === 'entry' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                                             {item.operation === 'entry' ? '+' : '-'}{prod.quantity}
                                                         </td>
-                                                        <td className="px-2 py-1 text-right text-slate-500">{prod.cfop}</td>
+                                                        <td className="px-2 py-1 text-right text-slate-500 dark:text-slate-500">{prod.cfop}</td>
                                                         {item.productsChecked && (
                                                             <td className="px-2 py-1 text-center">
                                                                 {prod.exists === false ? (
-                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">
                                                                         <PackagePlus className="w-3 h-3" />
                                                                         Novo
                                                                     </span>
                                                                 ) : prod.exists === true ? (
-                                                                    <span className="text-slate-400 text-xs">✓</span>
+                                                                    <span className="text-slate-400 dark:text-slate-500 text-xs">✓</span>
                                                                 ) : (
-                                                                    <span className="text-slate-300 text-xs">...</span>
+                                                                    <span className="text-slate-300 dark:text-slate-600 text-xs">...</span>
                                                                 )}
                                                             </td>
                                                         )}
@@ -481,31 +481,31 @@ export const XmlUpload: React.FC = () => {
 
                 {/* Modal de Seleção de Operação para Transferências */}
                 {itemNeedingSelection && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8">
-                            <h2 className="text-2xl font-bold text-slate-900 mb-4">Transferência Detectada</h2>
-                            <p className="text-slate-600 mb-6">
-                                Este XML é uma <span className="font-semibold text-brand-600">transferência</span>.
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full p-8 border border-slate-200 dark:border-slate-700 transition-colors">
+                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Transferência Detectada</h2>
+                            <p className="text-slate-600 dark:text-slate-400 mb-6">
+                                Este XML é uma <span className="font-semibold text-brand-600 dark:text-brand-400">transferência</span>.
                                 Por favor, selecione se você está <strong>recebendo</strong> (entrada) ou <strong>enviando</strong> (saída) os produtos.
                             </p>
 
-                            <div className="bg-slate-50 rounded-lg p-4 mb-6">
+                            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 mb-6">
                                 <div className="grid grid-cols-2 gap-3 text-sm">
                                     <div>
-                                        <span className="text-slate-500">NFe:</span>
-                                        <span className="ml-2 font-semibold text-slate-900">{itemNeedingSelection.nfeNumber}</span>
+                                        <span className="text-slate-500 dark:text-slate-400">NFe:</span>
+                                        <span className="ml-2 font-semibold text-slate-900 dark:text-white">{itemNeedingSelection.nfeNumber}</span>
                                     </div>
                                     <div>
-                                        <span className="text-slate-500">Série:</span>
-                                        <span className="ml-2 font-semibold text-slate-900">{itemNeedingSelection.series}</span>
+                                        <span className="text-slate-500 dark:text-slate-400">Série:</span>
+                                        <span className="ml-2 font-semibold text-slate-900 dark:text-white">{itemNeedingSelection.series}</span>
                                     </div>
                                     <div className="col-span-2">
-                                        <span className="text-slate-500">Natureza:</span>
-                                        <span className="ml-2 font-semibold text-brand-600">{itemNeedingSelection.natOp}</span>
+                                        <span className="text-slate-500 dark:text-slate-400">Natureza:</span>
+                                        <span className="ml-2 font-semibold text-brand-600 dark:text-brand-400">{itemNeedingSelection.natOp}</span>
                                     </div>
                                     <div className="col-span-2">
-                                        <span className="text-slate-500">CNPJ:</span>
-                                        <span className="ml-2 font-mono text-slate-700">{itemNeedingSelection.branchCnpj}</span>
+                                        <span className="text-slate-500 dark:text-slate-400">CNPJ:</span>
+                                        <span className="ml-2 font-mono text-slate-700 dark:text-slate-300">{itemNeedingSelection.branchCnpj}</span>
                                     </div>
                                 </div>
                             </div>
@@ -513,22 +513,22 @@ export const XmlUpload: React.FC = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <button
                                     onClick={() => handleOperationSelection(itemNeedingSelection.id, 'entry')}
-                                    className="flex flex-col items-center justify-center p-6 bg-green-50 hover:bg-green-100 border-2 border-green-300 hover:border-green-500 rounded-xl transition-all group"
+                                    className="flex flex-col items-center justify-center p-6 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border-2 border-green-300 dark:border-green-800 hover:border-green-500 dark:hover:border-green-600 rounded-xl transition-all group"
                                 >
-                                    <ArrowRight className="w-12 h-12 text-green-600 mb-3 group-hover:scale-110 transition-transform" />
-                                    <span className="text-lg font-bold text-green-700">Entrada</span>
-                                    <span className="text-sm text-green-600 mt-1">Receber produtos</span>
-                                    <span className="text-xs text-green-500 mt-2">+ Adiciona ao estoque</span>
+                                    <ArrowRight className="w-12 h-12 text-green-600 dark:text-green-500 mb-3 group-hover:scale-110 transition-transform" />
+                                    <span className="text-lg font-bold text-green-700 dark:text-green-400">Entrada</span>
+                                    <span className="text-sm text-green-600 dark:text-green-500 mt-1">Receber produtos</span>
+                                    <span className="text-xs text-green-500 dark:text-green-600 mt-2">+ Adiciona ao estoque</span>
                                 </button>
 
                                 <button
                                     onClick={() => handleOperationSelection(itemNeedingSelection.id, 'exit')}
-                                    className="flex flex-col items-center justify-center p-6 bg-red-50 hover:bg-red-100 border-2 border-red-300 hover:border-red-500 rounded-xl transition-all group"
+                                    className="flex flex-col items-center justify-center p-6 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border-2 border-red-300 dark:border-red-800 hover:border-red-500 dark:hover:border-red-600 rounded-xl transition-all group"
                                 >
-                                    <ArrowLeft className="w-12 h-12 text-red-600 mb-3 group-hover:scale-110 transition-transform" />
-                                    <span className="text-lg font-bold text-red-700">Saída</span>
-                                    <span className="text-sm text-red-600 mt-1">Enviar produtos</span>
-                                    <span className="text-xs text-red-500 mt-2">- Subtrai do estoque</span>
+                                    <ArrowLeft className="w-12 h-12 text-red-600 dark:text-red-500 mb-3 group-hover:scale-110 transition-transform" />
+                                    <span className="text-lg font-bold text-red-700 dark:text-red-400">Saída</span>
+                                    <span className="text-sm text-red-600 dark:text-red-500 mt-1">Enviar produtos</span>
+                                    <span className="text-xs text-red-500 dark:text-red-600 mt-2">- Subtrai do estoque</span>
                                 </button>
                             </div>
                         </div>

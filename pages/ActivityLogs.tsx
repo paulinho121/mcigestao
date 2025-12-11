@@ -105,27 +105,27 @@ export const ActivityLogs: React.FC = () => {
     const totalPages = Math.ceil(total / pageSize);
 
     return (
-        <div className="p-6">
+        <div className="p-6 min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors">
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-                            <FileText className="w-8 h-8 text-brand-600" />
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                            <FileText className="w-8 h-8 text-brand-600 dark:text-brand-500" />
                             Logs de Atividades
                         </h1>
-                        <p className="text-slate-600 mt-1">Auditoria completa de ações no sistema</p>
+                        <p className="text-slate-600 dark:text-slate-400 mt-1">Auditoria completa de ações no sistema</p>
                     </div>
                     <div className="flex gap-3">
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className="px-4 py-2 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2"
+                            className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors flex items-center gap-2"
                         >
                             <Filter className="w-4 h-4" />
                             Filtros
                         </button>
                         <button
                             onClick={loadLogs}
-                            className="px-4 py-2 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2"
+                            className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors flex items-center gap-2"
                         >
                             <RefreshCw className="w-4 h-4" />
                             Atualizar
@@ -143,10 +143,10 @@ export const ActivityLogs: React.FC = () => {
 
                 {/* Filtros */}
                 {showFilters && (
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6 transition-colors">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     <Calendar className="w-4 h-4 inline mr-1" />
                                     Data Início
                                 </label>
@@ -154,11 +154,11 @@ export const ActivityLogs: React.FC = () => {
                                     type="date"
                                     value={filters.startDate}
                                     onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 dark:bg-slate-700 dark:text-white"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     <Calendar className="w-4 h-4 inline mr-1" />
                                     Data Fim
                                 </label>
@@ -166,18 +166,18 @@ export const ActivityLogs: React.FC = () => {
                                     type="date"
                                     value={filters.endDate}
                                     onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 dark:bg-slate-700 dark:text-white"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     <Activity className="w-4 h-4 inline mr-1" />
                                     Tipo de Ação
                                 </label>
                                 <select
                                     value={filters.actionType}
                                     onChange={(e) => handleFilterChange('actionType', e.target.value)}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 dark:bg-slate-700 dark:text-white"
                                 >
                                     <option value="">Todas</option>
                                     {Object.entries(ACTION_TYPE_LABELS).map(([key, label]) => (
@@ -186,7 +186,7 @@ export const ActivityLogs: React.FC = () => {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     <User className="w-4 h-4 inline mr-1" />
                                     Email do Usuário
                                 </label>
@@ -195,11 +195,11 @@ export const ActivityLogs: React.FC = () => {
                                     value={filters.userEmail}
                                     onChange={(e) => handleFilterChange('userEmail', e.target.value)}
                                     placeholder="ex: nome@mcistore.com.br"
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                 />
                             </div>
                             <div className="lg:col-span-2">
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     Buscar
                                 </label>
                                 <input
@@ -207,14 +207,14 @@ export const ActivityLogs: React.FC = () => {
                                     value={filters.search}
                                     onChange={(e) => handleFilterChange('search', e.target.value)}
                                     placeholder="Buscar por descrição ou ID..."
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                 />
                             </div>
                         </div>
                         <div className="mt-4 flex justify-end">
                             <button
                                 onClick={clearFilters}
-                                className="px-4 py-2 text-slate-600 hover:text-slate-900 transition-colors"
+                                className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                             >
                                 Limpar Filtros
                             </button>
@@ -223,13 +223,13 @@ export const ActivityLogs: React.FC = () => {
                 )}
 
                 {/* Estatísticas */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 mb-6 transition-colors">
                     <div className="flex items-center justify-between">
-                        <p className="text-sm text-slate-600">
-                            Mostrando <span className="font-semibold text-slate-900">{logs.length}</span> de{' '}
-                            <span className="font-semibold text-slate-900">{total}</span> registros
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                            Mostrando <span className="font-semibold text-slate-900 dark:text-white">{logs.length}</span> de{' '}
+                            <span className="font-semibold text-slate-900 dark:text-white">{total}</span> registros
                         </p>
-                        <p className="text-sm text-slate-600">
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
                             Página {page} de {totalPages || 1}
                         </p>
                     </div>
@@ -238,35 +238,35 @@ export const ActivityLogs: React.FC = () => {
                 {/* Lista de Logs */}
                 {loading ? (
                     <div className="flex justify-center items-center py-12">
-                        <div className="w-12 h-12 border-4 border-brand-600 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-12 h-12 border-4 border-brand-600 dark:border-brand-500 border-t-transparent rounded-full animate-spin"></div>
                     </div>
                 ) : logs.length === 0 ? (
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
-                        <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                        <p className="text-slate-600">Nenhum log encontrado</p>
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-12 text-center transition-colors">
+                        <FileText className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+                        <p className="text-slate-600 dark:text-slate-400">Nenhum log encontrado</p>
                     </div>
                 ) : (
                     <div className="space-y-3">
                         {logs.map((log) => (
-                            <div key={log.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div key={log.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
                                 <div
-                                    className="p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                                    className="p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                                     onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id!)}
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-3 mb-2">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${ACTION_TYPE_COLORS[log.action_type] || 'bg-gray-100 text-gray-700'}`}>
+                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${ACTION_TYPE_COLORS[log.action_type] || 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>
                                                     {ACTION_TYPE_LABELS[log.action_type] || log.action_type}
                                                 </span>
-                                                <span className="text-xs text-slate-500">
+                                                <span className="text-xs text-slate-500 dark:text-slate-400">
                                                     {new Date(log.created_at!).toLocaleString('pt-BR')}
                                                 </span>
                                             </div>
-                                            <p className="text-sm text-slate-900 font-medium mb-1">
+                                            <p className="text-sm text-slate-900 dark:text-white font-medium mb-1">
                                                 {log.details?.description || 'Sem descrição'}
                                             </p>
-                                            <div className="flex items-center gap-4 text-xs text-slate-500">
+                                            <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
                                                 <span className="flex items-center gap-1">
                                                     <User className="w-3 h-3" />
                                                     {log.user_name || log.user_email}
@@ -288,10 +288,10 @@ export const ActivityLogs: React.FC = () => {
 
                                 {/* Detalhes Expandidos */}
                                 {expandedLog === log.id && (
-                                    <div className="border-t border-slate-200 bg-slate-50 p-4">
-                                        <h4 className="text-sm font-semibold text-slate-700 mb-3">Detalhes</h4>
-                                        <div className="bg-white rounded-lg p-3 text-xs font-mono">
-                                            <pre className="whitespace-pre-wrap text-slate-700">
+                                    <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-4">
+                                        <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Detalhes</h4>
+                                        <div className="bg-white dark:bg-slate-900 rounded-lg p-3 text-xs font-mono">
+                                            <pre className="whitespace-pre-wrap text-slate-700 dark:text-slate-300">
                                                 {JSON.stringify(log.details, null, 2)}
                                             </pre>
                                         </div>
@@ -308,17 +308,17 @@ export const ActivityLogs: React.FC = () => {
                         <button
                             onClick={() => setPage(p => Math.max(1, p - 1))}
                             disabled={page === 1}
-                            className="px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700 dark:text-slate-300"
                         >
                             Anterior
                         </button>
-                        <span className="px-4 py-2 bg-white border border-slate-300 rounded-lg">
+                        <span className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300">
                             {page} / {totalPages}
                         </span>
                         <button
                             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                             disabled={page === totalPages}
-                            className="px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700 dark:text-slate-300"
                         >
                             Próxima
                         </button>

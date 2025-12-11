@@ -248,11 +248,11 @@ export function RentalManagement() {
     const totalRevenue = rentals.reduce((acc, curr) => acc + (curr.rental_value || 0), 0);
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-6 max-w-7xl mx-auto min-h-screen">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800">Gestão de Locação</h1>
-                    <p className="text-slate-500">Gerencie seus contratos e estoque de locação</p>
+                    <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Gestão de Locação</h1>
+                    <p className="text-slate-500 dark:text-slate-400">Gerencie seus contratos e estoque de locação</p>
                 </div>
                 <div className="flex gap-2">
                     {activeTab === 'rentals' ? (
@@ -276,12 +276,12 @@ export function RentalManagement() {
             </div>
 
             {/* Tabs */}
-            <div className="flex space-x-1 bg-slate-100 p-1 rounded-xl mb-6 w-fit">
+            <div className="flex space-x-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl mb-6 w-fit transition-colors">
                 <button
                     onClick={() => setActiveTab('rentals')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'rentals'
-                        ? 'bg-white text-brand-600 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
+                        ? 'bg-white text-brand-600 shadow-sm dark:bg-slate-700 dark:text-blue-400'
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
                         }`}
                 >
                     Contratos
@@ -289,8 +289,8 @@ export function RentalManagement() {
                 <button
                     onClick={() => setActiveTab('inventory')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'inventory'
-                        ? 'bg-white text-brand-600 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
+                        ? 'bg-white text-brand-600 shadow-sm dark:bg-slate-700 dark:text-blue-400'
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
                         }`}
                 >
                     Estoque
@@ -300,24 +300,24 @@ export function RentalManagement() {
             {/* Stats Cards (Only for Rentals Tab) */}
             {activeTab === 'rentals' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 transition-colors">
                         <div className="flex items-center justify-between mb-4">
-                            <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg">
                                 <Package className="w-6 h-6" />
                             </div>
-                            <span className="text-sm font-medium text-slate-400">Total Ativos</span>
+                            <span className="text-sm font-medium text-slate-400 dark:text-slate-500">Total Ativos</span>
                         </div>
-                        <h3 className="text-3xl font-bold text-slate-800">{activeRentalsCount}</h3>
+                        <h3 className="text-3xl font-bold text-slate-800 dark:text-white">{activeRentalsCount}</h3>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 col-span-2">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 w-full">
+                        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 w-full transition-colors">
                             <div className="flex items-center justify-between mb-4">
-                                <div className="p-3 bg-green-50 text-green-600 rounded-lg">
+                                <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg">
                                     <DollarSign className="w-6 h-6" />
                                 </div>
-                                <span className="text-sm font-medium text-slate-400">Receita Total</span>
+                                <span className="text-sm font-medium text-slate-400 dark:text-slate-500">Receita Total</span>
                             </div>
-                            <h3 className="text-3xl font-bold text-slate-800">
+                            <h3 className="text-3xl font-bold text-slate-800 dark:text-white">
                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue)}
                             </h3>
                         </div>
@@ -326,8 +326,8 @@ export function RentalManagement() {
             )}
 
             {/* Search */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
-                <div className="p-4 border-b border-slate-200 bg-slate-50 flex gap-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden mb-6 transition-colors">
+                <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex gap-4">
                     <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                         <input
@@ -335,7 +335,7 @@ export function RentalManagement() {
                             placeholder={activeTab === 'rentals' ? "Buscar por cliente ou item..." : "Buscar item..."}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+                            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                         />
                     </div>
                 </div>
@@ -344,7 +344,7 @@ export function RentalManagement() {
                 <div className="overflow-x-auto">
                     {activeTab === 'rentals' ? (
                         <table className="w-full text-left">
-                            <thead className="bg-slate-50 text-slate-500 text-sm font-medium uppercase tracking-wider">
+                            <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
                                 <tr>
                                     <th className="px-6 py-4">Cliente</th>
                                     <th className="px-6 py-4">Item</th>
@@ -354,22 +354,22 @@ export function RentalManagement() {
                                     <th className="px-6 py-4 text-right">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-200">
+                            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500">Carregando...</td>
+                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Carregando...</td>
                                     </tr>
                                 ) : filteredRentals.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500">Nenhuma locação encontrada.</td>
+                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Nenhuma locação encontrada.</td>
                                     </tr>
                                 ) : (
                                     filteredRentals.map((rental) => (
-                                        <tr key={rental.id} className="hover:bg-slate-50 transition-colors">
-                                            <td className="px-6 py-4 font-medium text-slate-900">{rental.client_name}</td>
-                                            <td className="px-6 py-4 text-slate-600">{rental.item_name}</td>
-                                            <td className="px-6 py-4 text-slate-600">{rental.rental_period}</td>
-                                            <td className="px-6 py-4 font-medium text-slate-900">
+                                        <tr key={rental.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                            <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{rental.client_name}</td>
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{rental.item_name}</td>
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{rental.rental_period}</td>
+                                            <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rental.rental_value)}
                                             </td>
                                             <td className="px-6 py-4">
@@ -406,7 +406,7 @@ export function RentalManagement() {
                         </table>
                     ) : (
                         <table className="w-full text-left">
-                            <thead className="bg-slate-50 text-slate-500 text-sm font-medium uppercase tracking-wider">
+                            <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
                                 <tr>
                                     <th className="px-6 py-4">Item</th>
                                     <th className="px-6 py-4">Descrição</th>
@@ -416,27 +416,27 @@ export function RentalManagement() {
                                     <th className="px-6 py-4 text-right">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-200">
+                            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500">Carregando...</td>
+                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Carregando...</td>
                                     </tr>
                                 ) : filteredItems.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500">Nenhum item encontrado.</td>
+                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Nenhum item encontrado.</td>
                                     </tr>
                                 ) : (
                                     filteredItems.map((item) => (
-                                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                                            <td className="px-6 py-4 font-medium text-slate-900">{item.name}</td>
-                                            <td className="px-6 py-4 text-slate-600">{item.description || '-'}</td>
-                                            <td className="px-6 py-4 text-slate-900">{item.total_quantity}</td>
+                                        <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                            <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{item.name}</td>
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{item.description || '-'}</td>
+                                            <td className="px-6 py-4 text-slate-900 dark:text-white">{item.total_quantity}</td>
                                             <td className="px-6 py-4">
-                                                <span className={`font-medium ${item.available_quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                <span className={`font-medium ${item.available_quantity > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                                     {item.available_quantity}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 font-medium text-slate-900">
+                                            <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.daily_rate)}
                                             </td>
                                             <td className="px-6 py-4 text-right space-x-2">
@@ -467,13 +467,13 @@ export function RentalManagement() {
             {/* Add Rental Modal */}
             {showAddRentalModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
-                        <div className="p-6 border-b border-slate-100">
-                            <h2 className="text-xl font-bold text-slate-800">Nova Locação</h2>
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full overflow-hidden transition-colors">
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Nova Locação</h2>
                         </div>
                         <form onSubmit={handleAddRental} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Cliente</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nome do Cliente</label>
                                 <div className="relative">
                                     <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                                     <input
@@ -481,14 +481,14 @@ export function RentalManagement() {
                                         required
                                         value={clientName}
                                         onChange={(e) => setClientName(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-brand-500 outline-none dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                         placeholder="Ex: João Silva"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Item</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Item</label>
                                 <div className="relative">
                                     <Package className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                                     <input
@@ -496,7 +496,7 @@ export function RentalManagement() {
                                         required
                                         value={itemName}
                                         onChange={(e) => setItemName(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-brand-500 outline-none dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                         placeholder="Ex: Furadeira"
                                     />
                                 </div>
@@ -504,7 +504,7 @@ export function RentalManagement() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Tempo de Locação</label>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tempo de Locação</label>
                                     <div className="relative">
                                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                                         <input
@@ -512,13 +512,13 @@ export function RentalManagement() {
                                             required
                                             value={rentalPeriod}
                                             onChange={(e) => setRentalPeriod(e.target.value)}
-                                            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-brand-500 outline-none dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                             placeholder="Ex: 2 dias"
                                         />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor (R$)</label>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Valor (R$)</label>
                                     <div className="relative">
                                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                                         <input
@@ -528,7 +528,7 @@ export function RentalManagement() {
                                             min="0"
                                             value={rentalValue}
                                             onChange={(e) => setRentalValue(e.target.value)}
-                                            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-brand-500 outline-none dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                             placeholder="0.00"
                                         />
                                     </div>
@@ -539,7 +539,7 @@ export function RentalManagement() {
                                 <button
                                     type="button"
                                     onClick={() => setShowAddRentalModal(false)}
-                                    className="flex-1 px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors font-medium"
+                                    className="flex-1 px-4 py-2 text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors font-medium"
                                 >
                                     Cancelar
                                 </button>
@@ -558,31 +558,31 @@ export function RentalManagement() {
             {/* Add/Edit Item Modal */}
             {showAddItemModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
-                        <div className="p-6 border-b border-slate-100">
-                            <h2 className="text-xl font-bold text-slate-800">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full overflow-hidden transition-colors">
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">
                                 {editingItem ? 'Editar Item' : 'Novo Item'}
                             </h2>
                         </div>
                         <form onSubmit={handleSaveItem} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Item</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nome do Item</label>
                                 <input
                                     type="text"
                                     required
                                     value={newItemName}
                                     onChange={(e) => setNewItemName(e.target.value)}
-                                    className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                    className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-brand-500 outline-none dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                     placeholder="Ex: Andaime"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Descrição</label>
                                 <textarea
                                     value={newItemDescription}
                                     onChange={(e) => setNewItemDescription(e.target.value)}
-                                    className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                    className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-brand-500 outline-none dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                     placeholder="Detalhes do item..."
                                     rows={3}
                                 />
@@ -590,19 +590,19 @@ export function RentalManagement() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Quantidade Total</label>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Quantidade Total</label>
                                     <input
                                         type="number"
                                         required
                                         min="0"
                                         value={newItemQuantity}
                                         onChange={(e) => setNewItemQuantity(e.target.value)}
-                                        className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                        className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-brand-500 outline-none dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                         placeholder="0"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Diária (R$)</label>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Diária (R$)</label>
                                     <input
                                         type="number"
                                         required
@@ -610,7 +610,7 @@ export function RentalManagement() {
                                         min="0"
                                         value={newItemDailyRate}
                                         onChange={(e) => setNewItemDailyRate(e.target.value)}
-                                        className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-brand-500 outline-none"
+                                        className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-brand-500 outline-none dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                         placeholder="0.00"
                                     />
                                 </div>
@@ -620,7 +620,7 @@ export function RentalManagement() {
                                 <button
                                     type="button"
                                     onClick={() => setShowAddItemModal(false)}
-                                    className="flex-1 px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors font-medium"
+                                    className="flex-1 px-4 py-2 text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors font-medium"
                                 >
                                     Cancelar
                                 </button>

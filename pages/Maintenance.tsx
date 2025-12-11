@@ -168,30 +168,30 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 p-6">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6 transition-colors">
             <div className="max-w-7xl mx-auto">
                 <div className="mb-6">
                     <div className="flex items-center gap-3 mb-2">
-                        <Wrench className="w-8 h-8 text-brand-600" />
-                        <h1 className="text-3xl font-bold text-slate-900">Manutenção de Estoque</h1>
+                        <Wrench className="w-8 h-8 text-brand-600 dark:text-brand-500" />
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Manutenção de Estoque</h1>
                     </div>
-                    <p className="text-slate-600">Ajuste quantidades de estoque e adicione observações aos produtos</p>
+                    <p className="text-slate-600 dark:text-slate-400">Ajuste quantidades de estoque e adicione observações aos produtos</p>
                 </div>
 
                 {/* Success/Error Messages */}
                 {success && (
-                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 flex items-center">
+                    <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-green-700 dark:text-green-400 flex items-center transition-colors">
                         <Save className="w-5 h-5 mr-2" /> {success}
                     </div>
                 )}
                 {error && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-center">
+                    <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 flex items-center transition-colors">
                         <AlertCircle className="w-5 h-5 mr-2" /> {error}
                     </div>
                 )}
 
                 {/* Search Bar */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6 transition-colors">
                     <div className="flex gap-3">
                         <div className="flex-1 relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -201,7 +201,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                                 placeholder="Buscar por código ou nome do produto..."
-                                className="w-full pl-12 pr-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                                className="w-full pl-12 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent dark:bg-slate-700 dark:text-white dark:placeholder-slate-400 transition-colors"
                             />
                         </div>
                         <button
@@ -248,31 +248,31 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                 </div>
 
                 {/* Products Table */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
                     {loading ? (
                         <div className="p-12 text-center">
-                            <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4"></div>
-                            <p className="text-slate-600">Carregando produtos...</p>
+                            <div className="w-12 h-12 border-4 border-brand-200 dark:border-brand-900 border-t-brand-600 dark:border-t-brand-500 rounded-full animate-spin mx-auto mb-4"></div>
+                            <p className="text-slate-600 dark:text-slate-400">Carregando produtos...</p>
                         </div>
                     ) : products.length === 0 ? (
                         <div className="p-12 text-center">
-                            <PackageIcon className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                            <p className="text-slate-600">Nenhum produto encontrado</p>
+                            <PackageIcon className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+                            <p className="text-slate-600 dark:text-slate-400">Nenhum produto encontrado</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full">
-                                <thead className="bg-slate-100 border-b border-slate-200">
+                                <thead className="bg-slate-100 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
                                     <tr>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-700">Código</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-700">Produto</th>
-                                        <th className="px-4 py-3 text-center font-semibold text-slate-700 bg-green-50">CE Atual</th>
-                                        <th className="px-4 py-3 text-center font-semibold text-slate-700 bg-green-50">Ajuste CE</th>
-                                        <th className="px-4 py-3 text-center font-semibold text-slate-700 bg-blue-50">SC Atual</th>
-                                        <th className="px-4 py-3 text-center font-semibold text-slate-700 bg-blue-50">Ajuste SC</th>
-                                        <th className="px-4 py-3 text-center font-semibold text-slate-700 bg-red-50">SP Atual</th>
-                                        <th className="px-4 py-3 text-center font-semibold text-slate-700 bg-red-50">Ajuste SP</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-700 bg-purple-50">Observações</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300">Código</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300">Produto</th>
+                                        <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300 bg-green-50 dark:bg-green-900/20">CE Atual</th>
+                                        <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300 bg-green-50 dark:bg-green-900/20">Ajuste CE</th>
+                                        <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300 bg-blue-50 dark:bg-blue-900/20">SC Atual</th>
+                                        <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300 bg-blue-50 dark:bg-blue-900/20">Ajuste SC</th>
+                                        <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300 bg-red-50 dark:bg-red-900/20">SP Atual</th>
+                                        <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300 bg-red-50 dark:bg-red-900/20">Ajuste SP</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300 bg-purple-50 dark:bg-purple-900/20">Observações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -283,26 +283,26 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                         return (
                                             <tr
                                                 key={product.id}
-                                                className={`border-b border-slate-100 hover:bg-slate-50 ${edited ? 'bg-yellow-50' : ''
+                                                className={`border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${edited ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''
                                                     }`}
                                             >
-                                                <td className="px-4 py-3 font-mono text-slate-900">{product.id}</td>
+                                                <td className="px-4 py-3 font-mono text-slate-900 dark:text-white">{product.id}</td>
                                                 <td className="px-4 py-3">
-                                                    <div className="font-medium text-slate-900">{product.name}</div>
+                                                    <div className="font-medium text-slate-900 dark:text-white">{product.name}</div>
                                                     <div className="text-sm text-slate-500">{product.brand}</div>
                                                 </td>
 
                                                 {/* Ceará */}
-                                                <td className="px-4 py-3 text-center bg-green-50/50">
-                                                    <span className="font-semibold text-slate-900">{product.stock_ce}</span>
+                                                <td className="px-4 py-3 text-center bg-green-50/50 dark:bg-green-900/10">
+                                                    <span className="font-semibold text-slate-900 dark:text-white">{product.stock_ce}</span>
                                                 </td>
-                                                <td className="px-4 py-3 bg-green-50/50">
+                                                <td className="px-4 py-3 bg-green-50/50 dark:bg-green-900/10">
                                                     <input
                                                         type="number"
                                                         value={edit.adjustments.ce === 0 ? '' : edit.adjustments.ce}
                                                         onChange={(e) => handleAdjustmentChange(product.id, 'ce', e.target.value)}
                                                         placeholder="0"
-                                                        className="w-20 px-2 py-1 border border-slate-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                                        className="w-20 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white"
                                                     />
                                                     {edit.adjustments.ce !== 0 && (
                                                         <div className="text-xs mt-1 font-medium text-green-700">
@@ -312,16 +312,16 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                 </td>
 
                                                 {/* Santa Catarina */}
-                                                <td className="px-4 py-3 text-center bg-blue-50/50">
-                                                    <span className="font-semibold text-slate-900">{product.stock_sc}</span>
+                                                <td className="px-4 py-3 text-center bg-blue-50/50 dark:bg-blue-900/10">
+                                                    <span className="font-semibold text-slate-900 dark:text-white">{product.stock_sc}</span>
                                                 </td>
-                                                <td className="px-4 py-3 bg-blue-50/50">
+                                                <td className="px-4 py-3 bg-blue-50/50 dark:bg-blue-900/10">
                                                     <input
                                                         type="number"
                                                         value={edit.adjustments.sc === 0 ? '' : edit.adjustments.sc}
                                                         onChange={(e) => handleAdjustmentChange(product.id, 'sc', e.target.value)}
                                                         placeholder="0"
-                                                        className="w-20 px-2 py-1 border border-slate-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                                        className="w-20 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white"
                                                     />
                                                     {edit.adjustments.sc !== 0 && (
                                                         <div className="text-xs mt-1 font-medium text-blue-700">
@@ -331,16 +331,16 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                 </td>
 
                                                 {/* São Paulo */}
-                                                <td className="px-4 py-3 text-center bg-red-50/50">
-                                                    <span className="font-semibold text-slate-900">{product.stock_sp}</span>
+                                                <td className="px-4 py-3 text-center bg-red-50/50 dark:bg-red-900/10">
+                                                    <span className="font-semibold text-slate-900 dark:text-white">{product.stock_sp}</span>
                                                 </td>
-                                                <td className="px-4 py-3 bg-red-50/50">
+                                                <td className="px-4 py-3 bg-red-50/50 dark:bg-red-900/10">
                                                     <input
                                                         type="number"
                                                         value={edit.adjustments.sp === 0 ? '' : edit.adjustments.sp}
                                                         onChange={(e) => handleAdjustmentChange(product.id, 'sp', e.target.value)}
                                                         placeholder="0"
-                                                        className="w-20 px-2 py-1 border border-slate-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                                        className="w-20 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white"
                                                     />
                                                     {edit.adjustments.sp !== 0 && (
                                                         <div className="text-xs mt-1 font-medium text-red-700">
@@ -350,16 +350,16 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                 </td>
 
                                                 {/* Observations */}
-                                                <td className="px-4 py-3 bg-purple-50/50">
+                                                <td className="px-4 py-3 bg-purple-50/50 dark:bg-purple-900/10">
                                                     <textarea
                                                         value={edit.observations}
                                                         onChange={(e) => handleObservationsChange(product.id, e.target.value)}
                                                         placeholder="Adicionar observação..."
                                                         maxLength={500}
                                                         rows={2}
-                                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+                                                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                                     />
-                                                    <div className="text-xs text-slate-500 mt-1">
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                                                         {edit.observations.length}/500
                                                     </div>
                                                 </td>
@@ -373,12 +373,12 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                 </div>
 
                 {/* Info Box */}
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                    <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl transition-colors">
+                    <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-2 flex items-center gap-2">
                         <FileText className="w-5 h-5" />
                         Informações
                     </h3>
-                    <ul className="text-sm text-blue-700 space-y-1">
+                    <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
                         <li>• <strong>Ajuste</strong>: Use valores positivos para adicionar ou negativos para remover estoque</li>
                         <li>• <strong>Observações</strong>: Máximo de 500 caracteres, aparecerão nos cards de produtos</li>
                         <li>• <strong>Destaque</strong>: Linhas editadas ficam amarelas antes de salvar</li>

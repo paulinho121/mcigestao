@@ -185,7 +185,7 @@ export const InImport: React.FC = () => {
 
 
     return (
-        <div className="min-h-screen bg-slate-50 p-6">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6 transition-colors">
             <div className="max-w-7xl mx-auto">
                 <div className="mb-8">
                     <div className="flex items-center justify-between mb-4">
@@ -194,19 +194,19 @@ export const InImport: React.FC = () => {
                                 <Package className="w-8 h-8 text-blue-600" />
                             </div>
                             <div>
-                                <h1 className="text-3xl font-bold text-slate-900">Em Importação</h1>
-                                <p className="text-slate-600">Gerencie seus projetos de importação</p>
+                                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Em Importação</h1>
+                                <p className="text-slate-600 dark:text-slate-400">Gerencie seus projetos de importação</p>
                             </div>
                         </div>
                     </div>
 
                     {/* Sub Tabs */}
-                    <div className="flex gap-2 border-b border-slate-200">
+                    <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700">
                         <button
                             onClick={() => handleTabChange('view')}
                             className={`px-4 py-2 font-semibold transition-all ${subTab === 'view'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-slate-500 hover:text-slate-700'
+                                ? 'text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400'
+                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
                                 }`}
                         >
                             Visualização
@@ -215,8 +215,8 @@ export const InImport: React.FC = () => {
                             <button
                                 onClick={() => handleTabChange('maintenance')}
                                 className={`px-4 py-2 font-semibold transition-all ${subTab === 'maintenance'
-                                    ? 'text-blue-600 border-b-2 border-blue-600'
-                                    : 'text-slate-500 hover:text-slate-700'
+                                    ? 'text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400'
+                                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
                                     }`}
                             >
                                 Manutenção
@@ -230,8 +230,8 @@ export const InImport: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         {/* Projects List */}
                         <div className="lg:col-span-4">
-                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                                <h3 className="font-semibold text-slate-900 mb-4">Projetos</h3>
+                            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 transition-colors">
+                                <h3 className="font-semibold text-slate-900 dark:text-white mb-4">Projetos</h3>
                                 {loading ? (
                                     <div className="text-center py-8">
                                         <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
@@ -248,12 +248,12 @@ export const InImport: React.FC = () => {
                                                 key={project.id}
                                                 onClick={() => handleSelectProject(project)}
                                                 className={`p-3 rounded-lg cursor-pointer transition-colors ${selectedProject?.id === project.id
-                                                    ? 'bg-blue-50 border-2 border-blue-500'
-                                                    : 'bg-slate-50 hover:bg-slate-100 border-2 border-transparent'
+                                                    ? 'bg-blue-50 border-2 border-blue-500 dark:bg-blue-900/20 dark:border-blue-500'
+                                                    : 'bg-slate-50 hover:bg-slate-100 border-2 border-transparent dark:bg-slate-700 dark:hover:bg-slate-600'
                                                     }`}
                                             >
-                                                <div className="font-semibold text-slate-900">{project.manufacturer}</div>
-                                                <div className="text-sm text-slate-600">{project.importNumber}</div>
+                                                <div className="font-semibold text-slate-900 dark:text-white">{project.manufacturer}</div>
+                                                <div className="text-sm text-slate-600 dark:text-slate-300">{project.importNumber}</div>
                                                 <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
                                                     <Calendar className="w-3 h-3" />
                                                     {new Date(project.createdAt).toLocaleDateString('pt-BR')}
@@ -268,12 +268,12 @@ export const InImport: React.FC = () => {
                         {/* Project Items */}
                         <div className="lg:col-span-8">
                             {selectedProject && (
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-                                    <div className="p-4 border-b border-slate-200">
-                                        <h3 className="font-semibold text-slate-900">
+                                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
+                                    <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+                                        <h3 className="font-semibold text-slate-900 dark:text-white">
                                             {selectedProject.manufacturer} - {selectedProject.importNumber}
                                         </h3>
-                                        <p className="text-sm text-slate-600">Itens em importação</p>
+                                        <p className="text-sm text-slate-600 dark:text-slate-400">Itens em importação</p>
                                     </div>
                                     <div className="p-4">
                                         {loadingItems ? (
@@ -289,29 +289,29 @@ export const InImport: React.FC = () => {
                                         ) : (
                                             <div className="overflow-x-auto -mx-4 sm:mx-0">
                                                 <table className="w-full min-w-[640px]">
-                                                    <thead className="bg-slate-50 border-b border-slate-200">
+                                                    <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
                                                         <tr>
-                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 text-xs sm:text-sm">Código</th>
-                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 text-xs sm:text-sm">Produto</th>
-                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 text-xs sm:text-sm hidden sm:table-cell">Marca</th>
-                                                            <th className="px-3 sm:px-4 py-3 text-center font-semibold text-slate-700 text-xs sm:text-sm">Qtd</th>
-                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 text-xs sm:text-sm hidden md:table-cell">Previsão</th>
-                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 text-xs sm:text-sm hidden lg:table-cell">Obs</th>
+                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300 text-xs sm:text-sm">Código</th>
+                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300 text-xs sm:text-sm">Produto</th>
+                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300 text-xs sm:text-sm hidden sm:table-cell">Marca</th>
+                                                            <th className="px-3 sm:px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300 text-xs sm:text-sm">Qtd</th>
+                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300 text-xs sm:text-sm hidden md:table-cell">Previsão</th>
+                                                            <th className="px-3 sm:px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300 text-xs sm:text-sm hidden lg:table-cell">Obs</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody className="divide-y divide-slate-100">
+                                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                                                         {items.map((item) => (
-                                                            <tr key={item.id} className="hover:bg-slate-50">
-                                                                <td className="px-3 sm:px-4 py-3 font-mono text-slate-900 text-xs sm:text-sm">{item.productId}</td>
-                                                                <td className="px-3 sm:px-4 py-3 text-slate-900 text-xs sm:text-sm">{item.productName}</td>
-                                                                <td className="px-3 sm:px-4 py-3 text-slate-600 text-xs sm:text-sm hidden sm:table-cell">{item.productBrand}</td>
+                                                            <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                                                <td className="px-3 sm:px-4 py-3 font-mono text-slate-900 dark:text-slate-200 text-xs sm:text-sm">{item.productId}</td>
+                                                                <td className="px-3 sm:px-4 py-3 text-slate-900 dark:text-slate-200 text-xs sm:text-sm">{item.productName}</td>
+                                                                <td className="px-3 sm:px-4 py-3 text-slate-600 dark:text-slate-400 text-xs sm:text-sm hidden sm:table-cell">{item.productBrand}</td>
                                                                 <td className="px-3 sm:px-4 py-3 text-center">
-                                                                    <span className="font-bold text-blue-600 text-xs sm:text-sm">{item.quantity}</span>
+                                                                    <span className="font-bold text-blue-600 dark:text-blue-400 text-xs sm:text-sm">{item.quantity}</span>
                                                                 </td>
-                                                                <td className="px-3 sm:px-4 py-3 text-slate-600 text-xs sm:text-sm hidden md:table-cell">
+                                                                <td className="px-3 sm:px-4 py-3 text-slate-600 dark:text-slate-400 text-xs sm:text-sm hidden md:table-cell">
                                                                     {item.expectedDate ? new Date(item.expectedDate).toLocaleDateString('pt-BR') : '-'}
                                                                 </td>
-                                                                <td className="px-3 sm:px-4 py-3 text-slate-600 text-xs sm:text-sm truncate max-w-xs hidden lg:table-cell" title={item.observation}>
+                                                                <td className="px-3 sm:px-4 py-3 text-slate-600 dark:text-slate-400 text-xs sm:text-sm truncate max-w-xs hidden lg:table-cell" title={item.observation}>
                                                                     {item.observation || '-'}
                                                                 </td>
                                                             </tr>
@@ -340,34 +340,34 @@ export const InImport: React.FC = () => {
                                 <span className="font-semibold">Criar Novo Projeto de Importação</span>
                             </button>
                         ) : (
-                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
                                 <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-semibold">Criar Novo Projeto de Importação</h3>
+                                    <h3 className="text-lg font-semibold dark:text-white">Criar Novo Projeto de Importação</h3>
                                     <button
                                         onClick={() => setShowNewProjectForm(false)}
-                                        className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                                     >
-                                        <X className="w-5 h-5 text-slate-500" />
+                                        <X className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                                     </button>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4 mb-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">Fabricante</label>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Fabricante</label>
                                         <input
                                             type="text"
                                             value={manufacturer}
                                             onChange={(e) => setManufacturer(e.target.value)}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
                                             placeholder="Nome do fabricante"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">Número da Importação</label>
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Número da Importação</label>
                                         <input
                                             type="text"
                                             value={importNumber}
                                             onChange={(e) => setImportNumber(e.target.value)}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
                                             placeholder="Ex: IMP-2024-001"
                                         />
                                     </div>
@@ -386,15 +386,15 @@ export const InImport: React.FC = () => {
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                             {/* Projects List */}
                             <div className="lg:col-span-4">
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                                    <h3 className="font-semibold text-slate-900 mb-4">Projetos</h3>
+                                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 transition-colors">
+                                    <h3 className="font-semibold text-slate-900 dark:text-white mb-4">Projetos</h3>
                                     {loading ? (
                                         <div className="text-center py-8">
                                             <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
                                         </div>
                                     ) : projects.length === 0 ? (
-                                        <div className="text-center py-8 text-slate-500">
-                                            <FolderOpen className="w-12 h-12 mx-auto mb-2 text-slate-300" />
+                                        <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                                            <FolderOpen className="w-12 h-12 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
                                             <p className="text-sm">Nenhum projeto criado</p>
                                         </div>
                                     ) : (
@@ -403,16 +403,16 @@ export const InImport: React.FC = () => {
                                                 <div
                                                     key={project.id}
                                                     className={`p-3 rounded-lg transition-colors ${selectedProject?.id === project.id
-                                                        ? 'bg-blue-50 border-2 border-blue-500'
-                                                        : 'bg-slate-50 hover:bg-slate-100 border-2 border-transparent'
+                                                        ? 'bg-blue-50 border-2 border-blue-500 dark:bg-blue-900/20 dark:border-blue-500'
+                                                        : 'bg-slate-50 hover:bg-slate-100 border-2 border-transparent dark:bg-slate-700 dark:hover:bg-slate-600'
                                                         }`}
                                                 >
                                                     <div
                                                         onClick={() => handleSelectProject(project)}
                                                         className="cursor-pointer flex-1"
                                                     >
-                                                        <div className="font-semibold text-slate-900">{project.manufacturer}</div>
-                                                        <div className="text-sm text-slate-600">{project.importNumber}</div>
+                                                        <div className="font-semibold text-slate-900 dark:text-white">{project.manufacturer}</div>
+                                                        <div className="text-sm text-slate-600 dark:text-slate-300">{project.importNumber}</div>
                                                     </div>
                                                     <button
                                                         onClick={(e) => {
@@ -437,8 +437,8 @@ export const InImport: React.FC = () => {
                                 {selectedProject && (
                                     <div className="space-y-4">
                                         {/* Search Products */}
-                                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                                            <h3 className="font-semibold text-slate-900 mb-4">
+                                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 transition-colors">
+                                            <h3 className="font-semibold text-slate-900 dark:text-white mb-4">
                                                 Adicionar Produtos - {selectedProject.manufacturer}
                                             </h3>
                                             <div className="flex gap-2 mb-4">
@@ -450,7 +450,7 @@ export const InImport: React.FC = () => {
                                                         onChange={(e) => setSearchQuery(e.target.value)}
                                                         onKeyPress={(e) => e.key === 'Enter' && handleSearchProducts()}
                                                         placeholder="Buscar produto por código ou nome..."
-                                                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                        className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                                     />
                                                 </div>
                                                 <button
@@ -467,14 +467,14 @@ export const InImport: React.FC = () => {
                                                     {searchResults.map((product) => (
                                                         <div
                                                             key={product.id}
-                                                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 gap-3"
+                                                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 gap-3 transition-colors"
                                                         >
                                                             <div className="flex-1 min-w-0">
-                                                                <div className="font-semibold text-slate-900 text-sm sm:text-base break-words">
+                                                                <div className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base break-words">
                                                                     {product.name}
                                                                 </div>
-                                                                <div className="text-xs sm:text-sm text-slate-600 mt-1">
-                                                                    <span className="font-mono bg-slate-200 px-2 py-0.5 rounded">
+                                                                <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1">
+                                                                    <span className="font-mono bg-slate-200 dark:bg-slate-600 px-2 py-0.5 rounded">
                                                                         {product.id}
                                                                     </span>
                                                                     <span className="mx-2">•</span>
@@ -494,11 +494,11 @@ export const InImport: React.FC = () => {
                                         </div>
 
                                         {/* Current Items */}
-                                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                                            <h3 className="font-semibold text-slate-900 mb-4">Itens no Projeto</h3>
+                                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 transition-colors">
+                                            <h3 className="font-semibold text-slate-900 dark:text-white mb-4">Itens no Projeto</h3>
                                             {items.length === 0 ? (
-                                                <div className="text-center py-8 text-slate-500">
-                                                    <Package className="w-12 h-12 mx-auto mb-2 text-slate-300" />
+                                                <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                                                    <Package className="w-12 h-12 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
                                                     <p className="text-sm">Nenhum item adicionado</p>
                                                 </div>
                                             ) : (
@@ -506,11 +506,11 @@ export const InImport: React.FC = () => {
                                                     {items.map((item) => (
                                                         <div
                                                             key={item.id}
-                                                            className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                                                            className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg"
                                                         >
                                                             <div>
-                                                                <div className="font-semibold text-slate-900">{item.productName}</div>
-                                                                <div className="text-sm text-slate-600">
+                                                                <div className="font-semibold text-slate-900 dark:text-white">{item.productName}</div>
+                                                                <div className="text-sm text-slate-600 dark:text-slate-300">
                                                                     {item.productId} - {item.productBrand} - Qtd: {item.quantity}
                                                                 </div>
                                                                 {(item.expectedDate || item.observation) && (
@@ -546,40 +546,40 @@ export const InImport: React.FC = () => {
                 {/* Add Item Modal */}
                 {showAddModal && selectedProductToAdd && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                        <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
-                            <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4 transition-colors">
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
                                 Adicionar {selectedProductToAdd.name}
                             </h3>
 
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Quantidade</label>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Quantidade</label>
                                     <input
                                         type="number"
                                         min="1"
                                         value={addQuantity}
                                         onChange={(e) => setAddQuantity(parseInt(e.target.value) || 1)}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Previsão de Chegada</label>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Previsão de Chegada</label>
                                     <input
                                         type="date"
                                         value={addExpectedDate}
                                         onChange={(e) => setAddExpectedDate(e.target.value)}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white dark:scheme-dark"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Observação</label>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Observação</label>
                                     <textarea
                                         value={addObservation}
                                         onChange={(e) => setAddObservation(e.target.value)}
                                         rows={3}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
                                         placeholder="Opcional..."
                                     />
                                 </div>
@@ -588,7 +588,7 @@ export const InImport: React.FC = () => {
                             <div className="flex justify-end gap-2 mt-6">
                                 <button
                                     onClick={() => setShowAddModal(false)}
-                                    className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                    className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                                 >
                                     Cancelar
                                 </button>

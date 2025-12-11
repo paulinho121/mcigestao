@@ -173,7 +173,15 @@ function App() {
               </div>
               <div className="hidden md:block text-right">
                 <div className="text-xs text-slate-400">Logado como</div>
-                <div className="text-sm font-semibold text-brand-700 dark:text-brand-400">{user.name || user.email}</div>
+                <div className="flex items-center justify-end gap-2">
+                  <div className="text-sm font-semibold text-brand-700 dark:text-brand-400">{user.name || user.email}</div>
+                  {user.email === 'paulofernandoautomacao@gmail.com' && (
+                    <img src="/ceara_logo.png" alt="Ceará SC" className="h-6 w-auto" />
+                  )}
+                  {user.email === 'logisticasp@mcistore.com.br' && (
+                    <img src="/santos_logo.png" alt="Santos FC" className="h-6 w-auto" />
+                  )}
+                </div>
               </div>
               <button
                 onClick={toggleTheme}
