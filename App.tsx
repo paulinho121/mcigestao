@@ -171,15 +171,22 @@ function App() {
                 {connectionStatus === 'mock' && <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full border border-orange-200">● Modo Mock</span>}
                 {connectionStatus === 'error' && <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full border border-red-200">● Erro Conexão</span>}
               </div>
-              <div className="hidden md:block text-right">
-                <div className="text-xs text-slate-400">Logado como</div>
-                <div className="flex items-center justify-end gap-2">
+              <div className="flex flex-col items-end justify-center ml-2">
+                <div className="hidden md:block text-right">
+                  <div className="text-xs text-slate-400">Logado como</div>
                   <div className="text-sm font-semibold text-brand-700 dark:text-brand-400">{user.name || user.email}</div>
+                </div>
+                <div className="flex items-center justify-end gap-2 mt-1 md:mt-0"> {/* Added wrapper to group logos */}
+                  {/* Mobile only name/email if needed or just keep logos. The request said "miniaturas apareçam tambem nos celulares". */}
+                  {/* Let's keep the existing structure but expose images on mobile */}
                   {user.email === 'paulofernandoautomacao@gmail.com' && (
                     <img src="/ceara_logo.png" alt="Ceará SC" className="h-6 w-auto" />
                   )}
                   {user.email === 'logisticasp@mcistore.com.br' && (
                     <img src="/santos_logo.png" alt="Santos FC" className="h-6 w-auto" />
+                  )}
+                  {user.email === 'comercial2@mcistore.com.br' && (
+                    <img src="/palmeiras_logo.png" alt="Palmeiras" className="h-6 w-auto" />
                   )}
                 </div>
               </div>
