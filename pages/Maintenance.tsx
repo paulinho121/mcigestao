@@ -206,6 +206,41 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
         setSelectAll(!selectAll);
     };
 
+    const handleCSV = () => {
+        if (selectedProducts.size === 0) {
+            setError('Selecione pelo menos um produto para baixar o CSV');
+            return;
+        }
+
+        const productsToExport = Array.from(selectedProducts)
+            .map(id => productCache.get(id))
+            .filter((p): p is Product => p !== undefined);
+
+        const headers = ['Código', 'Produto', 'Marca', 'Estoque CE', 'Estoque SC', 'Estoque SP', 'Observações'];
+        const csvContent = [
+            headers.join(','),
+            ...productsToExport.map(p => [
+                p.id,
+                `"${p.name.replace(/"/g, '""')}"`, // Escape quotes
+                p.brand,
+                p.stock_ce,
+                p.stock_sc,
+                p.stock_sp,
+                `"${(p.observations || '').replace(/"/g, '""')}"`
+            ].join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `relatorio_estoque_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const handlePrint = () => {
         if (selectedProducts.size === 0) {
             setError('Selecione pelo menos um produto para imprimir');
@@ -441,6 +476,14 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                             >
                                 <Mail className="w-5 h-5" />
                                 Enviar Email
+                            </button>
+                            <button
+                                onClick={handleCSV}
+                                disabled={selectedProducts.size === 0}
+                                className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                            >
+                                <Download className="w-5 h-5" />
+                                Baixar CSV
                             </button>
                             <button
                                 onClick={handlePrint}
