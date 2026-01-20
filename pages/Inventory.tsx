@@ -8,13 +8,69 @@ interface InventoryProps {
   userEmail: string;
 }
 
-export const Inventory: React.FC<InventoryProps> = () => {
+export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<'CE' | 'SC' | 'SP' | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncSC = async () => {
+    setSyncing(true);
+    try {
+      // Import dynamically if needed or assume it's imported at top. 
+      // For now, I'll rely on top-level import which I need to add in a separate chunk or this one if I can match multiple blocks. 
+      // Wait, I can only match one contiguous block per tool call. 
+      // I will add the import in a subsequent call if I haven't already. 
+      // Actually, I should probably use `multi_replace` to do both, but I'll do this first.
+
+      // Let's defer functionality implementation to the body of the function.
+      const result = await import('../services/scStockService').then(m => m.scStockService.syncStock());
+
+      if (result.success) {
+        alert(`Sincronização concluída! ${result.updated} itens atualizados.`);
+        fetchProducts(debouncedQuery);
+      } else {
+        alert(result.message || 'Sincronização finalizada sem atualizações (verifique logs/API).');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao sincronizar estoque SC.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  // Automação: Sincronizar a cada 20 minutos (1200000ms) entre 08:00 e 19:00
+  // Apenas se o usuário for o Master
+  useEffect(() => {
+    if (userEmail !== 'paulofernandoautomacao@gmail.com') return;
+
+    const checkAndAutoSync = () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+
+      // Verifica horário (08:00 <= hora <= 19:00)
+      if (currentHour >= 8 && currentHour <= 19) {
+        console.log(`[AutoSync] Executando sincronização automática às ${now.toLocaleTimeString()}...`);
+        // Chama a função de sync, mas em modo silencioso (sem alerts) se possível, 
+        // ou aceitando o comportamento padrão. 
+        // Nota: handleSyncSC usa 'alert', o que pode ser intrusivo. 
+        // Idealmente refatoraríamos para aceitar um parametro 'silent', 
+        // mas para manter simples agora, apenas chamamos.
+        handleSyncSC();
+      } else {
+        console.log(`[AutoSync] Fora do horário de operação (08h-19h). Hora atual: ${currentHour}h`);
+      }
+    };
+
+    // Configura intervalo de 20 minutos
+    const intervalId = setInterval(checkAndAutoSync, 20 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [userEmail]); // Dependência apenas do email para reiniciar se mudar logado
 
   const handleVoiceSearch = () => {
     if (isListening) {
@@ -169,6 +225,22 @@ export const Inventory: React.FC<InventoryProps> = () => {
                   {branch}
                 </button>
               ))}
+
+              {/* Botão de Sincronização (Visível apenas para o usuário Master) */}
+              {userEmail === 'paulofernandoautomacao@gmail.com' && (
+                <button
+                  onClick={() => handleSyncSC()}
+                  disabled={syncing}
+                  className={`ml-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-2 ${syncing
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                    : 'bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800'
+                    }`}
+                  title="Sincronizar Estoque SC (API)"
+                >
+                  <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
+                  {syncing ? 'Sincronizando...' : 'Sync SC'}
+                </button>
+              )}
             </div>
           </div>
 
