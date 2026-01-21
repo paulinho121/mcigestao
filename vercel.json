@@ -1,0 +1,8 @@
+{
+    "rewrites": [
+        {
+            "source": "/api/escalasoft/:path*",
+            "destination": "http://170.82.192.22:9999/escalasoft/:path*"
+        }
+    ]
+}
