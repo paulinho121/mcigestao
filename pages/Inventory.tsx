@@ -30,11 +30,18 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
       const result = await import('../services/scStockService').then(m => m.scStockService.syncStock());
 
       if (result.success) {
-        alert(`Sincronização concluída! ${result.updated} itens atualizados.`);
+        let message = `Sincronização concluída! ${result.updated} itens atualizados.`;
+
+        if (result.newItems && result.newItems.length > 0) {
+          message += `\n\nNovos itens cadastrados (${result.newItems.length}):\n${result.newItems.slice(0, 10).join(', ')}${result.newItems.length > 10 ? '...' : ''}`;
+        }
+
+        alert(message);
         fetchProducts(debouncedQuery);
       } else {
         alert(result.message || 'Sincronização finalizada sem atualizações (verifique logs/API).');
       }
+
     } catch (e) {
       console.error(e);
       alert('Erro ao sincronizar estoque SC.');

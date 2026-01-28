@@ -66,10 +66,6 @@ export const scStockService = {
      * Syncs the external stock data with our local database
      * Maps 'Produto' to 'id' (Code) and 'SaldoDisponivel.Quantidade' to 'stock_sc'
      */
-    /**
-     * Syncs the external stock data with our local database
-     * Uses bulk processing for performance
-     */
     async syncStock() {
         if (!supabase) {
             console.error('Supabase client not initialized');
@@ -89,53 +85,42 @@ export const scStockService = {
             }
 
             console.log(`Iniciando processamento de ${items.length} itens...`);
-            if (items.length > 0) {
-                console.log('Chaves disponíveis no item:', Object.keys(items[0]));
-                console.log('Exemplo de item completo:', JSON.stringify(items[0]));
-            }
 
-            // Agrega quantidades por Produto (ID) para somar múltiplas entradas (ex: lotes diferentes)
-            const aggregatedStock = new Map<string, number>();
+            // Agrega quantidades e nomes por Produto (ID)
+            const aggregatedStock = new Map<string, { quantity: number; name: string }>();
 
             items.forEach(item => {
                 // A API retorna o campo 'Item' no formato "CÓDIGO - DESCRIÇÃO" (ex: "4338 - PRODUTO X")
-                // Precisamos extrair apenas o código (antes do primeiro " - ")
                 if (item.Item && typeof item.SaldoDisponivel?.Quantidade === 'number') {
-                    // Extrai o ID: Pega tudo antes do primeiro " - "
-                    const productId = item.Item.split(' - ')[0].trim();
+                    // Extrai o ID e o Nome
+                    const parts = item.Item.split(' - ');
+                    const productId = parts[0].trim();
+                    const productName = parts.slice(1).join(' - ').trim() || productId;
 
                     if (productId) {
-                        const currentQty = aggregatedStock.get(productId) || 0;
-                        aggregatedStock.set(productId, currentQty + item.SaldoDisponivel.Quantidade);
+                        const existing = aggregatedStock.get(productId) || { quantity: 0, name: productName };
+                        aggregatedStock.set(productId, {
+                            quantity: existing.quantity + item.SaldoDisponivel.Quantidade,
+                            name: productName
+                        });
                     }
                 }
             });
 
             console.log(`Produtos únicos identificados: ${aggregatedStock.size}`);
 
-            // Log para debug
-            if (items.length > 0) {
-                const firstId = items[0].Item?.split(' - ')[0].trim();
-                console.log(`Exemplo de ID extraído: "${firstId}" (Original: "${items[0].Item}")`);
-            }
-
-            // Log específico para verificação
-            if (aggregatedStock.has('4339')) {
-                console.log(`Total calculado para o produto 4339: ${aggregatedStock.get('4339')}`);
-            }
-
             // Converte o Map para o formato do payload
-            const stockUpdates = Array.from(aggregatedStock.entries()).map(([id, quantity]) => ({
+            const stockUpdates = Array.from(aggregatedStock.entries()).map(([id, data]) => ({
                 id,
-                quantity
+                quantity: data.quantity,
+                name: data.name
             }));
-
-            console.log(`Payload preparado (primeiros 3):`, stockUpdates.slice(0, 3));
 
             // Processa em lotes para evitar timeouts ou payload excessivo
             const BATCH_SIZE = 500;
-            let totalvUpdated = 0;
+            let totalUpdated = 0;
             let totalErrors = 0;
+            let allNewItems: string[] = [];
 
             for (let i = 0; i < stockUpdates.length; i += BATCH_SIZE) {
                 const batch = stockUpdates.slice(i, i + BATCH_SIZE);
@@ -145,19 +130,22 @@ export const scStockService = {
 
                 if (error) {
                     console.error('Erro no lote de sincronização:', error);
-                    // Continua para o próximo lote, mas registra erro
-                    totalErrors += batch.length; // Assume fail for logical batch
+                    totalErrors += batch.length;
                 } else {
-                    totalvUpdated += (data as any)?.updated || 0;
-                    // Errors inside RPC are swallowed in count but logic is robust
+                    const result = data as any;
+                    totalUpdated += result.updated || 0;
+                    if (result.inserted_names && Array.isArray(result.inserted_names)) {
+                        allNewItems = [...allNewItems, ...result.inserted_names];
+                    }
                 }
             }
 
             return {
                 success: true,
-                updated: totalvUpdated,
+                updated: totalUpdated,
                 errors: totalErrors,
-                totalProcessed: items.length
+                totalProcessed: items.length,
+                newItems: allNewItems
             };
 
         } catch (error: any) {
@@ -166,3 +154,4 @@ export const scStockService = {
         }
     }
 };
+
