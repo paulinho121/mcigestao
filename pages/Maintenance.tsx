@@ -31,7 +31,6 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
     // Reporting & Tabs State
     const [activeTab, setActiveTab] = useState<'stock' | 'report'>('stock');
     const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
-    const [selectAll, setSelectAll] = useState(false);
     const [productCache, setProductCache] = useState<Map<string, Product>>(new Map());
 
     useEffect(() => {
@@ -193,17 +192,18 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
             newSelected.add(productId);
         }
         setSelectedProducts(newSelected);
-        setSelectAll(newSelected.size === products.length);
     };
 
+    const isAllVisibleSelected = products.length > 0 && products.every(p => selectedProducts.has(p.id));
+
     const toggleSelectAll = () => {
-        if (selectAll) {
-            setSelectedProducts(new Set());
+        const newSelected = new Set(selectedProducts);
+        if (isAllVisibleSelected) {
+            products.forEach(p => newSelected.delete(p.id));
         } else {
-            const allIds = new Set(products.map(p => p.id));
-            setSelectedProducts(allIds);
+            products.forEach(p => newSelected.add(p.id));
         }
-        setSelectAll(!selectAll);
+        setSelectedProducts(newSelected);
     };
 
     const handleCSV = () => {
@@ -216,7 +216,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
             .map(id => productCache.get(id))
             .filter((p): p is Product => p !== undefined);
 
-        const headers = ['Código', 'Produto', 'Marca', 'Estoque CE', 'Estoque SC', 'Estoque SP', 'Observações'];
+        const headers = ['Código', 'Produto', 'Marca', 'Estoque CE', 'Estoque SC', 'Estoque SP', 'Total', 'Observações'];
         const csvContent = [
             headers.join(','),
             ...productsToExport.map(p => [
@@ -226,6 +226,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                 p.stock_ce,
                 p.stock_sc,
                 p.stock_sp,
+                p.total,
                 `"${(p.observations || '').replace(/"/g, '""')}"`
             ].join(','))
         ].join('\n');
@@ -291,6 +292,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                 <th style="text-align: center">Estoque CE</th>
                                 <th style="text-align: center">Estoque SC</th>
                                 <th style="text-align: center">Estoque SP</th>
+                                <th style="text-align: center">Total</th>
                                 <th>Observações</th>
                             </tr>
                         </thead>
@@ -303,6 +305,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                     <td style="text-align: center">${p.stock_ce}</td>
                                     <td style="text-align: center">${p.stock_sc}</td>
                                     <td style="text-align: center">${p.stock_sp}</td>
+                                    <td style="text-align: center"><strong>${p.total}</strong></td>
                                     <td>${p.observations || ''}</td>
                                 </tr>
                             `).join('')}
@@ -338,7 +341,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
 
         productsToSend.forEach(p => {
             body += `[${p.id}] ${p.name} (${p.brand})\n`;
-            body += `Estoque: CE: ${p.stock_ce} | SC: ${p.stock_sc} | SP: ${p.stock_sp}\n`;
+            body += `Estoque: CE: ${p.stock_ce} | SC: ${p.stock_sc} | SP: ${p.stock_sp} | TOTAL: ${p.total}\n`;
             if (p.observations) body += `Obs: ${p.observations}\n`;
             body += '----------------------------------------\n';
         });
@@ -518,9 +521,10 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                             <th className="px-4 py-3 text-center w-12">
                                                 <button
                                                     onClick={toggleSelectAll}
+                                                    title={isAllVisibleSelected ? "Desmarcar todos" : "Selecionar todos visíveis"}
                                                     className="text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400"
                                                 >
-                                                    {selectAll ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
+                                                    {isAllVisibleSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
                                                 </button>
                                             </th>
                                         )}
@@ -542,6 +546,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                 <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300">Estoque CE</th>
                                                 <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300">Estoque SC</th>
                                                 <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300">Estoque SP</th>
+                                                <th className="px-4 py-3 text-center font-semibold text-brand-700 dark:text-brand-300 bg-brand-50/50 dark:bg-brand-900/20">Total</th>
                                                 <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300">Observações</th>
                                             </>
                                         )}
@@ -666,6 +671,9 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                         </td>
                                                         <td className="px-4 py-3 text-center">
                                                             <span className="font-semibold text-slate-900 dark:text-white">{product.stock_sp}</span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center bg-brand-50/50 dark:bg-brand-900/10">
+                                                            <span className="font-bold text-brand-600 dark:text-brand-400">{product.total}</span>
                                                         </td>
                                                         <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
                                                             {product.observations || '-'}
