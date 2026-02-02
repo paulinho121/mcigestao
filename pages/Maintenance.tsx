@@ -226,7 +226,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                 p.stock_ce,
                 p.stock_sc,
                 p.stock_sp,
-                p.total,
+                (p.stock_ce || 0) + (p.stock_sc || 0) + (p.stock_sp || 0),
                 `"${(p.observations || '').replace(/"/g, '""')}"`
             ].join(','))
         ].join('\n');
@@ -305,7 +305,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                     <td style="text-align: center">${p.stock_ce}</td>
                                     <td style="text-align: center">${p.stock_sc}</td>
                                     <td style="text-align: center">${p.stock_sp}</td>
-                                    <td style="text-align: center"><strong>${p.total}</strong></td>
+                                    <td style="text-align: center"><strong>${(p.stock_ce || 0) + (p.stock_sc || 0) + (p.stock_sp || 0)}</strong></td>
                                     <td>${p.observations || ''}</td>
                                 </tr>
                             `).join('')}
@@ -341,7 +341,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
 
         productsToSend.forEach(p => {
             body += `[${p.id}] ${p.name} (${p.brand})\n`;
-            body += `Estoque: CE: ${p.stock_ce} | SC: ${p.stock_sc} | SP: ${p.stock_sp} | TOTAL: ${p.total}\n`;
+            body += `Estoque: CE: ${p.stock_ce} | SC: ${p.stock_sc} | SP: ${p.stock_sp} | TOTAL: ${(p.stock_ce || 0) + (p.stock_sc || 0) + (p.stock_sp || 0)}\n`;
             if (p.observations) body += `Obs: ${p.observations}\n`;
             body += '----------------------------------------\n';
         });
@@ -673,7 +673,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                             <span className="font-semibold text-slate-900 dark:text-white">{product.stock_sp}</span>
                                                         </td>
                                                         <td className="px-4 py-3 text-center bg-brand-50/50 dark:bg-brand-900/10">
-                                                            <span className="font-bold text-brand-600 dark:text-brand-400">{product.total}</span>
+                                                            <span className="font-bold text-brand-600 dark:text-brand-400">{(product.stock_ce || 0) + (product.stock_sc || 0) + (product.stock_sp || 0)}</span>
                                                         </td>
                                                         <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
                                                             {product.observations || '-'}

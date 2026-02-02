@@ -8,25 +8,43 @@ let reservations: Reservation[] = [];
 
 // Helper to clean IDs (remove .0 suffix) and deduplicate
 const cleanAndDeduplicate = (items: any[]): Product[] => {
-  const seen = new Set<string>();
-  const result: Product[] = [];
+  const map = new Map<string, Product>();
 
   for (const item of items) {
     // Remove .0 suffix if present
     const cleanId = item.id.endsWith('.0') ? item.id.slice(0, -2) : item.id;
+    const existing = map.get(cleanId);
 
-    if (!seen.has(cleanId)) {
-      seen.add(cleanId);
-      result.push({
+    const stock_ce = Number(item.stock_ce || 0);
+    const stock_sc = Number(item.stock_sc || 0);
+    const stock_sp = Number(item.stock_sp || 0);
+    const reserved = Number(item.reserved || 0);
+
+    if (existing) {
+      // If product already exists in map, sum the stocks
+      existing.stock_ce += stock_ce;
+      existing.stock_sc += stock_sc;
+      existing.stock_sp += stock_sp;
+      existing.reserved += reserved;
+      // Recalculate total to ensure consistency
+      existing.total = existing.stock_ce + existing.stock_sc + existing.stock_sp;
+    } else {
+      // If new, create entry
+      map.set(cleanId, {
         ...item,
-        id: cleanId, // Use the clean ID for display
-        // Map database fields to frontend types if needed
+        id: cleanId,
+        stock_ce,
+        stock_sc,
+        stock_sp,
+        reserved,
+        // Always calculate total from branch stocks for accuracy
+        total: stock_ce + stock_sc + stock_sp,
         importQuantity: item.import_quantity ?? item.importQuantity,
         expectedRestockDate: item.expected_restock_date ?? item.expectedRestockDate
       });
     }
   }
-  return result;
+  return Array.from(map.values());
 };
 
 export const inventoryService = {
