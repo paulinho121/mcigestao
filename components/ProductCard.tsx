@@ -38,7 +38,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         >
             {product.brand_logo && (
                 <div
-                    className="absolute right-[-10%] bottom-[10%] w-48 h-48 opacity-[0.05] pointer-events-none grayscale dark:opacity-[0.1] dark:invert"
+                    className="absolute right-[0%] bottom-[5%] w-40 h-40 opacity-[0.12] pointer-events-none grayscale dark:opacity-[0.2] dark:invert transition-opacity duration-300"
                     style={{
                         backgroundImage: `url(${product.brand_logo})`,
                         backgroundSize: 'contain',
