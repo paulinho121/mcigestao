@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Save, Wrench, AlertCircle, Package as PackageIcon, FileText, Download, Printer, Mail, CheckSquare, Square, List, LayoutGrid } from 'lucide-react';
+import { Search, Save, Wrench, AlertCircle, Package as PackageIcon, FileText, Download, Printer, Mail, CheckSquare, Square, List, LayoutGrid, Tag } from 'lucide-react';
 import { Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
 import { backupService } from '../services/backupService';
@@ -29,9 +29,12 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
     const [editedProducts, setEditedProducts] = useState<Map<string, ProductEdit>>(new Map());
 
     // Reporting & Tabs State
-    const [activeTab, setActiveTab] = useState<'stock' | 'report'>('stock');
+    const [activeTab, setActiveTab] = useState<'stock' | 'report' | 'brand'>('stock');
     const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
     const [productCache, setProductCache] = useState<Map<string, Product>>(new Map());
+    const [selectedBrand, setSelectedBrand] = useState('');
+    const [selectedBrandLogo, setSelectedBrandLogo] = useState('');
+    const [updatingBrand, setUpdatingBrand] = useState(false);
 
     useEffect(() => {
         loadProducts();
@@ -352,6 +355,39 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
         window.location.href = mailtoLink;
     };
 
+    const handleUpdateBrand = async () => {
+        if (selectedProducts.size === 0) {
+            setError('Selecione pelo menos um produto');
+            return;
+        }
+
+        if (!selectedBrand.trim()) {
+            setError('Digite uma marca para aplicar');
+            return;
+        }
+
+        setUpdatingBrand(true);
+        setError('');
+        setSuccess('');
+
+        try {
+            const productIds = Array.from(selectedProducts);
+            await inventoryService.updateProductsBrand(productIds, selectedBrand.trim(), selectedBrandLogo.trim() || undefined);
+
+            setSuccess(`${selectedProducts.size} produto(s) atualizado(s) com a marca "${selectedBrand}"!`);
+            setSelectedProducts(new Set());
+            setSelectedBrand('');
+            setSelectedBrandLogo('');
+
+            // Reload to show updated data
+            await loadProducts();
+        } catch (err: any) {
+            setError(err.message || 'Erro ao atualizar marcas');
+        } finally {
+            setUpdatingBrand(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6 transition-colors">
             <div className="max-w-7xl mx-auto">
@@ -387,6 +423,19 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                         <List className="w-5 h-5" />
                         Relatórios
                         {activeTab === 'report' && (
+                            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-600 dark:bg-brand-500 rounded-t-full" />
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('brand')}
+                        className={`pb-3 px-2 flex items-center gap-2 font-medium transition-colors relative ${activeTab === 'brand'
+                            ? 'text-brand-600 dark:text-brand-400'
+                            : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                            }`}
+                    >
+                        <Tag className="w-5 h-5" />
+                        Gestão de Marcas
+                        {activeTab === 'brand' && (
                             <div className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-600 dark:bg-brand-500 rounded-t-full" />
                         )}
                     </button>
@@ -461,7 +510,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                 </button>
                             )}
                         </>
-                    ) : (
+                    ) : activeTab === 'report' ? (
                         <div className="flex gap-3 w-full justify-end">
                             <div className="mr-auto flex items-center text-slate-600 dark:text-slate-400">
                                 <span className="font-semibold">{selectedProducts.size}</span>
@@ -497,6 +546,47 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                 Imprimir Lista
                             </button>
                         </div>
+                    ) : (
+                        <div className="flex gap-3 w-full items-center">
+                            <div className="mr-auto flex items-center text-slate-600 dark:text-slate-400">
+                                <span className="font-semibold">{selectedProducts.size}</span>
+                                <span className="ml-1">produto(s) selecionado(s)</span>
+                            </div>
+
+                            <div className="flex gap-2 items-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <input
+                                    type="text"
+                                    value={selectedBrand}
+                                    onChange={(e) => setSelectedBrand(e.target.value)}
+                                    placeholder="Nome da marca..."
+                                    className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white"
+                                />
+                                <input
+                                    type="text"
+                                    value={selectedBrandLogo}
+                                    onChange={(e) => setSelectedBrandLogo(e.target.value)}
+                                    placeholder="URL da Logo (opcional)..."
+                                    className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white min-w-[200px]"
+                                />
+                                <button
+                                    onClick={handleUpdateBrand}
+                                    disabled={updatingBrand || selectedProducts.size === 0 || !selectedBrand.trim()}
+                                    className="px-6 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors disabled:opacity-50 font-semibold flex items-center gap-2"
+                                >
+                                    {updatingBrand ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            Aplicando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Tag className="w-4 h-4" />
+                                            Aplicar Marca
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
                     )}
                 </div>
 
@@ -517,7 +607,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                             <table className="w-full">
                                 <thead className="bg-slate-100 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
                                     <tr>
-                                        {activeTab === 'report' && (
+                                        {(activeTab === 'report' || activeTab === 'brand') && (
                                             <th className="px-4 py-3 text-center w-12">
                                                 <button
                                                     onClick={toggleSelectAll}
@@ -529,7 +619,12 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                             </th>
                                         )}
                                         <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300">Código</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300">Produto</th>
+                                        <th className="px-4 py-3">
+                                            <div className="text-left font-semibold text-slate-700 dark:text-slate-300">Produto</div>
+                                            {activeTab === 'brand' && (
+                                                <div className="text-left text-xs text-slate-500 dark:text-slate-400 font-normal">Marca Atual</div>
+                                            )}
+                                        </th>
 
                                         {activeTab === 'stock' ? (
                                             <>
@@ -541,12 +636,17 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                 <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300 bg-red-50 dark:bg-red-900/20">Ajuste SP</th>
                                                 <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300 bg-purple-50 dark:bg-purple-900/20">Observações</th>
                                             </>
-                                        ) : (
+                                        ) : activeTab === 'report' ? (
                                             <>
                                                 <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300">Estoque CE</th>
                                                 <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300">Estoque SC</th>
                                                 <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300">Estoque SP</th>
                                                 <th className="px-4 py-3 text-center font-semibold text-brand-700 dark:text-brand-300 bg-brand-50/50 dark:bg-brand-900/20">Total</th>
+                                                <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300">Observações</th>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300">Estoque Total</th>
                                                 <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300">Observações</th>
                                             </>
                                         )}
@@ -563,9 +663,10 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                 key={product.id}
                                                 className={`border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${activeTab === 'stock' && edited ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''
                                                     } ${activeTab === 'report' && isSelected ? 'bg-brand-50 dark:bg-brand-900/20' : ''
+                                                    } ${activeTab === 'brand' && isSelected ? 'bg-brand-50 dark:bg-brand-900/20' : ''
                                                     }`}
                                             >
-                                                {activeTab === 'report' && (
+                                                {(activeTab === 'report' || activeTab === 'brand') && (
                                                     <td className="px-4 py-3 text-center">
                                                         <button
                                                             onClick={() => toggleProductSelection(product.id)}
@@ -582,7 +683,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                 <td className="px-4 py-3 font-mono text-slate-900 dark:text-white">{product.id}</td>
                                                 <td className="px-4 py-3">
                                                     <div className="font-medium text-slate-900 dark:text-white">{product.name}</div>
-                                                    <div className="text-sm text-slate-500">{product.brand}</div>
+                                                    {activeTab !== 'brand' && <div className="text-sm text-slate-500">{product.brand}</div>}
                                                 </td>
 
                                                 {activeTab === 'stock' ? (
@@ -660,7 +761,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                             </div>
                                                         </td>
                                                     </>
-                                                ) : (
+                                                ) : activeTab === 'report' ? (
                                                     // Report Columns (Read Only)
                                                     <>
                                                         <td className="px-4 py-3 text-center">
@@ -674,6 +775,26 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                         </td>
                                                         <td className="px-4 py-3 text-center bg-brand-50/50 dark:bg-brand-900/10">
                                                             <span className="font-bold text-brand-600 dark:text-brand-400">{(product.stock_ce || 0) + (product.stock_sc || 0) + (product.stock_sp || 0)}</span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                                                            {product.observations || '-'}
+                                                        </td>
+                                                    </>
+                                                ) : (
+                                                    // Brand Management Columns
+                                                    <>
+                                                        <td className="px-4 py-3 bg-brand-50/30 dark:bg-brand-900/10">
+                                                            <div className="flex items-center gap-2">
+                                                                {product.brand_logo ? (
+                                                                    <img src={product.brand_logo} alt={product.brand} className="w-8 h-8 object-contain rounded bg-white p-0.5 border border-slate-200 dark:border-slate-700 shadow-sm" />
+                                                                ) : (
+                                                                    <Tag className="w-4 h-4 text-brand-500" />
+                                                                )}
+                                                                <span className="font-medium text-slate-900 dark:text-white">{product.brand || <i className="text-slate-400">Sem marca</i>}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            <span className="font-semibold text-slate-900 dark:text-white">{(product.stock_ce || 0) + (product.stock_sc || 0) + (product.stock_sp || 0)}</span>
                                                         </td>
                                                         <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
                                                             {product.observations || '-'}
@@ -703,7 +824,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                             <li>• <strong>Validação</strong>: Estoque não pode ficar negativo</li>
                         </ul>
                     </div>
-                ) : (
+                ) : activeTab === 'report' ? (
                     <div className="mt-6 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl transition-colors">
                         <h3 className="font-semibold text-purple-900 dark:text-purple-300 mb-2 flex items-center gap-2">
                             <FileText className="w-5 h-5" />
@@ -713,6 +834,18 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                             <li>• <strong>Seleção</strong>: Marque os produtos que deseja incluir no relatório</li>
                             <li>• <strong>Busca</strong>: Use a barra de busca para filtrar produtos específicos</li>
                             <li>• <strong>Exportação</strong>: Use os botões acima para imprimir ou enviar por email</li>
+                        </ul>
+                    </div>
+                ) : (
+                    <div className="mt-6 p-4 bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-xl transition-colors">
+                        <h3 className="font-semibold text-brand-900 dark:text-brand-300 mb-2 flex items-center gap-2">
+                            <Tag className="w-5 h-5" />
+                            Gestão de Marcas
+                        </h3>
+                        <ul className="text-sm text-brand-700 dark:text-brand-400 space-y-1">
+                            <li>• <strong>Seleção</strong>: Marque os produtos que deseja atualizar a marca</li>
+                            <li>• <strong>Aplicação</strong>: Digite o nome da marca no campo acima e clique em "Aplicar Marca"</li>
+                            <li>• <strong>Bulk Update</strong>: Todos os itens selecionados receberão a nova marca instantaneamente</li>
                         </ul>
                     </div>
                 )}

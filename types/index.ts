@@ -8,6 +8,7 @@ export interface Product {
     id: string;
     name: string;
     brand: string;
+    brand_logo?: string;
     stock_ce: number;
     stock_sc: number;
     stock_sp: number;

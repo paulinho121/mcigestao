@@ -34,9 +34,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     return (
         <div
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all duration-200 flex flex-col h-full group cursor-pointer ${isExpanded ? 'ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-slate-900' : ''} dark:bg-slate-800 dark:border-slate-700`}
+            className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all duration-200 flex flex-col h-full group cursor-pointer relative ${isExpanded ? 'ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-slate-900' : ''} dark:bg-slate-800 dark:border-slate-700`}
         >
-            <div className="p-4 sm:p-5 flex-grow">
+            {product.brand_logo && (
+                <div
+                    className="absolute right-[-10%] bottom-[10%] w-48 h-48 opacity-[0.05] pointer-events-none grayscale dark:opacity-[0.1] dark:invert"
+                    style={{
+                        backgroundImage: `url(${product.brand_logo})`,
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'center'
+                    }}
+                />
+            )}
+            <div className="p-4 sm:p-5 flex-grow relative z-10">
                 <div className="flex justify-between items-start mb-3 gap-2 flex-wrap">
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800 whitespace-nowrap dark:bg-slate-700 dark:text-slate-300">
                         COD: {product.id}

@@ -799,6 +799,46 @@ export const inventoryService = {
   },
 
   /**
+   * Bulk update product brands
+   */
+  async updateProductsBrand(productIds: string[], brand: string, brandLogo?: string): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    if (!supabase) {
+      // Mock mode
+      console.warn('Supabase not configured. Updating mock data.');
+      productIds.forEach(id => {
+        const product = MOCK_INVENTORY.find(p => p.id === id || p.id === `${id}.0`);
+        if (product) {
+          product.brand = brand;
+          if (brandLogo !== undefined) product.brand_logo = brandLogo;
+        }
+      });
+      return;
+    }
+
+    // Real Supabase Implementation
+    try {
+      const updateData: any = { brand };
+      if (brandLogo !== undefined) updateData.brand_logo = brandLogo;
+
+      const { error } = await supabase
+        .from('products')
+        .update(updateData)
+        .in('id', productIds);
+
+      if (error) {
+        throw new Error(`Erro ao atualizar marcas: ${error.message}`);
+      }
+
+      console.log(`Successfully updated brand for ${productIds.length} products`);
+    } catch (error: any) {
+      console.error('Update brand error:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Create a new product from XML data
    * Used when uploading XML files with products that don't exist in the database
    */
