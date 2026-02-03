@@ -35,10 +35,23 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
     const [selectedBrand, setSelectedBrand] = useState('');
     const [selectedBrandLogo, setSelectedBrandLogo] = useState('');
     const [updatingBrand, setUpdatingBrand] = useState(false);
+    const [allBrands, setAllBrands] = useState<string[]>([]);
+    const [selectedReportBrands, setSelectedReportBrands] = useState<string[]>([]);
+    const [selectingByBrand, setSelectingByBrand] = useState(false);
 
     useEffect(() => {
         loadProducts();
+        loadBrands();
     }, []);
+
+    const loadBrands = async () => {
+        try {
+            const brands = await inventoryService.getBrands();
+            setAllBrands(brands);
+        } catch (err) {
+            console.error('Error loading brands:', err);
+        }
+    };
 
     // Update cache whenever products change
     useEffect(() => {
@@ -388,6 +401,41 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
         }
     };
 
+    const handleSelectByBrand = async () => {
+        if (selectedReportBrands.length === 0) return;
+
+        setSelectingByBrand(true);
+        try {
+            const brandProducts = await inventoryService.getProductsByBrands(selectedReportBrands);
+            const newSelected = new Set(selectedProducts);
+
+            brandProducts.forEach(p => {
+                newSelected.add(p.id);
+                // Also update cache since we'll likely need these for the report
+                setProductCache(prev => new Map(prev).set(p.id, p));
+            });
+
+            setSelectedProducts(newSelected);
+            setSuccess(`${brandProducts.length} produtos de ${selectedReportBrands.length} marcas selecionados!`);
+            setSelectedReportBrands([]);
+
+            // Auto-clear success message
+            setTimeout(() => setSuccess(''), 3000);
+        } catch (err) {
+            setError('Erro ao selecionar produtos das marcas');
+        } finally {
+            setSelectingByBrand(false);
+        }
+    };
+
+    const toggleReportBrand = (brand: string) => {
+        setSelectedReportBrands(prev =>
+            prev.includes(brand)
+                ? prev.filter(b => b !== brand)
+                : [...prev, brand]
+        );
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6 transition-colors">
             <div className="max-w-7xl mx-auto">
@@ -511,40 +559,72 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                             )}
                         </>
                     ) : activeTab === 'report' ? (
-                        <div className="flex gap-3 w-full justify-end">
-                            <div className="mr-auto flex items-center text-slate-600 dark:text-slate-400">
+                        <div className="flex gap-4 w-full flex-wrap items-center">
+                            {/* Brand Selection Tool */}
+                            <div className="flex flex-col gap-2 bg-slate-100 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm mr-auto min-w-[300px]">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Tag className="w-4 h-4 text-brand-600" />
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Selecionar por Marcas</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1">
+                                    {allBrands.map(brand => (
+                                        <button
+                                            key={brand}
+                                            onClick={() => toggleReportBrand(brand)}
+                                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${selectedReportBrands.includes(brand)
+                                                ? 'bg-brand-600 text-white shadow-sm ring-1 ring-brand-600'
+                                                : 'bg-white text-slate-600 border border-slate-200 hover:border-brand-300 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                                                }`}
+                                        >
+                                            {brand}
+                                        </button>
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={handleSelectByBrand}
+                                    disabled={selectedReportBrands.length === 0 || selectingByBrand}
+                                    className="w-full mt-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-bold hover:bg-brand-700 transition-colors disabled:opacity-50 shadow-sm"
+                                >
+                                    {selectingByBrand ? 'Selecionando...' : `Marcar itens de ${selectedReportBrands.length} marcas`}
+                                </button>
+                            </div>
+
+                            <div className="flex items-center text-slate-600 dark:text-slate-400">
                                 <span className="font-semibold">{selectedProducts.size}</span>
                                 <span className="ml-1">produto(s) selecionado(s)</span>
                                 {selectedProducts.size > 0 && products.length !== selectedProducts.size && (
                                     <span className="ml-2 text-xs text-slate-500">
-                                        (Alguns itens selecionados podem não estar visíveis na busca atual)
+                                        (Alguns itens podem não estar visíveis)
                                     </span>
                                 )}
                             </div>
-                            <button
-                                onClick={handleEmail}
-                                disabled={selectedProducts.size === 0}
-                                className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 flex items-center gap-2"
-                            >
-                                <Mail className="w-5 h-5" />
-                                Enviar Email
-                            </button>
-                            <button
-                                onClick={handleCSV}
-                                disabled={selectedProducts.size === 0}
-                                className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                            >
-                                <Download className="w-5 h-5" />
-                                Baixar CSV
-                            </button>
-                            <button
-                                onClick={handlePrint}
-                                disabled={selectedProducts.size === 0}
-                                className="px-4 py-2 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                            >
-                                <Printer className="w-5 h-5" />
-                                Imprimir Lista
-                            </button>
+
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleEmail}
+                                    disabled={selectedProducts.size === 0}
+                                    className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <Mail className="w-5 h-5" />
+                                    Enviar Email
+                                </button>
+                                <button
+                                    onClick={handleCSV}
+                                    disabled={selectedProducts.size === 0}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <Download className="w-5 h-5" />
+                                    Baixar CSV
+                                </button>
+                                <button
+                                    onClick={handlePrint}
+                                    disabled={selectedProducts.size === 0}
+                                    className="px-4 py-2 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <Printer className="w-5 h-5" />
+                                    Imprimir Lista
+                                </button>
+                            </div>
                         </div>
                     ) : (
                         <div className="flex gap-3 w-full items-center">

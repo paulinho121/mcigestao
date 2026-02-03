@@ -156,6 +156,74 @@ export const inventoryService = {
     return cleanAndDeduplicate(data || []);
   },
 
+  /**
+   * Get all distinct brands from the database
+   */
+  async getBrands(): Promise<string[]> {
+    if (!supabase) {
+      const distinctBrands = new Set(MOCK_INVENTORY.map(p => p.brand).filter(Boolean));
+      return Array.from(distinctBrands).sort();
+    }
+
+    const { data, error } = await supabase
+      .from('products')
+      .select('brand')
+      .not('brand', 'is', null)
+      .not('brand', 'eq', '');
+
+    if (error) {
+      console.error('Error fetching brands:', error);
+      return [];
+    }
+
+    const brands = Array.from(new Set(data.map((item: any) => item.brand))).sort();
+    return brands;
+  },
+
+  /**
+   * Get all products of a specific brand
+   */
+  async getProductsByBrand(brand: string): Promise<Product[]> {
+    if (!supabase) {
+      const results = cleanAndDeduplicate(MOCK_INVENTORY).filter(p => p.brand === brand);
+      return results;
+    }
+
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('brand', brand);
+
+    if (error) {
+      console.error('Error fetching products by brand:', error);
+      return [];
+    }
+
+    return cleanAndDeduplicate(data || []);
+  },
+
+  /**
+   * Get all products of multiple brands
+   */
+  async getProductsByBrands(brands: string[]): Promise<Product[]> {
+    if (!supabase) {
+      const results = cleanAndDeduplicate(MOCK_INVENTORY).filter(p => brands.includes(p.brand));
+      return results;
+    }
+
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .in('brand', brands);
+
+    if (error) {
+      console.error('Error fetching products by brands:', error);
+      return [];
+    }
+
+    return cleanAndDeduplicate(data || []);
+  },
+
 
   /**
    * Get total available items (sum of total stock across all products)
