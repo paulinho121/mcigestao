@@ -68,7 +68,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 />
             )}
 
-            {isExpanded && product.image_url && (
+            {product.image_url && (
                 <div className="h-48 sm:h-56 w-full overflow-hidden bg-slate-100 dark:bg-slate-900 flex items-center justify-center relative border-b border-slate-100 dark:border-slate-700">
                     <img
                         src={product.image_url}
