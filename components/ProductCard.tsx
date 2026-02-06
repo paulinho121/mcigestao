@@ -20,9 +20,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         e.stopPropagation(); // Avoid expanding the card
 
         const shareUrl = `${window.location.origin}${window.location.pathname}#/share/${product.id}`;
-        const text = `Confira o estoque de *${product.name}* (Cod: ${product.id}):\n\n${shareUrl}`;
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        let text = `📦 *${product.name}* (Cod: ${product.id})\n\nConsulte a disponibilidade em tempo real aqui:\n${shareUrl}`;
 
+        // Se o produto tiver imagem, adicionamos o link da imagem no final para ajudar o preview do WhatsApp
+        if (product.image_url) {
+            text += `\n\n🔍 Foto do produto:\n${product.image_url}`;
+        }
+
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
         window.open(whatsappUrl, '_blank');
     };
 
