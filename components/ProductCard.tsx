@@ -32,11 +32,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
         text += `---`;
 
-        // Se o produto tiver imagem, adicionamos o link da imagem no final para ajudar o preview do WhatsApp
-        if (product.image_url) {
-            text += `\n\n📸 *Foto do produto:*\n${product.image_url}`;
-        }
-
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
         window.open(whatsappUrl, '_blank');
     };
@@ -73,7 +68,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 />
             )}
 
-            {product.image_url && (
+            {isExpanded && product.image_url && (
                 <div className="h-48 sm:h-56 w-full overflow-hidden bg-slate-100 dark:bg-slate-900 flex items-center justify-center relative border-b border-slate-100 dark:border-slate-700">
                     <img
                         src={product.image_url}
