@@ -15,6 +15,7 @@ interface StockAdjustment {
 
 interface ProductEdit {
     product: Product;
+    name: string;
     adjustments: StockAdjustment;
     observations: string;
 }
@@ -96,6 +97,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
     const getProductEdit = (product: Product): ProductEdit => {
         return editedProducts.get(product.id) || {
             product,
+            name: product.name,
             adjustments: { ce: 0, sc: 0, sp: 0 },
             observations: product.observations || ''
         };
@@ -114,6 +116,19 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                 ...currentEdit.adjustments,
                 [branch]: adjustment
             }
+        };
+
+        setEditedProducts(prev => new Map(prev).set(productId, updatedEdit));
+    };
+
+    const handleNameChange = (productId: string, value: string) => {
+        const product = products.find(p => p.id === productId);
+        if (!product) return;
+
+        const currentEdit = getProductEdit(product);
+        const updatedEdit: ProductEdit = {
+            ...currentEdit,
+            name: value
         };
 
         setEditedProducts(prev => new Map(prev).set(productId, updatedEdit));
@@ -151,6 +166,11 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
             const edits = Array.from(editedProducts.values());
 
             for (const edit of edits) {
+                // Apply name adjustment
+                if (edit.name !== edit.product.name) {
+                    await inventoryService.updateProductName(edit.product.id, edit.name);
+                }
+
                 // Apply stock adjustments
                 if (edit.adjustments.ce !== 0 || edit.adjustments.sc !== 0 || edit.adjustments.sp !== 0) {
                     await inventoryService.adjustStock(edit.product.id, edit.adjustments);
@@ -178,7 +198,8 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
         const edit = editedProducts.get(productId);
         if (!edit) return false;
 
-        return edit.adjustments.ce !== 0 ||
+        return edit.name !== edit.product.name ||
+            edit.adjustments.ce !== 0 ||
             edit.adjustments.sc !== 0 ||
             edit.adjustments.sp !== 0 ||
             edit.observations !== (edit.product.observations || '');
@@ -762,8 +783,26 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
 
                                                 <td className="px-4 py-3 font-mono text-slate-900 dark:text-white">{product.id}</td>
                                                 <td className="px-4 py-3">
-                                                    <div className="font-medium text-slate-900 dark:text-white">{product.name}</div>
-                                                    {activeTab !== 'brand' && <div className="text-sm text-slate-500">{product.brand}</div>}
+                                                    {activeTab === 'stock' ? (
+                                                        <div className="flex flex-col gap-1">
+                                                            <input
+                                                                type="text"
+                                                                value={edit.name}
+                                                                onChange={(e) => handleNameChange(product.id, e.target.value)}
+                                                                className={`w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white ${edit.name !== product.name
+                                                                    ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-900/20'
+                                                                    : 'border-slate-300 dark:border-slate-600'
+                                                                    }`}
+                                                                placeholder="Descrição do produto"
+                                                            />
+                                                            <div className="text-xs text-slate-500">{product.brand}</div>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="font-medium text-slate-900 dark:text-white">{product.name}</div>
+                                                            {activeTab !== 'brand' && <div className="text-sm text-slate-500">{product.brand}</div>}
+                                                        </>
+                                                    )}
                                                 </td>
 
                                                 {activeTab === 'stock' ? (

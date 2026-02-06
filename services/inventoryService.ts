@@ -978,6 +978,43 @@ export const inventoryService = {
 
 
   /**
+   * Update the name (description) of a product
+   */
+  async updateProductName(productId: string, name: string): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    if (!supabase) {
+      // Mock mode: Update MOCK_INVENTORY
+      console.warn('Supabase not configured. Updating mock data.');
+
+      const product = MOCK_INVENTORY.find(p => p.id === productId);
+      if (product) {
+        product.name = name;
+      }
+
+      console.log(`Mock update: Name updated for product ${productId}`);
+      return;
+    }
+
+    // Real Supabase Implementation
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ name })
+        .eq('id', productId);
+
+      if (error) {
+        throw new Error(`Erro ao atualizar nome do produto ${productId}: ${error.message}`);
+      }
+
+      console.log(`Successfully updated name for product ${productId}`);
+    } catch (error: any) {
+      console.error('Name update error:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Update observations for a product
    */
   async updateObservations(productId: string, observations: string): Promise<void> {
