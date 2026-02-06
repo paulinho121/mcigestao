@@ -134,7 +134,7 @@ export const inventoryService = {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .or(`id.eq.${id},id.eq.${id}.0`)
+      .in('id', [id, `${id}.0`])
       .maybeSingle();
 
     if (error) {
