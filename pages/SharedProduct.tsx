@@ -130,7 +130,7 @@ export const SharedProduct: React.FC<SharedProductProps> = ({ productId, onBack 
 
                     <div className="grid grid-cols-1 gap-3">
                         <a
-                            href={`https://wa.me/5585988171944?text=Olá! Tenho interesse no produto ${product.name} (Cod: ${product.id}). Vi que está disponível no estoque online.`}
+                            href={`https://wa.me/5585988171944?text=${encodeURIComponent(`Olá! Gostaria de mais informações sobre o produto:\n\n📦 *${product.name}*\n🔢 *Código:* ${product.id}\n\nVi que ele está disponível no estoque online e gostaria de prosseguir com o atendimento.`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="bg-[#25D366] hover:bg-[#128C7E] text-white px-6 py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-3 shadow-lg shadow-green-100 dark:shadow-none"
