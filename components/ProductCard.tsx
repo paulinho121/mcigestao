@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Product, Reservation } from '../types';
-import { MapPin, Box, AlertCircle, Package, Calendar, FileText } from 'lucide-react';
+import { MapPin, Box, AlertCircle, Package, Calendar, FileText, Share2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { inventoryService } from '../services/inventoryService';
 
@@ -15,6 +15,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     const availableStock = product.total - (product.reserved || 0);
     const isLowStock = availableStock < 5 && availableStock > 0;
     const isOutOfStock = availableStock === 0;
+
+    const handleShare = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Avoid expanding the card
+
+        const shareUrl = `${window.location.origin}${window.location.pathname}#/share/${product.id}`;
+        const text = `Confira o estoque de *${product.name}* (Cod: ${product.id}):\n\n${shareUrl}`;
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+
+        window.open(whatsappUrl, '_blank');
+    };
 
     // Fetch reservations and import info when card is expanded
     useEffect(() => {
@@ -58,7 +68,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                             (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1553413077-190dd305871c?w=400&auto=format&fit=crop&q=60';
                         }}
                     />
-                    <div className="absolute top-2 right-2 flex gap-1">
+                    <div className="absolute top-2 left-2 flex gap-1">
                         {isLowStock && (
                             <div className="bg-yellow-400 text-yellow-950 text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
                                 BAIXO
@@ -78,11 +88,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800 whitespace-nowrap dark:bg-slate-700 dark:text-slate-300">
                         COD: {product.id}
                     </span>
-                    {product.brand && (
-                        <span className="text-xs font-semibold text-brand-600 uppercase tracking-wider truncate max-w-[120px] sm:max-w-none">
-                            {product.brand}
-                        </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {product.brand && (
+                            <span className="text-xs font-semibold text-brand-600 uppercase tracking-wider truncate max-w-[120px] sm:max-w-none">
+                                {product.brand}
+                            </span>
+                        )}
+                        <button
+                            onClick={handleShare}
+                            className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all dark:bg-slate-700 dark:text-slate-400 dark:hover:text-green-400"
+                            title="Compartilhar no WhatsApp"
+                        >
+                            <Share2 className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
 
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug mb-4 group-hover:text-brand-600 transition-colors break-words line-clamp-2 dark:text-slate-100 dark:group-hover:text-brand-400">

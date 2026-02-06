@@ -123,6 +123,30 @@ export const inventoryService = {
   },
 
   /**
+   * Fetch a single product by ID
+   */
+  async getProductById(id: string): Promise<Product | null> {
+    if (!supabase) {
+      const product = MOCK_INVENTORY.find(p => p.id === id || p.id === `${id}.0`);
+      return product ? cleanAndDeduplicate([product])[0] : null;
+    }
+
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .or(`id.eq.${id},id.eq.${id}.0`)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return null;
+    }
+
+    return data ? cleanAndDeduplicate([data])[0] : null;
+  },
+
+
+  /**
    * Get all products that have stock in a specific branch
    */
   async getProductsByBranch(branch: 'CE' | 'SC' | 'SP', limit = 200): Promise<Product[]> {
