@@ -9,6 +9,7 @@ export interface Product {
     name: string;
     brand: string;
     brand_logo?: string;
+    image_url?: string;
     stock_ce: number;
     stock_sc: number;
     stock_sp: number;

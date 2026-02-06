@@ -39,6 +39,7 @@ const cleanAndDeduplicate = (items: any[]): Product[] => {
         reserved,
         // Always calculate total from branch stocks for accuracy
         total: stock_ce + stock_sc + stock_sp,
+        image_url: item.image_url ?? item.imageUrl,
         importQuantity: item.import_quantity ?? item.importQuantity,
         expectedRestockDate: item.expected_restock_date ?? item.expectedRestockDate
       });
@@ -637,7 +638,7 @@ export const inventoryService = {
       // 1. Fetch existing products to preserve enrichment data
       const { data: existingProducts, error: fetchError } = await supabase
         .from('products')
-        .select('id, reserved, import_quantity, expected_restock_date, observations');
+        .select('id, reserved, import_quantity, expected_restock_date, observations, image_url');
 
       if (fetchError) {
         throw new Error(`Erro ao buscar produtos existentes: ${fetchError.message}`);
@@ -692,6 +693,7 @@ export const inventoryService = {
           stock_sc,
           stock_sp,
           total,
+          image_url: existing?.image_url ?? p.image_url,
           // Preserve existing data
           reserved: reservations.total,
           import_quantity: existing?.import_quantity ?? p.importQuantity,
@@ -1010,6 +1012,37 @@ export const inventoryService = {
       console.log(`Successfully updated name for product ${productId}`);
     } catch (error: any) {
       console.error('Name update error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update the image URL of a product
+   */
+  async updateProductImage(productId: string, imageUrl: string): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    if (!supabase) {
+      // Mock mode
+      console.warn('Supabase not configured. Updating mock data.');
+      const product = MOCK_INVENTORY.find(p => p.id === productId);
+      if (product) {
+        product.image_url = imageUrl;
+      }
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ image_url: imageUrl })
+        .eq('id', productId);
+
+      if (error) {
+        throw new Error(`Erro ao atualizar imagem do produto ${productId}: ${error.message}`);
+      }
+    } catch (error: any) {
+      console.error('Image update error:', error);
       throw error;
     }
   },

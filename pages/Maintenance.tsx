@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Save, Wrench, AlertCircle, Package as PackageIcon, FileText, Download, Printer, Mail, CheckSquare, Square, List, LayoutGrid, Tag } from 'lucide-react';
+import { Search, Save, Wrench, AlertCircle, Package as PackageIcon, FileText, Download, Printer, Mail, CheckSquare, Square, List, LayoutGrid, Tag, ImageIcon, Wand2 } from 'lucide-react';
 import { Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
 import { backupService } from '../services/backupService';
@@ -16,6 +16,7 @@ interface StockAdjustment {
 interface ProductEdit {
     product: Product;
     name: string;
+    image_url: string;
     adjustments: StockAdjustment;
     observations: string;
 }
@@ -98,6 +99,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
         return editedProducts.get(product.id) || {
             product,
             name: product.name,
+            image_url: product.image_url || '',
             adjustments: { ce: 0, sc: 0, sp: 0 },
             observations: product.observations || ''
         };
@@ -132,6 +134,34 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
         };
 
         setEditedProducts(prev => new Map(prev).set(productId, updatedEdit));
+    };
+
+    const handleImageChange = (productId: string, value: string) => {
+        const product = products.find(p => p.id === productId);
+        if (!product) return;
+
+        const currentEdit = getProductEdit(product);
+        const updatedEdit: ProductEdit = {
+            ...currentEdit,
+            image_url: value
+        };
+
+        setEditedProducts(prev => new Map(prev).set(productId, updatedEdit));
+    };
+
+    const handleMagicSearch = (productId: string) => {
+        const product = products.find(p => p.id === productId);
+        if (!product) return;
+
+        // Intelligent approach: Use product name to construct a search query
+        const searchTerms = product.name;
+
+        // For now, let's open Google Images in a new tab as the most "intelligent/reliable" search tool
+        const googleImagesUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(searchTerms)}`;
+        window.open(googleImagesUrl, '_blank');
+
+        setSuccess(`Pesquisa aberta para "${searchTerms}". Copie o endereço da imagem e cole no campo abaixo.`);
+        setTimeout(() => setSuccess(''), 5000);
     };
 
     const handleObservationsChange = (productId: string, value: string) => {
@@ -171,6 +201,11 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                     await inventoryService.updateProductName(edit.product.id, edit.name);
                 }
 
+                // Apply image adjustment
+                if (edit.image_url !== (edit.product.image_url || '')) {
+                    await inventoryService.updateProductImage(edit.product.id, edit.image_url);
+                }
+
                 // Apply stock adjustments
                 if (edit.adjustments.ce !== 0 || edit.adjustments.sc !== 0 || edit.adjustments.sp !== 0) {
                     await inventoryService.adjustStock(edit.product.id, edit.adjustments);
@@ -199,6 +234,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
         if (!edit) return false;
 
         return edit.name !== edit.product.name ||
+            edit.image_url !== (edit.product.image_url || '') ||
             edit.adjustments.ce !== 0 ||
             edit.adjustments.sc !== 0 ||
             edit.adjustments.sp !== 0 ||
@@ -784,23 +820,73 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                 <td className="px-4 py-3 font-mono text-slate-900 dark:text-white">{product.id}</td>
                                                 <td className="px-4 py-3">
                                                     {activeTab === 'stock' ? (
-                                                        <div className="flex flex-col gap-1">
-                                                            <input
-                                                                type="text"
-                                                                value={edit.name}
-                                                                onChange={(e) => handleNameChange(product.id, e.target.value)}
-                                                                className={`w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white ${edit.name !== product.name
-                                                                    ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-900/20'
-                                                                    : 'border-slate-300 dark:border-slate-600'
-                                                                    }`}
-                                                                placeholder="Descrição do produto"
-                                                            />
-                                                            <div className="text-xs text-slate-500">{product.brand}</div>
+                                                        <div className="flex flex-col gap-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={edit.name}
+                                                                    onChange={(e) => handleNameChange(product.id, e.target.value)}
+                                                                    className={`flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white ${edit.name !== product.name
+                                                                        ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-900/20'
+                                                                        : 'border-slate-300 dark:border-slate-600'
+                                                                        }`}
+                                                                    placeholder="Descrição do produto"
+                                                                />
+                                                            </div>
+
+                                                            {/* Image Section */}
+                                                            <div className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800">
+                                                                <div className="relative w-12 h-12 flex-shrink-0 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center">
+                                                                    {edit.image_url ? (
+                                                                        <img src={edit.image_url} alt="Preview" className="w-full h-full object-contain" />
+                                                                    ) : (
+                                                                        <ImageIcon className="w-6 h-6 text-slate-300" />
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex-1 flex flex-col gap-1">
+                                                                    <div className="flex gap-1">
+                                                                        <input
+                                                                            type="text"
+                                                                            value={edit.image_url}
+                                                                            onChange={(e) => handleImageChange(product.id, e.target.value)}
+                                                                            className={`flex-1 px-2 py-1 text-[10px] border rounded focus:outline-none focus:ring-1 focus:ring-brand-500 dark:bg-slate-700 dark:text-white ${edit.image_url !== (product.image_url || '')
+                                                                                ? 'border-brand-500 bg-brand-50/50'
+                                                                                : 'border-slate-200 dark:border-slate-600'
+                                                                                }`}
+                                                                            placeholder="URL da Imagem..."
+                                                                        />
+                                                                        <button
+                                                                            onClick={() => handleMagicSearch(product.id)}
+                                                                            className="p-1 px-2 bg-brand-50 text-brand-600 rounded hover:bg-brand-100 transition-colors title='Abrir busca inteligente'"
+                                                                        >
+                                                                            <Wand2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    </div>
+                                                                    <div className="text-[9px] text-slate-500 flex justify-between">
+                                                                        <span>{product.brand}</span>
+                                                                        {edit.image_url && (
+                                                                            <button
+                                                                                onClick={() => handleImageChange(product.id, '')}
+                                                                                className="text-red-500 hover:text-red-700"
+                                                                            >
+                                                                                Remover
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     ) : (
                                                         <>
-                                                            <div className="font-medium text-slate-900 dark:text-white">{product.name}</div>
-                                                            {activeTab !== 'brand' && <div className="text-sm text-slate-500">{product.brand}</div>}
+                                                            <div className="flex items-center gap-3">
+                                                                {product.image_url && (
+                                                                    <img src={product.image_url} alt="" className="w-10 h-10 object-contain rounded border border-slate-200 dark:border-slate-700 bg-white" />
+                                                                )}
+                                                                <div>
+                                                                    <div className="font-medium text-slate-900 dark:text-white">{product.name}</div>
+                                                                    {activeTab !== 'brand' && <div className="text-sm text-slate-500">{product.brand}</div>}
+                                                                </div>
+                                                            </div>
                                                         </>
                                                     )}
                                                 </td>

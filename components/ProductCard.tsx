@@ -47,6 +47,32 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     }}
                 />
             )}
+
+            {product.image_url && (
+                <div className="h-48 sm:h-56 w-full overflow-hidden bg-slate-100 dark:bg-slate-900 flex items-center justify-center relative border-b border-slate-100 dark:border-slate-700">
+                    <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1553413077-190dd305871c?w=400&auto=format&fit=crop&q=60';
+                        }}
+                    />
+                    <div className="absolute top-2 right-2 flex gap-1">
+                        {isLowStock && (
+                            <div className="bg-yellow-400 text-yellow-950 text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
+                                BAIXO
+                            </div>
+                        )}
+                        {isOutOfStock && (
+                            <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
+                                ESGOTADO
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             <div className="p-4 sm:p-5 flex-grow relative z-10">
                 <div className="flex justify-between items-start mb-3 gap-2 flex-wrap">
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800 whitespace-nowrap dark:bg-slate-700 dark:text-slate-300">
