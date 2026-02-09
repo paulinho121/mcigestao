@@ -82,3 +82,14 @@ export interface RentalItem {
     daily_rate: number;
     created_at: string;
 }
+
+export interface Supplier {
+    id: string;
+    name: string;
+    cnpj?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    brands: string[];
+    created_at?: string;
+}
