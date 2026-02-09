@@ -9,7 +9,7 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
+    const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [importInfo, setImportInfo] = useState<{ quantity: number; expectedDate?: string } | null>(null);
     const availableStock = product.total - (product.reserved || 0);
@@ -36,9 +36,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         window.open(whatsappUrl, '_blank');
     };
 
-    // Fetch reservations and import info when card is expanded
+    // Fetch reservations and import info when spotlight is opened
     useEffect(() => {
-        if (isExpanded) {
+        if (isSpotlightOpen) {
             if (product.reserved > 0) {
                 inventoryService.getReservationsByProduct(product.id)
                     .then(setReservations)
@@ -49,12 +49,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 .then(setImportInfo)
                 .catch(console.error);
         }
-    }, [isExpanded, product.id, product.reserved]);
+    }, [isSpotlightOpen, product.id, product.reserved]);
 
     return (
         <div
-            onClick={() => setIsExpanded(!isExpanded)}
-            className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all duration-200 flex flex-col h-full group cursor-pointer relative ${isExpanded ? 'ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-slate-900' : ''} dark:bg-slate-800 dark:border-slate-700`}
+            onClick={() => setIsSpotlightOpen(true)}
+            className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all duration-200 flex flex-col h-full group cursor-pointer relative ${isSpotlightOpen ? 'ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-slate-900' : ''} dark:bg-slate-800 dark:border-slate-700`}
         >
             {product.brand_logo && (
                 <div
@@ -185,74 +185,188 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 </div>
             </div>
 
-            {/* Expanded Details */}
-            {isExpanded && (
-                <div className="bg-slate-50 px-4 sm:px-5 pb-4 border-t border-slate-100 animate-in slide-in-from-top-2 duration-200 dark:bg-slate-900/50 dark:border-slate-700">
-                    <div className="space-y-2 pt-2">
-                        {reservations.length > 0 && (
-                            <div className="space-y-2">
-                                <div className="text-xs font-semibold text-orange-900 uppercase flex items-center gap-2">
-                                    <AlertCircle className="w-4 h-4" />
-                                    Reservas ({product.reserved} un)
-                                </div>
-                                {reservations.map(reservation => (
-                                    <div key={reservation.id} className="text-xs sm:text-sm text-orange-600 font-medium flex items-center justify-between p-2 bg-orange-50 rounded-lg border border-orange-100 gap-2">
-                                        <div className="flex flex-col flex-1 min-w-0">
-                                            <span className="font-semibold truncate">{reservation.reservedByName || reservation.reservedBy}</span>
-                                            <span className="text-xs text-orange-500">{reservation.branch} • {reservation.quantity} un</span>
+            {/* Spotlight Modal */}
+            {isSpotlightOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/90 backdrop-blur-sm animate-in fade-in duration-300"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSpotlightOpen(false);
+                    }}
+                >
+                    <div
+                        className="bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row animate-in zoom-in-95 duration-300 border border-white/10"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Left Side: Product Image (Large) */}
+                        <div className="md:w-1/2 bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6 relative min-h-[300px]">
+                            {product.image_url ? (
+                                <img
+                                    src={product.image_url}
+                                    alt={product.name}
+                                    className="max-w-full max-h-full object-contain drop-shadow-2xl animate-in slide-in-from-left-4 duration-500"
+                                />
+                            ) : (
+                                <Box className="w-24 h-24 text-slate-300" />
+                            )}
+
+                            {/* Brand Logo Watermark - Larger in Spotlight */}
+                            {product.brand_logo && (
+                                <div
+                                    className="absolute inset-0 opacity-[0.05] pointer-events-none grayscale dark:opacity-[0.1] dark:invert"
+                                    style={{
+                                        backgroundImage: `url(${product.brand_logo})`,
+                                        backgroundSize: '40%',
+                                        backgroundRepeat: 'no-repeat',
+                                        backgroundPosition: 'bottom right 20px'
+                                    }}
+                                />
+                            )}
+
+                            {/* Tags */}
+                            <div className="absolute top-4 left-4 flex flex-col gap-2">
+                                {isOutOfStock ? (
+                                    <span className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-lg shadow-lg">ESGOTADO</span>
+                                ) : isLowStock ? (
+                                    <span className="px-3 py-1 bg-yellow-400 text-yellow-950 text-xs font-bold rounded-lg shadow-lg">BAIXO ESTOQUE</span>
+                                ) : (
+                                    <span className="px-3 py-1 bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-lg">DISPONÍVEL</span>
+                                )}
+                                <span className="px-3 py-1 bg-slate-800 text-slate-100 text-xs font-mono rounded-lg shadow-lg">COD: {product.id}</span>
+                            </div>
+                        </div>
+
+                        {/* Right Side: Details & Quantities */}
+                        <div className="md:w-1/2 p-6 sm:p-8 flex flex-col overflow-y-auto">
+                            <div className="flex justify-between items-start mb-2 group">
+                                {product.brand && (
+                                    <span className="px-3 py-1 bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 text-xs font-bold uppercase tracking-widest rounded-md mb-2">
+                                        {product.brand}
+                                    </span>
+                                )}
+                                <button
+                                    onClick={() => setIsSpotlightOpen(false)}
+                                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                                >
+                                    <AlertCircle className="w-6 h-6 rotate-45" />
+                                </button>
+                            </div>
+
+                            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white leading-tight mb-6">
+                                {product.name}
+                            </h2>
+
+                            {/* Quantities Section - Highlighted */}
+                            <div className="grid grid-cols-1 gap-4 mb-8">
+                                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700/50">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="p-2 bg-brand-500 rounded-lg">
+                                                <Box className="w-5 h-5 text-white" />
+                                            </div>
+                                            <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight">Estoque Total</span>
                                         </div>
-                                        <span className="text-xs text-orange-400 whitespace-nowrap">
-                                            {new Date(reservation.reservedAt).toLocaleDateString('pt-BR')}
+                                        <span className="text-4xl font-black text-slate-900 dark:text-white">{product.total}</span>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div className="flex flex-col items-center p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+                                            <span className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase">Ceará</span>
+                                            <span className="text-lg font-bold text-slate-900 dark:text-white">{product.stock_ce}</span>
+                                        </div>
+                                        <div className="flex flex-col items-center p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">S. Catarina</span>
+                                            <span className="text-lg font-bold text-slate-900 dark:text-white">{product.stock_sc}</span>
+                                        </div>
+                                        <div className="flex flex-col items-center p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                                            <span className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase">S. Paulo</span>
+                                            <span className="text-lg font-bold text-slate-900 dark:text-white">{product.stock_sp}</span>
+                                        </div>
+                                    </div>
+
+                                    {product.reserved > 0 && (
+                                        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center text-sm">
+                                            <span className="text-orange-600 dark:text-orange-400 font-bold uppercase text-xs">Reservado: {product.reserved} un</span>
+                                            <span className="text-green-600 dark:text-green-400 font-bold uppercase text-xs">Disponível: {availableStock} un</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Additional Info */}
+                            <div className="space-y-4">
+                                {reservations.length > 0 && (
+                                    <div>
+                                        <h4 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                            <AlertCircle className="w-4 h-4" />
+                                            Reservas Ativas
+                                        </h4>
+                                        <div className="space-y-2">
+                                            {reservations.map(reservation => (
+                                                <div key={reservation.id} className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-100 dark:border-orange-900/30">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-orange-900 dark:text-orange-200 leading-none">{reservation.reservedByName || reservation.reservedBy}</span>
+                                                        <span className="text-[11px] font-medium text-orange-600/80">{reservation.branch} • {reservation.quantity} un</span>
+                                                    </div>
+                                                    <span className="text-[11px] font-bold text-orange-400 whitespace-nowrap bg-white dark:bg-slate-900 px-2 py-1 rounded-md shadow-sm">
+                                                        {new Date(reservation.reservedAt).toLocaleDateString('pt-BR')}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {importInfo && importInfo.quantity > 0 && (
+                                    <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-blue-500/20 rounded-lg">
+                                                <Package className="w-4 h-4 text-blue-600" />
+                                            </div>
+                                            <span className="text-sm font-bold text-blue-900 dark:text-blue-200">Em Importação</span>
+                                        </div>
+                                        <span className="text-sm font-black text-blue-600">{importInfo.quantity} un</span>
+                                    </div>
+                                )}
+
+                                {(importInfo?.expectedDate || product.expectedRestockDate) && (
+                                    <div className="p-3 bg-purple-50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/30 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-purple-500/20 rounded-lg">
+                                                <Calendar className="w-4 h-4 text-purple-600" />
+                                            </div>
+                                            <span className="text-sm font-bold text-purple-900 dark:text-purple-200">Previsão de Reposição</span>
+                                        </div>
+                                        <span className="text-sm font-black text-purple-600">
+                                            {new Date(importInfo?.expectedDate || product.expectedRestockDate!).toLocaleDateString('pt-BR')}
                                         </span>
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                )}
 
-                        {importInfo && importInfo.quantity > 0 && (
-                            <div className="text-xs sm:text-sm text-blue-600 font-medium flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-100 gap-2">
-                                <div className="flex items-center flex-shrink-0">
-                                    <Package className="w-4 h-4 mr-2" />
-                                    <span>Em Importação</span>
-                                </div>
-                                <span className="whitespace-nowrap">{importInfo.quantity} un</span>
-                            </div>
-                        )}
-
-                        {(importInfo?.expectedDate || product.expectedRestockDate) && (
-                            <div className="text-xs sm:text-sm text-purple-600 font-medium flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-100 gap-2">
-                                <div className="flex items-center flex-shrink-0">
-                                    <Calendar className="w-4 h-4 mr-2" />
-                                    <span>Previsão Reposição</span>
-                                </div>
-                                <span className="whitespace-nowrap text-xs sm:text-sm">{new Date(importInfo?.expectedDate || product.expectedRestockDate!).toLocaleDateString('pt-BR')}</span>
-                            </div>
-                        )}
-
-                        {product.observations && (
-                            <div className="mt-2 p-2.5 sm:p-3 bg-amber-50 border border-amber-100 rounded-lg">
-                                <div className="flex items-start gap-2">
-                                    <FileText className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                                    <div className="flex-1 min-w-0">
-                                        <span className="text-xs font-semibold text-amber-900 uppercase block mb-1">Observações</span>
-                                        <p className="text-xs sm:text-sm text-amber-800 leading-relaxed break-words">{product.observations}</p>
+                                {product.observations && (
+                                    <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/30">
+                                        <div className="flex items-center gap-2 mb-2 italic">
+                                            <FileText className="w-4 h-4 text-amber-600" />
+                                            <span className="text-xs font-bold text-amber-900 dark:text-amber-200 uppercase tracking-widest">Observações</span>
+                                        </div>
+                                        <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">{product.observations}</p>
                                     </div>
-                                </div>
+                                )}
                             </div>
-                        )}
 
-                        {/* Hint to close */}
-                        <div className="text-center pt-2">
-                            <span className="text-xs text-slate-400">Clique para recolher</span>
+                            <button
+                                onClick={handleShare}
+                                className="mt-8 w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-transform active:scale-[0.98] shadow-lg shadow-emerald-500/20"
+                            >
+                                <Share2 className="w-5 h-5" />
+                                Compartilhar Disponibilidade
+                            </button>
+
+                            <p className="text-center text-[10px] text-slate-400 mt-4 uppercase tracking-[0.2em] font-bold">
+                                Clique fora para fechar
+                            </p>
                         </div>
                     </div>
-                </div>
-            )}
-
-            {/* Hint to open if has hidden details */}
-            {!isExpanded && (product.reserved > 0 || product.expectedRestockDate || product.observations) && (
-                <div className="bg-slate-50 px-5 pb-2 text-center dark:bg-slate-900/50">
-                    <span className="text-xs text-brand-600 font-medium hover:underline dark:text-brand-400">Ver mais detalhes</span>
                 </div>
             )}
         </div>
