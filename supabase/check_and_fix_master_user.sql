@@ -31,7 +31,7 @@ SELECT
     email,
     is_master
 FROM public.profiles
-WHERE email IN ('paulofernandoautomacao@gmail.com', 'felipe@mcistore.com.br');
+WHERE email IN ('paulofernandoautomacao@gmail.com', 'felipe@mcistore.com.br', 'bianca@mcistore.com.br');
 
 -- =====================================================
 -- NOTA IMPORTANTE:
