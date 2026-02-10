@@ -34,6 +34,9 @@ export const Suppliers = () => {
         brands: [] as string[]
     });
 
+    // Local state for brand search in modal
+    const [brandSearch, setBrandSearch] = useState('');
+
     useEffect(() => {
         fetchData();
         fetchBrands();
@@ -48,10 +51,13 @@ export const Suppliers = () => {
 
     const fetchBrands = async () => {
         const data = await inventoryService.getBrands();
-        setBrands(data);
+        // Deduplicate and sort brands
+        const uniqueBrands = Array.from(new Set(data.filter(b => b).map(b => b.trim()))).sort((a, b) => a.localeCompare(b));
+        setBrands(uniqueBrands);
     };
 
     const handleOpenModal = (supplier?: Supplier) => {
+        setBrandSearch('');
         if (supplier) {
             setSelectedSupplier(supplier);
             setFormData({
@@ -101,6 +107,10 @@ export const Suppliers = () => {
         s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         s.cnpj?.includes(searchQuery) ||
         s.brands.some(b => b.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    const filteredBrandsForSelection = brands.filter(b =>
+        b.toLowerCase().includes(brandSearch.toLowerCase())
     );
 
     return (
@@ -226,7 +236,7 @@ export const Suppliers = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-10 space-y-6">
+                        <form onSubmit={handleSubmit} className="p-10 space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2 md:col-span-2">
                                     <label className="text-xs font-black text-slate-400 uppercase ml-2">Nome / Razão Social</label>
@@ -265,36 +275,59 @@ export const Suppliers = () => {
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     />
                                 </div>
-                                <div className="space-y-2 md:col-span-2">
-                                    <label className="text-xs font-black text-slate-400 uppercase ml-2">Marcas Vinculadas</label>
-                                    <div className="flex flex-wrap gap-2 p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[2rem]">
-                                        {brands.map(brand => (
-                                            <button
-                                                key={brand}
-                                                type="button"
-                                                onClick={() => {
-                                                    const current = formData.brands;
-                                                    if (current.includes(brand)) {
-                                                        setFormData({ ...formData, brands: current.filter(b => b !== brand) });
-                                                    } else {
-                                                        setFormData({ ...formData, brands: [...current, brand] });
-                                                    }
-                                                }}
-                                                className={`px-4 py-2 rounded-xl text-xs font-black border-2 transition-all ${formData.brands.includes(brand)
-                                                    ? 'bg-brand-600 border-brand-600 text-white shadow-lg shadow-brand-500/20'
-                                                    : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 hover:border-brand-500/30'
-                                                    }`}
-                                            >
-                                                {brand}
-                                            </button>
-                                        ))}
+                                <div className="space-y-4 md:col-span-2">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-black text-slate-400 uppercase ml-2">Marcas Vinculadas</label>
+                                        <div className="text-[10px] font-bold text-brand-500 bg-brand-50 dark:bg-brand-900/30 px-2 py-1 rounded-lg">
+                                            {formData.brands.length} selecionadas
+                                        </div>
+                                    </div>
+
+                                    <div className="relative">
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Filtrar marcas para vincular..."
+                                            className="w-full pl-10 pr-4 py-3 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-brand-500/20 dark:text-white transition-all text-sm font-bold"
+                                            value={brandSearch}
+                                            onChange={(e) => setBrandSearch(e.target.value)}
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2 p-6 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-[2.5rem] max-h-60 overflow-y-auto custom-scrollbar shadow-inner">
+                                        {filteredBrandsForSelection.length > 0 ? (
+                                            filteredBrandsForSelection.map(brand => (
+                                                <button
+                                                    key={brand}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const current = formData.brands;
+                                                        if (current.includes(brand)) {
+                                                            setFormData({ ...formData, brands: current.filter(b => b !== brand) });
+                                                        } else {
+                                                            setFormData({ ...formData, brands: [...current, brand] });
+                                                        }
+                                                    }}
+                                                    className={`px-4 py-2 rounded-xl text-xs font-black border-2 transition-all active:scale-95 ${formData.brands.includes(brand)
+                                                        ? 'bg-brand-600 border-brand-600 text-white shadow-lg shadow-brand-500/20'
+                                                        : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 hover:border-brand-500/30 hover:text-slate-600 dark:hover:text-slate-200'
+                                                        }`}
+                                                >
+                                                    {brand}
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="w-full text-center py-6 text-slate-400 text-sm italic">
+                                                Nenhum marca encontrada com "{brandSearch}"
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
 
                             <button
                                 type="submit"
-                                className="w-full py-5 bg-slate-900 dark:bg-brand-600 text-white rounded-[2rem] font-black text-lg shadow-xl hover:scale-[1.02] active:scale-95 transition-all mt-8"
+                                className="w-full py-5 bg-slate-900 dark:bg-brand-600 text-white rounded-[2rem] font-black text-lg shadow-xl hover:scale-[1.02] active:scale-95 transition-all mt-8 sticky bottom-0"
                             >
                                 {selectedSupplier ? 'Salvar Alterações' : 'Cadastrar Fornecedor'}
                             </button>

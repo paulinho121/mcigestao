@@ -18,6 +18,14 @@ export interface Product {
     importQuantity?: number;
     expectedRestockDate?: string;
     observations?: string;
+    min_stock?: number;
+    max_stock?: number;
+    safety_stock?: number;
+    average_consumption_daily?: number;
+    abc_category?: 'A' | 'B' | 'C';
+    last_purchase_price?: number;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface Reservation {
@@ -91,5 +99,33 @@ export interface Supplier {
     phone?: string;
     address?: string;
     brands: string[];
+    rating_score?: number;
     created_at?: string;
+}
+
+export interface PurchaseOrder {
+    id: string;
+    order_number: string;
+    supplier_id: string;
+    supplier_name?: string;
+    status: 'draft' | 'pending' | 'sent' | 'partial' | 'received' | 'cancelled';
+    total_value: number;
+    expected_delivery_date?: string;
+    received_at?: string;
+    notes?: string;
+    created_at: string;
+    updated_at: string;
+    items?: PurchaseOrderItem[];
+}
+
+export interface PurchaseOrderItem {
+    id: string;
+    order_id: string;
+    product_id: string;
+    product_name: string;
+    brand: string;
+    quantity: number;
+    quantity_received: number;
+    unit_price: number;
+    created_at: string;
 }
