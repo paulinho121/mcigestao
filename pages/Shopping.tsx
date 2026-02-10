@@ -2,10 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import {
     ShoppingBag,
     TrendingDown,
-    AlertTriangle,
     Plus,
     Search,
-    ChevronDown,
     Truck,
     CheckCircle2,
     Clock,
@@ -13,26 +11,18 @@ import {
     FileText as FileIcon,
     Download,
     Printer,
-    Trash2,
-    Edit3,
-    ExternalLink,
-    ArrowUpRight,
     RefreshCw,
-    Maximize2,
     ArrowRight,
-    ArrowLeft,
-    Filter
+    ArrowLeft
 } from 'lucide-react';
 import {
     ResponsiveContainer,
     ComposedChart,
     Bar,
     XAxis,
-    YAxis,
     CartesianGrid,
     Tooltip,
-    Cell,
-    Area
+    Cell
 } from 'recharts';
 import { inventoryService } from '../services/inventoryService';
 import { supplierService } from '../services/supplierService';
@@ -42,11 +32,7 @@ import { Product, Supplier } from '../types';
 export const Shopping = () => {
     const [allProducts, setAllProducts] = useState<Product[]>([]);
     const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
-    const [brands, setBrands] = useState<string[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-    const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
 
     // Order Flow State
     const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -71,26 +57,20 @@ export const Shopping = () => {
     }, []);
 
     const fetchData = async () => {
-        setLoading(true);
         try {
-            const [productsData, brandsData, suppliersData] = await Promise.all([
+            const [productsData, suppliersData] = await Promise.all([
                 inventoryService.getAllProducts(500),
-                inventoryService.getBrands(),
                 supplierService.getAllSuppliers()
             ]);
             setAllProducts(productsData);
             setLowStockProducts(productsData.filter(p => (p.total || 0) < (p.min_stock || 10)));
-            setBrands(brandsData);
             setSuppliers(suppliersData);
         } catch (error) {
             console.error("Failed to fetch data", error);
-        } finally {
-            setLoading(false);
         }
     };
 
     const handleRecalculateABC = async () => {
-        setLoading(true);
         await purchaseIntelligenceService.recalculateABC();
         await fetchData();
         alert("Inteligência e Curva ABC atualizadas!");

@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Product, PurchaseOrder, PurchaseOrderItem } from '../types';
+import { PurchaseOrder, PurchaseOrderItem } from '../types';
 
 export const purchaseIntelligenceService = {
     /**
