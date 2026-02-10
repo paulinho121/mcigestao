@@ -34,8 +34,9 @@ export const Shopping = () => {
     const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
-    // Order Flow State
+    // Modals State
     const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+    const [isCriticalModalOpen, setIsCriticalModalOpen] = useState(false);
     const [orderStep, setOrderStep] = useState<'supplier' | 'products' | 'review'>('supplier');
     const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
     const [orderItems, setOrderItems] = useState<{ product: Product; quantity: number; price: number }[]>([]);
@@ -330,7 +331,10 @@ export const Shopping = () => {
                                 </div>
                             ))}
                         </div>
-                        <button className="w-full mt-8 py-4 bg-white/10 hover:bg-white/20 rounded-2xl text-xs font-black transition-all border border-white/5">
+                        <button
+                            onClick={() => setIsCriticalModalOpen(true)}
+                            className="w-full mt-8 py-4 bg-white/10 hover:bg-white/20 rounded-2xl text-xs font-black transition-all border border-white/5 active:scale-95"
+                        >
                             VER TODOS OS CRÍTICOS
                         </button>
                     </div>
@@ -635,6 +639,77 @@ export const Shopping = () => {
                                 </p>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+            {/* MODAL: TODOS OS ITENS CRÍTICOS */}
+            {isCriticalModalOpen && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-md" onClick={() => setIsCriticalModalOpen(false)}></div>
+                    <div className="relative bg-white dark:bg-slate-800 w-full max-w-4xl max-h-[90vh] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-8 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+                            <div>
+                                <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+                                    <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-xl">
+                                        <TrendingDown className="w-6 h-6 text-red-600" />
+                                    </div>
+                                    Todos os Itens Críticos
+                                </h2>
+                                <p className="text-slate-500 font-bold ml-11 -mt-1 text-sm">{lowStockProducts.length} produtos abaixo do estoque mínimo</p>
+                            </div>
+                            <button onClick={() => setIsCriticalModalOpen(false)} className="p-3 bg-white dark:bg-slate-700 rounded-full shadow-sm hover:bg-red-50 hover:text-red-500 transition-all active:scale-90">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {lowStockProducts.map(p => (
+                                    <div key={p.id} className="p-5 bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 hover:border-brand-500/30 transition-all group">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{p.brand}</p>
+                                                <h4 className="font-bold text-slate-900 dark:text-white">{p.name}</h4>
+                                            </div>
+                                            <span className="px-3 py-1 bg-red-100 dark:bg-red-900/40 text-red-600 text-[10px] font-black rounded-lg uppercase">Crítico</span>
+                                        </div>
+                                        <div className="flex justify-between items-end">
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase">Estoque Atual: <span className="text-red-500 font-black">{p.total}</span></p>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase">Estoque Mínimo: {p.min_stock || 0}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setIsCriticalModalOpen(false);
+                                                    setIsOrderModalOpen(true);
+                                                    setSelectedSupplier(suppliers.find(s => s.brands.includes(p.brand)) || null);
+                                                    setOrderStep('products');
+                                                    addToOrder(p);
+                                                }}
+                                                className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white text-xs font-black rounded-xl hover:bg-brand-700 transition-all active:scale-95 shadow-lg shadow-brand-500/20"
+                                            >
+                                                COMPRAR
+                                                <ArrowRight className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {lowStockProducts.length === 0 && (
+                                <div className="py-20 flex flex-col items-center justify-center opacity-40">
+                                    <CheckCircle2 className="w-20 h-20 text-green-500 mb-4" />
+                                    <p className="text-xl font-black">Estoque em dia!</p>
+                                    <p className="font-bold">Nenhum produto em nível crítico no momento.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-8 bg-slate-50 dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-700 text-center">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                Dica: Priorize itens da Classe A para melhor retorno sobre o capital
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}
