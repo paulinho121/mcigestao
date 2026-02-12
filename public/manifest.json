@@ -3,13 +3,13 @@
     "name": "StockVision App",
     "icons": [
         {
-            "src": "pwa-icon.png",
+            "src": "pwa-icon.png?v=2",
             "sizes": "192x192 512x512",
             "type": "image/png"
         }
     ],
     "start_url": ".",
     "display": "standalone",
-    "theme_color": "#000000",
+    "theme_color": "#00bfa5",
     "background_color": "#ffffff"
 }
