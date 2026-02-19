@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Save, Wrench, AlertCircle, Package as PackageIcon, FileText, Download, Printer, Mail, CheckSquare, Square, List, LayoutGrid, Tag, ImageIcon, Wand2 } from 'lucide-react';
+import { Search, Save, Wrench, AlertCircle, Package as PackageIcon, FileText, Download, Printer, Mail, CheckSquare, Square, List, LayoutGrid, Tag, ImageIcon, Wand2, ClipboardList, RotateCcw } from 'lucide-react';
 import { Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
 import { backupService } from '../services/backupService';
@@ -21,6 +21,13 @@ interface ProductEdit {
     observations: string;
 }
 
+interface InventoryItem {
+    product: Product;
+    original: { ce: number; sc: number; sp: number };
+    current: { ce: number; sc: number; sp: number };
+    diff: { ce: number; sc: number; sp: number };
+}
+
 export const Maintenance: React.FC<MaintenanceProps> = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -31,8 +38,10 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
     const [editedProducts, setEditedProducts] = useState<Map<string, ProductEdit>>(new Map());
 
     // Reporting & Tabs State
-    const [activeTab, setActiveTab] = useState<'stock' | 'report' | 'brand'>('stock');
+    const [activeTab, setActiveTab] = useState<'stock' | 'report' | 'brand' | 'inventory'>('stock');
     const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+    const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+    const [inventorySearch, setInventorySearch] = useState('');
     const [productCache, setProductCache] = useState<Map<string, Product>>(new Map());
     const [selectedBrand, setSelectedBrand] = useState('');
     const [selectedBrandLogo, setSelectedBrandLogo] = useState('');
@@ -254,6 +263,98 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Inventory Handlers
+    const handleStartInventory = async () => {
+        if (inventoryItems.length > 0) {
+            if (!window.confirm('Existe um inventário em andamento. Iniciar um novo irá descartar as alterações atuais. Deseja continuar?')) {
+                return;
+            }
+        }
+
+        setLoading(true);
+        try {
+            // Fetch all products for specific inventory snapshot
+            const allProducts = await inventoryService.getAllProducts(10000);
+
+            const items: InventoryItem[] = allProducts.map(p => ({
+                product: p,
+                original: { ce: p.stock_ce, sc: p.stock_sc, sp: p.stock_sp },
+                current: { ce: p.stock_ce, sc: p.stock_sc, sp: p.stock_sp },
+                diff: { ce: 0, sc: 0, sp: 0 }
+            }));
+
+            setInventoryItems(items);
+            setActiveTab('inventory');
+            setSuccess('Cópia do estoque gerada com sucesso! Manipule os valores abaixo sem afetar o estoque principal.');
+        } catch (err) {
+            setError('Erro ao gerar cópia do estoque');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleInventoryChange = (productId: string, branch: 'ce' | 'sc' | 'sp', value: string) => {
+        const newValue = parseInt(value);
+        if (isNaN(newValue) || newValue < 0) return;
+
+        setInventoryItems(prev => prev.map(item => {
+            if (item.product.id !== productId) return item;
+
+            const current = { ...item.current, [branch]: newValue };
+            const diff = {
+                ce: current.ce - item.original.ce,
+                sc: current.sc - item.original.sc,
+                sp: current.sp - item.original.sp
+            };
+
+            return { ...item, current, diff };
+        }));
+    };
+
+    const handleApplyInventory = async () => {
+        if (!window.confirm('Atenção: Isso irá sobscrever o estoque oficial com os valores deste inventário. Deseja aplicar as alterações?')) {
+            return;
+        }
+
+        setSaving(true);
+        try {
+            // Filter only items that have changes
+            const changedItems = inventoryItems.filter(item =>
+                item.diff.ce !== 0 || item.diff.sc !== 0 || item.diff.sp !== 0
+            );
+
+            if (changedItems.length === 0) {
+                setSuccess('Nenhuma alteração detectada para aplicar.');
+                return;
+            }
+
+            for (const item of changedItems) {
+                // Adjust stock based on the difference
+                await inventoryService.adjustStock(item.product.id, item.diff);
+            }
+
+            setSuccess(`${changedItems.length} produtos atualizados com base no inventário!`);
+            setInventoryItems([]); // Clear inventory session
+            await loadProducts(); // Reload main list
+            setActiveTab('stock');
+        } catch (err: any) {
+            setError(err.message || 'Erro ao aplicar inventário');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const getFilteredInventory = () => {
+        if (!inventorySearch.trim()) return inventoryItems;
+        const query = inventorySearch.toLowerCase();
+        return inventoryItems.filter(item =>
+            item.product.name.toLowerCase().includes(query) ||
+            item.product.id.toLowerCase().includes(query) ||
+            (item.product.brand && item.product.brand.toLowerCase().includes(query))
+        );
     };
 
     // Reporting Handlers
@@ -504,10 +605,10 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-4 mb-6 border-b border-slate-200 dark:border-slate-700">
+                <div className="flex gap-4 mb-6 border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
                     <button
                         onClick={() => setActiveTab('stock')}
-                        className={`pb-3 px-2 flex items-center gap-2 font-medium transition-colors relative ${activeTab === 'stock'
+                        className={`pb-3 px-2 flex items-center gap-2 font-medium transition-colors relative whitespace-nowrap ${activeTab === 'stock'
                             ? 'text-brand-600 dark:text-brand-400'
                             : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                             }`}
@@ -519,8 +620,21 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                         )}
                     </button>
                     <button
+                        onClick={() => setActiveTab('inventory')}
+                        className={`pb-3 px-2 flex items-center gap-2 font-medium transition-colors relative whitespace-nowrap ${activeTab === 'inventory'
+                            ? 'text-brand-600 dark:text-brand-400'
+                            : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                            }`}
+                    >
+                        <ClipboardList className="w-5 h-5" />
+                        Inventário
+                        {activeTab === 'inventory' && (
+                            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-600 dark:bg-brand-500 rounded-t-full" />
+                        )}
+                    </button>
+                    <button
                         onClick={() => setActiveTab('report')}
-                        className={`pb-3 px-2 flex items-center gap-2 font-medium transition-colors relative ${activeTab === 'report'
+                        className={`pb-3 px-2 flex items-center gap-2 font-medium transition-colors relative whitespace-nowrap ${activeTab === 'report'
                             ? 'text-brand-600 dark:text-brand-400'
                             : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                             }`}
@@ -533,7 +647,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                     </button>
                     <button
                         onClick={() => setActiveTab('brand')}
-                        className={`pb-3 px-2 flex items-center gap-2 font-medium transition-colors relative ${activeTab === 'brand'
+                        className={`pb-3 px-2 flex items-center gap-2 font-medium transition-colors relative whitespace-nowrap ${activeTab === 'brand'
                             ? 'text-brand-600 dark:text-brand-400'
                             : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                             }`}
@@ -559,27 +673,53 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                 )}
 
                 {/* Search Bar */}
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6 transition-colors">
-                    <div className="flex gap-3">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                                placeholder="Buscar por código ou nome do produto..."
-                                className="w-full pl-12 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent dark:bg-slate-700 dark:text-white dark:placeholder-slate-400 transition-colors"
-                            />
+                {activeTab !== 'inventory' ? (
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6 transition-colors">
+                        <div className="flex gap-3">
+                            <div className="flex-1 relative">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                                    placeholder="Buscar por código ou nome do produto..."
+                                    className="w-full pl-12 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent dark:bg-slate-700 dark:text-white dark:placeholder-slate-400 transition-colors"
+                                />
+                            </div>
+                            <button
+                                onClick={handleSearch}
+                                className="px-6 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-colors font-semibold"
+                            >
+                                Buscar
+                            </button>
                         </div>
-                        <button
-                            onClick={handleSearch}
-                            className="px-6 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-colors font-semibold"
-                        >
-                            Buscar
-                        </button>
                     </div>
-                </div>
+                ) : (
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-6 transition-colors border-l-4 border-l-blue-500">
+                        <div className="flex gap-3 items-center mb-4">
+                            <ClipboardList className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                            <div>
+                                <h3 className="font-bold text-slate-900 dark:text-white">Modo Inventário</h3>
+                                <p className="text-sm text-slate-500">Manipule os valores abaixo. Os dados são independentes do estoque principal até serem aplicados.</p>
+                            </div>
+                        </div>
+                        {inventoryItems.length > 0 && (
+                            <div className="flex gap-3">
+                                <div className="flex-1 relative">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        value={inventorySearch}
+                                        onChange={(e) => setInventorySearch(e.target.value)}
+                                        placeholder="Filtrar inventário por código ou nome..."
+                                        className="w-full pl-12 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white dark:placeholder-slate-400 transition-colors"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Actions Bar */}
                 <div className="flex justify-between items-center mb-6">
@@ -615,6 +755,27 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                 </button>
                             )}
                         </>
+                    ) : activeTab === 'inventory' ? (
+                        <div className="flex gap-3 w-full">
+                            <button
+                                onClick={handleStartInventory}
+                                disabled={loading}
+                                className="mr-auto px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 font-semibold flex items-center gap-2"
+                            >
+                                <RotateCcw className="w-5 h-5" />
+                                {inventoryItems.length === 0 ? 'Iniciar Inventário (Copiar Estoque)' : 'Reiniciar Cópia'}
+                            </button>
+
+                            {inventoryItems.length > 0 && (
+                                <button
+                                    onClick={handleApplyInventory}
+                                    disabled={saving}
+                                    className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 font-semibold flex items-center gap-2"
+                                >
+                                    {saving ? 'Aplicando...' : 'Aplicar Diferenças'}
+                                </button>
+                            )}
+                        </div>
                     ) : activeTab === 'report' ? (
                         <div className="flex gap-4 w-full flex-wrap items-center">
                             {/* Brand Selection Tool */}
@@ -763,7 +924,18 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                             )}
                                         </th>
 
-                                        {activeTab === 'stock' ? (
+                                        {activeTab === 'inventory' ? (
+                                            <>
+                                                {/* Inventory Columns */}
+                                                <th className="px-2 py-3 text-center text-xs font-bold uppercase text-slate-500 bg-slate-50 dark:bg-slate-800">Sistema (CE)</th>
+                                                <th className="px-2 py-3 text-center font-bold text-blue-700 bg-blue-50 dark:bg-blue-900/20">Contagem CE</th>
+                                                <th className="px-2 py-3 text-center text-xs font-bold uppercase text-slate-500 bg-slate-50 dark:bg-slate-800">Sistema (SC)</th>
+                                                <th className="px-2 py-3 text-center font-bold text-blue-700 bg-blue-50 dark:bg-blue-900/20">Contagem SC</th>
+                                                <th className="px-2 py-3 text-center text-xs font-bold uppercase text-slate-500 bg-slate-50 dark:bg-slate-800">Sistema (SP)</th>
+                                                <th className="px-2 py-3 text-center font-bold text-blue-700 bg-blue-50 dark:bg-blue-900/20">Contagem SP</th>
+                                                <th className="px-4 py-3 text-center font-semibold text-slate-700">Diferença</th>
+                                            </>
+                                        ) : activeTab === 'stock' ? (
                                             <>
                                                 <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300 bg-green-50 dark:bg-green-900/20">CE Atual</th>
                                                 <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300 bg-green-50 dark:bg-green-900/20">Ajuste CE</th>
@@ -790,225 +962,299 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {products.map((product) => {
-                                        const edit = getProductEdit(product);
-                                        const edited = isEdited(product.id);
-                                        const isSelected = selectedProducts.has(product.id);
-
-                                        return (
-                                            <tr
-                                                key={product.id}
-                                                className={`border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${activeTab === 'stock' && edited ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''
-                                                    } ${activeTab === 'report' && isSelected ? 'bg-brand-50 dark:bg-brand-900/20' : ''
-                                                    } ${activeTab === 'brand' && isSelected ? 'bg-brand-50 dark:bg-brand-900/20' : ''
-                                                    }`}
-                                            >
-                                                {(activeTab === 'report' || activeTab === 'brand') && (
-                                                    <td className="px-4 py-3 text-center">
-                                                        <button
-                                                            onClick={() => toggleProductSelection(product.id)}
-                                                            className={`transition-colors ${isSelected
-                                                                ? 'text-brand-600 dark:text-brand-400'
-                                                                : 'text-slate-300 hover:text-slate-400 dark:text-slate-600'
-                                                                }`}
-                                                        >
-                                                            {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
-                                                        </button>
+                                    {activeTab === 'inventory' ? (
+                                        // Render Inventory Items
+                                        getFilteredInventory().length === 0 ? (
+                                            <tr>
+                                                <td colSpan={8} className="p-8 text-center text-slate-500">
+                                                    {inventoryItems.length === 0
+                                                        ? 'Clique em "Iniciar Inventário" para começar.'
+                                                        : 'Nenhum item encontrado no filtro.'}
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            getFilteredInventory().map((item) => (
+                                                <tr key={item.product.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                                    <td className="px-4 py-3 font-mono text-sm text-slate-600 dark:text-slate-400">{item.product.id}</td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="font-medium text-slate-900 dark:text-white">{item.product.name}</div>
+                                                        <div className="text-xs text-slate-500">{item.product.brand}</div>
                                                     </td>
-                                                )}
 
-                                                <td className="px-4 py-3 font-mono text-slate-900 dark:text-white">{product.id}</td>
-                                                <td className="px-4 py-3">
-                                                    {activeTab === 'stock' ? (
-                                                        <div className="flex flex-col gap-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="text"
-                                                                    value={edit.name}
-                                                                    onChange={(e) => handleNameChange(product.id, e.target.value)}
-                                                                    className={`flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white ${edit.name !== product.name
-                                                                        ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-900/20'
-                                                                        : 'border-slate-300 dark:border-slate-600'
-                                                                        }`}
-                                                                    placeholder="Descrição do produto"
-                                                                />
-                                                            </div>
+                                                    {/* CE */}
+                                                    <td className="px-2 py-3 text-center text-slate-500 bg-slate-50/50">{item.original.ce}</td>
+                                                    <td className="px-2 py-3 text-center bg-blue-50/30">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            value={item.current.ce}
+                                                            onChange={(e) => handleInventoryChange(item.product.id, 'ce', e.target.value)}
+                                                            className={`w-20 px-2 py-1 text-center border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${item.diff.ce !== 0 ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold' : 'border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white'
+                                                                }`}
+                                                        />
+                                                    </td>
 
-                                                            {/* Image Section */}
-                                                            <div className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800">
-                                                                <div className="relative w-12 h-12 flex-shrink-0 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center">
-                                                                    {edit.image_url ? (
-                                                                        <img src={edit.image_url} alt="Preview" className="w-full h-full object-contain" />
-                                                                    ) : (
-                                                                        <ImageIcon className="w-6 h-6 text-slate-300" />
-                                                                    )}
+                                                    {/* SC */}
+                                                    <td className="px-2 py-3 text-center text-slate-500 bg-slate-50/50">{item.original.sc}</td>
+                                                    <td className="px-2 py-3 text-center bg-blue-50/30">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            value={item.current.sc}
+                                                            onChange={(e) => handleInventoryChange(item.product.id, 'sc', e.target.value)}
+                                                            className={`w-20 px-2 py-1 text-center border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${item.diff.sc !== 0 ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold' : 'border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white'
+                                                                }`}
+                                                        />
+                                                    </td>
+
+                                                    {/* SP */}
+                                                    <td className="px-2 py-3 text-center text-slate-500 bg-slate-50/50">{item.original.sp}</td>
+                                                    <td className="px-2 py-3 text-center bg-blue-50/30">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            value={item.current.sp}
+                                                            onChange={(e) => handleInventoryChange(item.product.id, 'sp', e.target.value)}
+                                                            className={`w-20 px-2 py-1 text-center border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${item.diff.sp !== 0 ? 'border-amber-400 bg-amber-50 text-amber-900 font-bold' : 'border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white'
+                                                                }`}
+                                                        />
+                                                    </td>
+
+                                                    {/* Difference */}
+                                                    <td className="px-4 py-3 text-center">
+                                                        {(item.diff.ce + item.diff.sc + item.diff.sp) !== 0 ? (
+                                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${(item.diff.ce + item.diff.sc + item.diff.sp) > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                                }`}>
+                                                                {(item.diff.ce + item.diff.sc + item.diff.sp) > 0 ? '+' : ''}
+                                                                {item.diff.ce + item.diff.sc + item.diff.sp}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-slate-400">-</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )
+                                    ) : (
+                                        products.map((product) => {
+                                            const edit = getProductEdit(product);
+                                            const edited = isEdited(product.id);
+                                            const isSelected = selectedProducts.has(product.id);
+
+                                            return (
+                                                <tr
+                                                    key={product.id}
+                                                    className={`border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${activeTab === 'stock' && edited ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''
+                                                        } ${activeTab === 'report' && isSelected ? 'bg-brand-50 dark:bg-brand-900/20' : ''
+                                                        } ${activeTab === 'brand' && isSelected ? 'bg-brand-50 dark:bg-brand-900/20' : ''
+                                                        }`}
+                                                >
+                                                    {(activeTab === 'report' || activeTab === 'brand') && (
+                                                        <td className="px-4 py-3 text-center">
+                                                            <button
+                                                                onClick={() => toggleProductSelection(product.id)}
+                                                                className={`transition-colors ${isSelected
+                                                                    ? 'text-brand-600 dark:text-brand-400'
+                                                                    : 'text-slate-300 hover:text-slate-400 dark:text-slate-600'
+                                                                    }`}
+                                                            >
+                                                                {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
+                                                            </button>
+                                                        </td>
+                                                    )}
+
+                                                    <td className="px-4 py-3 font-mono text-slate-900 dark:text-white">{product.id}</td>
+                                                    <td className="px-4 py-3">
+                                                        {activeTab === 'stock' ? (
+                                                            <div className="flex flex-col gap-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={edit.name}
+                                                                        onChange={(e) => handleNameChange(product.id, e.target.value)}
+                                                                        className={`flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white ${edit.name !== product.name
+                                                                            ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-900/20'
+                                                                            : 'border-slate-300 dark:border-slate-600'
+                                                                            }`}
+                                                                        placeholder="Descrição do produto"
+                                                                    />
                                                                 </div>
-                                                                <div className="flex-1 flex flex-col gap-1">
-                                                                    <div className="flex gap-1">
-                                                                        <input
-                                                                            type="text"
-                                                                            value={edit.image_url}
-                                                                            onChange={(e) => handleImageChange(product.id, e.target.value)}
-                                                                            className={`flex-1 px-2 py-1 text-[10px] border rounded focus:outline-none focus:ring-1 focus:ring-brand-500 dark:bg-slate-700 dark:text-white ${edit.image_url !== (product.image_url || '')
-                                                                                ? 'border-brand-500 bg-brand-50/50'
-                                                                                : 'border-slate-200 dark:border-slate-600'
-                                                                                }`}
-                                                                            placeholder="URL da Imagem..."
-                                                                        />
-                                                                        <button
-                                                                            onClick={() => handleMagicSearch(product.id)}
-                                                                            className="p-1 px-2 bg-brand-50 text-brand-600 rounded hover:bg-brand-100 transition-colors title='Abrir busca inteligente'"
-                                                                        >
-                                                                            <Wand2 className="w-3.5 h-3.5" />
-                                                                        </button>
-                                                                    </div>
-                                                                    <div className="text-[9px] text-slate-500 flex justify-between">
-                                                                        <span>{product.brand}</span>
-                                                                        {edit.image_url && (
-                                                                            <button
-                                                                                onClick={() => handleImageChange(product.id, '')}
-                                                                                className="text-red-500 hover:text-red-700"
-                                                                            >
-                                                                                Remover
-                                                                            </button>
+
+                                                                {/* Image Section */}
+                                                                <div className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800">
+                                                                    <div className="relative w-12 h-12 flex-shrink-0 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center">
+                                                                        {edit.image_url ? (
+                                                                            <img src={edit.image_url} alt="Preview" className="w-full h-full object-contain" />
+                                                                        ) : (
+                                                                            <ImageIcon className="w-6 h-6 text-slate-300" />
                                                                         )}
                                                                     </div>
+                                                                    <div className="flex-1 flex flex-col gap-1">
+                                                                        <div className="flex gap-1">
+                                                                            <input
+                                                                                type="text"
+                                                                                value={edit.image_url}
+                                                                                onChange={(e) => handleImageChange(product.id, e.target.value)}
+                                                                                className={`flex-1 px-2 py-1 text-[10px] border rounded focus:outline-none focus:ring-1 focus:ring-brand-500 dark:bg-slate-700 dark:text-white ${edit.image_url !== (product.image_url || '')
+                                                                                    ? 'border-brand-500 bg-brand-50/50'
+                                                                                    : 'border-slate-200 dark:border-slate-600'
+                                                                                    }`}
+                                                                                placeholder="URL da Imagem..."
+                                                                            />
+                                                                            <button
+                                                                                onClick={() => handleMagicSearch(product.id)}
+                                                                                className="p-1 px-2 bg-brand-50 text-brand-600 rounded hover:bg-brand-100 transition-colors title='Abrir busca inteligente'"
+                                                                            >
+                                                                                <Wand2 className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                        </div>
+                                                                        <div className="text-[9px] text-slate-500 flex justify-between">
+                                                                            <span>{product.brand}</span>
+                                                                            {edit.image_url && (
+                                                                                <button
+                                                                                    onClick={() => handleImageChange(product.id, '')}
+                                                                                    className="text-red-500 hover:text-red-700"
+                                                                                >
+                                                                                    Remover
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    ) : (
+                                                        ) : (
+                                                            <>
+                                                                <div className="flex items-center gap-3">
+                                                                    {product.image_url && (
+                                                                        <img src={product.image_url} alt="" className="w-10 h-10 object-contain rounded border border-slate-200 dark:border-slate-700 bg-white" />
+                                                                    )}
+                                                                    <div>
+                                                                        <div className="font-medium text-slate-900 dark:text-white">{product.name}</div>
+                                                                        {activeTab !== 'brand' && <div className="text-sm text-slate-500">{product.brand}</div>}
+                                                                    </div>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </td>
+
+                                                    {activeTab === 'stock' ? (
+                                                        // Stock Adjustment Columns
                                                         <>
-                                                            <div className="flex items-center gap-3">
-                                                                {product.image_url && (
-                                                                    <img src={product.image_url} alt="" className="w-10 h-10 object-contain rounded border border-slate-200 dark:border-slate-700 bg-white" />
+                                                            {/* Ceará */}
+                                                            <td className="px-4 py-3 text-center bg-green-50/50 dark:bg-green-900/10">
+                                                                <span className="font-semibold text-slate-900 dark:text-white">{product.stock_ce}</span>
+                                                            </td>
+                                                            <td className="px-4 py-3 bg-green-50/50 dark:bg-green-900/10">
+                                                                <input
+                                                                    type="number"
+                                                                    value={edit.adjustments.ce === 0 ? '' : edit.adjustments.ce}
+                                                                    onChange={(e) => handleAdjustmentChange(product.id, 'ce', e.target.value)}
+                                                                    placeholder="0"
+                                                                    className="w-20 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white"
+                                                                />
+                                                                {edit.adjustments.ce !== 0 && (
+                                                                    <div className="text-xs mt-1 font-medium text-green-700">
+                                                                        → {calculateNewStock(product.stock_ce, edit.adjustments.ce)}
+                                                                    </div>
                                                                 )}
-                                                                <div>
-                                                                    <div className="font-medium text-slate-900 dark:text-white">{product.name}</div>
-                                                                    {activeTab !== 'brand' && <div className="text-sm text-slate-500">{product.brand}</div>}
+                                                            </td>
+
+                                                            {/* Santa Catarina */}
+                                                            <td className="px-4 py-3 text-center bg-blue-50/50 dark:bg-blue-900/10">
+                                                                <span className="font-semibold text-slate-900 dark:text-white">{product.stock_sc}</span>
+                                                            </td>
+                                                            <td className="px-4 py-3 bg-blue-50/50 dark:bg-blue-900/10">
+                                                                <input
+                                                                    type="number"
+                                                                    value={edit.adjustments.sc === 0 ? '' : edit.adjustments.sc}
+                                                                    onChange={(e) => handleAdjustmentChange(product.id, 'sc', e.target.value)}
+                                                                    placeholder="0"
+                                                                    className="w-20 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white"
+                                                                />
+                                                                {edit.adjustments.sc !== 0 && (
+                                                                    <div className="text-xs mt-1 font-medium text-blue-700">
+                                                                        → {calculateNewStock(product.stock_sc, edit.adjustments.sc)}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+
+                                                            {/* São Paulo */}
+                                                            <td className="px-4 py-3 text-center bg-red-50/50 dark:bg-red-900/10">
+                                                                <span className="font-semibold text-slate-900 dark:text-white">{product.stock_sp}</span>
+                                                            </td>
+                                                            <td className="px-4 py-3 bg-red-50/50 dark:bg-red-900/10">
+                                                                <input
+                                                                    type="number"
+                                                                    value={edit.adjustments.sp === 0 ? '' : edit.adjustments.sp}
+                                                                    onChange={(e) => handleAdjustmentChange(product.id, 'sp', e.target.value)}
+                                                                    placeholder="0"
+                                                                    className="w-20 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white"
+                                                                />
+                                                                {edit.adjustments.sp !== 0 && (
+                                                                    <div className="text-xs mt-1 font-medium text-red-700">
+                                                                        → {calculateNewStock(product.stock_sp, edit.adjustments.sp)}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+
+                                                            {/* Observations */}
+                                                            <td className="px-4 py-3 bg-purple-50/50 dark:bg-purple-900/10">
+                                                                <textarea
+                                                                    value={edit.observations}
+                                                                    onChange={(e) => handleObservationsChange(product.id, e.target.value)}
+                                                                    placeholder="Adicionar observação..."
+                                                                    maxLength={500}
+                                                                    rows={2}
+                                                                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
+                                                                />
+                                                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                                                    {edit.observations.length}/500
                                                                 </div>
-                                                            </div>
+                                                            </td>
+                                                        </>
+                                                    ) : activeTab === 'report' ? (
+                                                        // Report Columns (Read Only)
+                                                        <>
+                                                            <td className="px-4 py-3 text-center">
+                                                                <span className="font-semibold text-slate-900 dark:text-white">{product.stock_ce}</span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center">
+                                                                <span className="font-semibold text-slate-900 dark:text-white">{product.stock_sc}</span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center">
+                                                                <span className="font-semibold text-slate-900 dark:text-white">{product.stock_sp}</span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center bg-brand-50/50 dark:bg-brand-900/10">
+                                                                <span className="font-bold text-brand-600 dark:text-brand-400">{(product.stock_ce || 0) + (product.stock_sc || 0) + (product.stock_sp || 0)}</span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                                                                {product.observations || '-'}
+                                                            </td>
+                                                        </>
+                                                    ) : (
+                                                        // Brand Management Columns
+                                                        <>
+                                                            <td className="px-4 py-3 bg-brand-50/30 dark:bg-brand-900/10">
+                                                                <div className="flex items-center gap-2">
+                                                                    {product.brand_logo ? (
+                                                                        <img src={product.brand_logo} alt={product.brand} className="w-8 h-8 object-contain rounded bg-white p-0.5 border border-slate-200 dark:border-slate-700 shadow-sm" />
+                                                                    ) : (
+                                                                        <Tag className="w-4 h-4 text-brand-500" />
+                                                                    )}
+                                                                    <span className="font-medium text-slate-900 dark:text-white">{product.brand || <i className="text-slate-400">Sem marca</i>}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center">
+                                                                <span className="font-semibold text-slate-900 dark:text-white">{(product.stock_ce || 0) + (product.stock_sc || 0) + (product.stock_sp || 0)}</span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                                                                {product.observations || '-'}
+                                                            </td>
                                                         </>
                                                     )}
-                                                </td>
-
-                                                {activeTab === 'stock' ? (
-                                                    // Stock Adjustment Columns
-                                                    <>
-                                                        {/* Ceará */}
-                                                        <td className="px-4 py-3 text-center bg-green-50/50 dark:bg-green-900/10">
-                                                            <span className="font-semibold text-slate-900 dark:text-white">{product.stock_ce}</span>
-                                                        </td>
-                                                        <td className="px-4 py-3 bg-green-50/50 dark:bg-green-900/10">
-                                                            <input
-                                                                type="number"
-                                                                value={edit.adjustments.ce === 0 ? '' : edit.adjustments.ce}
-                                                                onChange={(e) => handleAdjustmentChange(product.id, 'ce', e.target.value)}
-                                                                placeholder="0"
-                                                                className="w-20 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white"
-                                                            />
-                                                            {edit.adjustments.ce !== 0 && (
-                                                                <div className="text-xs mt-1 font-medium text-green-700">
-                                                                    → {calculateNewStock(product.stock_ce, edit.adjustments.ce)}
-                                                                </div>
-                                                            )}
-                                                        </td>
-
-                                                        {/* Santa Catarina */}
-                                                        <td className="px-4 py-3 text-center bg-blue-50/50 dark:bg-blue-900/10">
-                                                            <span className="font-semibold text-slate-900 dark:text-white">{product.stock_sc}</span>
-                                                        </td>
-                                                        <td className="px-4 py-3 bg-blue-50/50 dark:bg-blue-900/10">
-                                                            <input
-                                                                type="number"
-                                                                value={edit.adjustments.sc === 0 ? '' : edit.adjustments.sc}
-                                                                onChange={(e) => handleAdjustmentChange(product.id, 'sc', e.target.value)}
-                                                                placeholder="0"
-                                                                className="w-20 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white"
-                                                            />
-                                                            {edit.adjustments.sc !== 0 && (
-                                                                <div className="text-xs mt-1 font-medium text-blue-700">
-                                                                    → {calculateNewStock(product.stock_sc, edit.adjustments.sc)}
-                                                                </div>
-                                                            )}
-                                                        </td>
-
-                                                        {/* São Paulo */}
-                                                        <td className="px-4 py-3 text-center bg-red-50/50 dark:bg-red-900/10">
-                                                            <span className="font-semibold text-slate-900 dark:text-white">{product.stock_sp}</span>
-                                                        </td>
-                                                        <td className="px-4 py-3 bg-red-50/50 dark:bg-red-900/10">
-                                                            <input
-                                                                type="number"
-                                                                value={edit.adjustments.sp === 0 ? '' : edit.adjustments.sp}
-                                                                onChange={(e) => handleAdjustmentChange(product.id, 'sp', e.target.value)}
-                                                                placeholder="0"
-                                                                className="w-20 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded text-center focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-700 dark:text-white"
-                                                            />
-                                                            {edit.adjustments.sp !== 0 && (
-                                                                <div className="text-xs mt-1 font-medium text-red-700">
-                                                                    → {calculateNewStock(product.stock_sp, edit.adjustments.sp)}
-                                                                </div>
-                                                            )}
-                                                        </td>
-
-                                                        {/* Observations */}
-                                                        <td className="px-4 py-3 bg-purple-50/50 dark:bg-purple-900/10">
-                                                            <textarea
-                                                                value={edit.observations}
-                                                                onChange={(e) => handleObservationsChange(product.id, e.target.value)}
-                                                                placeholder="Adicionar observação..."
-                                                                maxLength={500}
-                                                                rows={2}
-                                                                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none dark:bg-slate-700 dark:text-white dark:placeholder-slate-400"
-                                                            />
-                                                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                                                {edit.observations.length}/500
-                                                            </div>
-                                                        </td>
-                                                    </>
-                                                ) : activeTab === 'report' ? (
-                                                    // Report Columns (Read Only)
-                                                    <>
-                                                        <td className="px-4 py-3 text-center">
-                                                            <span className="font-semibold text-slate-900 dark:text-white">{product.stock_ce}</span>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-center">
-                                                            <span className="font-semibold text-slate-900 dark:text-white">{product.stock_sc}</span>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-center">
-                                                            <span className="font-semibold text-slate-900 dark:text-white">{product.stock_sp}</span>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-center bg-brand-50/50 dark:bg-brand-900/10">
-                                                            <span className="font-bold text-brand-600 dark:text-brand-400">{(product.stock_ce || 0) + (product.stock_sc || 0) + (product.stock_sp || 0)}</span>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
-                                                            {product.observations || '-'}
-                                                        </td>
-                                                    </>
-                                                ) : (
-                                                    // Brand Management Columns
-                                                    <>
-                                                        <td className="px-4 py-3 bg-brand-50/30 dark:bg-brand-900/10">
-                                                            <div className="flex items-center gap-2">
-                                                                {product.brand_logo ? (
-                                                                    <img src={product.brand_logo} alt={product.brand} className="w-8 h-8 object-contain rounded bg-white p-0.5 border border-slate-200 dark:border-slate-700 shadow-sm" />
-                                                                ) : (
-                                                                    <Tag className="w-4 h-4 text-brand-500" />
-                                                                )}
-                                                                <span className="font-medium text-slate-900 dark:text-white">{product.brand || <i className="text-slate-400">Sem marca</i>}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-center">
-                                                            <span className="font-semibold text-slate-900 dark:text-white">{(product.stock_ce || 0) + (product.stock_sc || 0) + (product.stock_sp || 0)}</span>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
-                                                            {product.observations || '-'}
-                                                        </td>
-                                                    </>
-                                                )}
-                                            </tr>
-                                        );
-                                    })}
+                                                </tr>
+                                            );
+                                        }))}
                                 </tbody>
                             </table>
                         </div>
