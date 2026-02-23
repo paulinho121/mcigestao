@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, RefreshCw, Mic, MicOff, MapPin } from 'lucide-react';
+import { Search, RefreshCw, Mic, MicOff, MapPin, Printer, Download } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
 import { inventoryService } from '../services/inventoryService';
 import { Product } from '../types';
@@ -156,6 +156,160 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
     }
   };
 
+  const handlePrint = () => {
+    if (products.length === 0) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Permita pop-ups para imprimir');
+      return;
+    }
+
+    const date = new Date().toLocaleDateString('pt-BR');
+    const title = selectedBranch
+      ? `Relatório de Estoque - Filial ${selectedBranch}`
+      : searchQuery
+        ? `Resultado de Busca: ${searchQuery}`
+        : 'Relatório Geral de Estoque';
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${title} - ${date}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #334155; }
+            .header { border-bottom: 3px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-between; items-center; }
+            .header h1 { margin: 0; font-size: 24px; color: #0f172a; }
+            .header p { margin: 5px 0 0; color: #64748b; font-size: 14px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; padding: 12px 10px; text-align: left; font-size: 11px; text-transform: uppercase; color: #475569; letter-spacing: 0.05em; }
+            td { border-bottom: 1px solid #f1f5f9; padding: 12px 10px; font-size: 13px; }
+            .val { text-align: center; font-weight: 600; }
+            .code { font-family: monospace; color: #64748b; }
+            .footer { margin-top: 40px; text-align: center; color: #94a3b8; font-size: 11px; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+            .branch-badge { padding: 2px 6px; background: #f1f5f9; border-radius: 4px; font-size: 10px; font-weight: bold; }
+            @media print {
+              body { padding: 0; }
+              @page { margin: 1.5cm; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>${title}</h1>
+              <p>Emitido em ${date} | Total de ${products.length} itens encontrados</p>
+            </div>
+            <div style="text-align: right">
+              <span style="font-weight: 900; color: #0f172a; font-size: 20px; font-style: italic;">MC</span>
+              <span style="color: #64748b; font-size: 10px; display: block;">STOCKVISION</span>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Descrição / Marca</th>
+                <th class="val">CE</th>
+                <th class="val">SC</th>
+                <th class="val">SP</th>
+                <th class="val">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${products.map(p => `
+                <tr>
+                  <td class="code">${p.id}</td>
+                  <td>
+                    <div style="font-weight: bold; color: #1e293b;">${p.name}</div>
+                    <div style="font-size: 11px; color: #64748b;">${p.brand || 'N/A'}</div>
+                  </td>
+                  <td class="val">${p.stock_ce ?? 0}</td>
+                  <td class="val">${p.stock_sc ?? 0}</td>
+                  <td class="val">${p.stock_sp ?? 0}</td>
+                  <td class="val" style="color: #0f172a;">${(p.stock_ce ?? 0) + (p.stock_sc ?? 0) + (p.stock_sp ?? 0)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="footer">
+            StockVision - Gestão Inteligente de Estoque. Este documento é uma representação do estado atual do sistema.
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleDownloadCSV = (branch?: 'CE' | 'SC' | 'SP') => {
+    if (products.length === 0) return;
+
+    const filteredProducts = branch
+      ? products.filter(p => (p[`stock_${branch.toLowerCase()}` as keyof Product] as number) > 0)
+      : products;
+
+    if (filteredProducts.length === 0) {
+      alert(branch
+        ? `Nenhum produto com estoque na filial ${branch} nos resultados atuais.`
+        : 'Nenhum produto para exportar.'
+      );
+      return;
+    }
+
+    const headers = branch
+      ? ['Código', 'Produto', 'Marca', `Estoque ${branch}`, 'Total Geral']
+      : ['Código', 'Produto', 'Marca', 'Estoque CE', 'Estoque SC', 'Estoque SP', 'Total Geral'];
+
+    const csvRows = [
+      headers.join(';'),
+      ...filteredProducts.map(p => {
+        const row = [
+          p.id,
+          `"${p.name.replace(/"/g, '""')}"`,
+          `"${(p.brand || '').replace(/"/g, '""')}"`
+        ];
+
+        if (branch) {
+          row.push(
+            String(p[`stock_${branch.toLowerCase()}` as keyof Product] ?? 0),
+            String((p.stock_ce ?? 0) + (p.stock_sc ?? 0) + (p.stock_sp ?? 0))
+          );
+        } else {
+          row.push(
+            String(p.stock_ce ?? 0),
+            String(p.stock_sc ?? 0),
+            String(p.stock_sp ?? 0),
+            String((p.stock_ce ?? 0) + (p.stock_sc ?? 0) + (p.stock_sp ?? 0))
+          );
+        }
+        return row.join(';');
+      })
+    ];
+
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    const date = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    const filename = branch
+      ? `estoque_${branch.toLowerCase()}_${date}.csv`
+      : `relatorio_estoque_geral_${date}.csv`;
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors flex flex-col font-sans">
 
@@ -273,8 +427,38 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
                   : `Resultados da busca`
                 }
               </div>
-              <div className="text-sm font-medium text-slate-700 bg-slate-100 px-3 py-1 rounded-full dark:bg-slate-800 dark:text-slate-300">
-                {products.length} produtos encontrados
+              <div className="flex items-center gap-4">
+                <div className="text-sm font-medium text-slate-700 bg-slate-100 px-3 py-1 rounded-full dark:bg-slate-800 dark:text-slate-300">
+                  {products.length} produtos encontrados
+                </div>
+                <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 flex items-center gap-1">
+                    <Download className="w-3 h-3" /> CSV:
+                  </span>
+                  <button
+                    onClick={() => handleDownloadCSV()}
+                    className="px-2 py-1 text-[10px] font-bold bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded hover:bg-green-50 hover:text-green-600 transition-colors"
+                  >
+                    Geral
+                  </button>
+                  {(['CE', 'SC', 'SP'] as const).map(branch => (
+                    <button
+                      key={branch}
+                      onClick={() => handleDownloadCSV(branch)}
+                      className="px-2 py-1 text-[10px] font-bold bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded hover:bg-green-50 hover:text-green-600 transition-colors"
+                    >
+                      {branch}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={handlePrint}
+                  className="p-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 transition-all flex items-center gap-2 shadow-sm group"
+                  title="Imprimir relatório atual"
+                >
+                  <Printer className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-medium">Imprimir</span>
+                </button>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

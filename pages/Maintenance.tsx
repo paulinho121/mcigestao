@@ -380,7 +380,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
         setSelectedProducts(newSelected);
     };
 
-    const handleCSV = () => {
+    const handleCSV = (branch?: 'ce' | 'sc' | 'sp') => {
         if (selectedProducts.size === 0) {
             setError('Selecione pelo menos um produto para baixar o CSV');
             return;
@@ -388,28 +388,60 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
 
         const productsToExport = Array.from(selectedProducts)
             .map(id => productCache.get(id))
-            .filter((p): p is Product => p !== undefined);
+            .filter((p): p is Product => p !== undefined)
+            .filter(p => {
+                if (!branch) return true;
+                return (p[`stock_${branch}` as keyof Product] as number) > 0;
+            });
 
-        const headers = ['Código', 'Produto', 'Marca', 'Estoque CE', 'Estoque SC', 'Estoque SP', 'Total', 'Observações'];
+        if (productsToExport.length === 0) {
+            setError(branch
+                ? `Nenhum dos produtos selecionados possui estoque na filial ${branch.toUpperCase()}`
+                : 'Nenhum produto encontrado para exportar'
+            );
+            return;
+        }
+
+        const headers = branch
+            ? ['Código', 'Produto', 'Marca', `Estoque ${branch.toUpperCase()}`, 'Observações']
+            : ['Código', 'Produto', 'Marca', 'Estoque CE', 'Estoque SC', 'Estoque SP', 'Total', 'Observações'];
+
         const csvContent = [
-            headers.join(','),
-            ...productsToExport.map(p => [
-                p.id,
-                `"${p.name.replace(/"/g, '""')}"`, // Escape quotes
-                p.brand,
-                p.stock_ce,
-                p.stock_sc,
-                p.stock_sp,
-                (p.stock_ce || 0) + (p.stock_sc || 0) + (p.stock_sp || 0),
-                `"${(p.observations || '').replace(/"/g, '""')}"`
-            ].join(','))
+            headers.join(';'),
+            ...productsToExport.map(p => {
+                const baseInfo = [
+                    p.id,
+                    `"${p.name.replace(/"/g, '""')}"`,
+                    `"${(p.brand || '').replace(/"/g, '""')}"`
+                ];
+
+                if (branch) {
+                    baseInfo.push(String(p[`stock_${branch}` as keyof Product] ?? 0));
+                } else {
+                    baseInfo.push(
+                        String(p.stock_ce ?? 0),
+                        String(p.stock_sc ?? 0),
+                        String(p.stock_sp ?? 0),
+                        String((p.stock_ce || 0) + (p.stock_sc || 0) + (p.stock_sp || 0))
+                    );
+                }
+
+                baseInfo.push(`"${(p.observations || '').replace(/"/g, '""')}"`);
+                return baseInfo.join(';');
+            })
         ].join('\n');
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
+
+        const date = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+        const filename = branch
+            ? `relatorio_estoque_${branch.toLowerCase()}_${date}.csv`
+            : `relatorio_estoque_geral_${date}.csv`;
+
         link.setAttribute('href', url);
-        link.setAttribute('download', `relatorio_estoque_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`);
+        link.setAttribute('download', filename);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -495,6 +527,170 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
             </html>
         `);
         printWindow.document.close();
+    };
+
+    const handlePrintInventoryBranchReport = (branch: 'ce' | 'sc' | 'sp') => {
+        if (inventoryItems.length === 0) {
+            setError('Inicie um inventário para gerar o relatório');
+            return;
+        }
+
+        const filteredItems = inventoryItems.filter(item =>
+            // Optional: only show items that have either original or current stock in this branch
+            item.original[branch] > 0 || item.current[branch] > 0 || item.diff[branch] !== 0
+        );
+
+        if (filteredItems.length === 0) {
+            setError(`Não há itens com movimentação ou estoque na filial ${branch.toUpperCase()}`);
+            return;
+        }
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            setError('Permita pop-ups para imprimir');
+            return;
+        }
+
+        const date = new Date().toLocaleDateString('pt-BR');
+        const branchName = branch.toUpperCase();
+
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Relatório Inventário ${branchName} - ${date}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; color: #1e293b; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #e2e8f0; padding: 10px 8px; text-align: left; }
+                        th { background-color: #f8fafc; font-size: 12px; text-transform: uppercase; color: #64748b; }
+                        .header { margin-bottom: 20px; border-bottom: 3px solid #7c3aed; padding-bottom: 15px; }
+                        .header h1 { margin: 0; color: #1e293b; font-size: 24px; }
+                        .header p { margin: 5px 0 0; color: #64748b; }
+                        .diff-pos { color: #059669; font-weight: bold; }
+                        .diff-neg { color: #dc2626; font-weight: bold; }
+                        .val { text-align: center; }
+                        .footer { margin-top: 30px; font-size: 10px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+                        @media print {
+                            body { -webkit-print-color-adjust: exact; }
+                            th { background-color: #f8fafc !important; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>Relatório de Inventário - Filial ${branchName}</h1>
+                        <p>Data de emissão: ${date} | Itens processados: ${filteredItems.length}</p>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Produto / Marca</th>
+                                <th class="val">Estoque Original</th>
+                                <th class="val">Contagem (Inventário)</th>
+                                <th class="val">Diferença</th>
+                                <th>Observações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filteredItems.map(item => `
+                                <tr>
+                                    <td style="font-family: monospace;">${item.product.id}</td>
+                                    <td>
+                                        <div style="font-weight: bold;">${item.product.name}</div>
+                                        <div style="font-size: 10px; color: #64748b;">${item.product.brand || 'Sem Marca'}</div>
+                                    </td>
+                                    <td class="val">${item.original[branch]}</td>
+                                    <td class="val" style="background-color: #f5f3ff;"><strong>${item.current[branch]}</strong></td>
+                                    <td class="val">
+                                        <span class="${item.diff[branch] > 0 ? 'diff-pos' : item.diff[branch] < 0 ? 'diff-neg' : ''}">
+                                            ${item.diff[branch] > 0 ? '+' : ''}${item.diff[branch]}
+                                        </span>
+                                    </td>
+                                    <td style="font-size: 11px;">${item.product.observations || ''}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <div class="footer">
+                        StockVision - Sistema de Gestão de Estoque | Documento gerado em ${new Date().toLocaleString('pt-BR')}
+                    </div>
+                    <script>
+                        window.onload = function() { window.print(); }
+                    </script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    const handleDownloadInventoryCSV = (branch?: 'ce' | 'sc' | 'sp') => {
+        if (inventoryItems.length === 0) {
+            setError('Inicie um inventário para baixar o CSV');
+            return;
+        }
+
+        const filteredItems = branch
+            ? inventoryItems.filter(item => item.original[branch] > 0 || item.current[branch] > 0 || item.diff[branch] !== 0)
+            : inventoryItems;
+
+        if (filteredItems.length === 0) {
+            setError(`Não há itens com movimentação ou estoque na filial ${branch?.toUpperCase()} para exportar`);
+            return;
+        }
+
+        const headers = branch
+            ? ['Código', 'Produto', 'Marca', `Original ${branch.toUpperCase()}`, `Contagem ${branch.toUpperCase()}`, `Diferença ${branch.toUpperCase()}`]
+            : ['Código', 'Produto', 'Marca', 'Original CE', 'Original SC', 'Original SP', 'Contagem CE', 'Contagem SC', 'Contagem SP', 'Diff CE', 'Diff SC', 'Diff SP'];
+
+        const csvRows = [
+            headers.join(';'),
+            ...filteredItems.map(item => {
+                const baseInfo = [
+                    item.product.id,
+                    `"${item.product.name.replace(/"/g, '""')}"`,
+                    `"${(item.product.brand || '').replace(/"/g, '""')}"`
+                ];
+
+                if (branch) {
+                    baseInfo.push(
+                        String(item.original[branch]),
+                        String(item.current[branch]),
+                        String(item.diff[branch])
+                    );
+                } else {
+                    baseInfo.push(
+                        String(item.original.ce),
+                        String(item.original.sc),
+                        String(item.original.sp),
+                        String(item.current.ce),
+                        String(item.current.sc),
+                        String(item.current.sp),
+                        String(item.diff.ce),
+                        String(item.diff.sc),
+                        String(item.diff.sp)
+                    );
+                }
+                return baseInfo.join(';');
+            })
+        ];
+
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        const date = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+        const filename = branch
+            ? `inventario_${branch.toLowerCase()}_${date}.csv`
+            : `inventario_completo_${date}.csv`;
+
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const handleEmail = () => {
@@ -756,7 +952,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                             )}
                         </>
                     ) : activeTab === 'inventory' ? (
-                        <div className="flex gap-3 w-full">
+                        <div className="flex gap-3 w-full items-center flex-wrap">
                             <button
                                 onClick={handleStartInventory}
                                 disabled={loading}
@@ -765,6 +961,51 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                 <RotateCcw className="w-5 h-5" />
                                 {inventoryItems.length === 0 ? 'Iniciar Inventário (Copiar Estoque)' : 'Reiniciar Cópia'}
                             </button>
+
+                            {inventoryItems.length > 0 && (
+                                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm mr-2">
+                                    <div className="flex items-center gap-1 border-r border-slate-200 dark:border-slate-700 pr-2">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-2 flex items-center gap-1">
+                                            <Printer className="w-3 h-3" /> Imprimir:
+                                        </span>
+                                        <div className="flex gap-1">
+                                            {(['ce', 'sc', 'sp'] as const).map(branch => (
+                                                <button
+                                                    key={branch}
+                                                    onClick={() => handlePrintInventoryBranchReport(branch)}
+                                                    className="px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 transition-colors uppercase"
+                                                >
+                                                    {branch}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-1 pl-1">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-2 flex items-center gap-1">
+                                            <Download className="w-3 h-3" /> CSV:
+                                        </span>
+                                        <div className="flex gap-1">
+                                            <button
+                                                onClick={() => handleDownloadInventoryCSV()}
+                                                className="px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-colors"
+                                                title="Baixar Inventário Completo"
+                                            >
+                                                Geral
+                                            </button>
+                                            {(['ce', 'sc', 'sp'] as const).map(branch => (
+                                                <button
+                                                    key={branch}
+                                                    onClick={() => handleDownloadInventoryCSV(branch)}
+                                                    className="px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-colors uppercase"
+                                                >
+                                                    {branch}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {inventoryItems.length > 0 && (
                                 <button
@@ -826,14 +1067,31 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                     <Mail className="w-5 h-5" />
                                     Enviar Email
                                 </button>
-                                <button
-                                    onClick={handleCSV}
-                                    disabled={selectedProducts.size === 0}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                                >
-                                    <Download className="w-5 h-5" />
-                                    Baixar CSV
-                                </button>
+                                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-2 flex items-center gap-1">
+                                        <Download className="w-3 h-3" /> CSV:
+                                    </span>
+                                    <div className="flex gap-1">
+                                        <button
+                                            onClick={() => handleCSV()}
+                                            disabled={selectedProducts.size === 0}
+                                            className="px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-colors disabled:opacity-50"
+                                            title="Baixar CSV Geral"
+                                        >
+                                            Geral
+                                        </button>
+                                        {(['ce', 'sc', 'sp'] as const).map(branch => (
+                                            <button
+                                                key={branch}
+                                                onClick={() => handleCSV(branch)}
+                                                disabled={selectedProducts.size === 0}
+                                                className="px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-colors uppercase disabled:opacity-50"
+                                            >
+                                                {branch}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                                 <button
                                     onClick={handlePrint}
                                     disabled={selectedProducts.size === 0}
