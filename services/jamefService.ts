@@ -34,9 +34,7 @@ export const jamefService = {
             return cached;
         }
 
-        const isDev = import.meta.env.DEV;
-        const baseUrl = isDev ? '/api/jamef-prod' : 'https://api.jamef.com.br';
-        const url = `${baseUrl}/auth/v1/login`;
+        const url = `/api/jamef-prod/auth/v1/login`;
 
         try {
             console.log("🔐 Solicitando novo token Jamef (Rate Limit: 1/min)...");
@@ -106,8 +104,7 @@ export const jamefService = {
     }): Promise<JamefTrackingResponse> {
         try {
             const token = await this.login();
-            const isDev = import.meta.env.DEV;
-            const baseUrl = isDev ? '/api/jamef-prod/consulta/v1' : 'https://api.jamef.com.br/consulta/v1';
+            const baseUrl = '/api/jamef-prod/consulta/v1';
 
             const queryParams = new URLSearchParams();
             const cleanDoc = params.documento?.replace(/\D/g, '') || '';

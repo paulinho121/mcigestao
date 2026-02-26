@@ -3,6 +3,10 @@
         {
             "source": "/api/escalasoft/:path*",
             "destination": "http://170.82.192.22:9999/escalasoft/:path*"
+        },
+        {
+            "source": "/api/jamef-prod/:path*",
+            "destination": "https://api.jamef.com.br/:path*"
         }
     ]
 }
