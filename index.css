@@ -1,6 +1,61 @@
-/* Custom utility classes for mobile responsiveness */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Line clamp utilities for text truncation */
+@layer base {
+  :root {
+    --brand-main: 0 166 153;
+    /* #00a699 - Typical Jamef/MCI Teal */
+    --brand-rgb: 0, 166, 153;
+  }
+}
+
+/* Custom utility classes */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Professional Animations */
+@keyframes pulse-slow {
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes bounce-slow {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 4s ease-in-out infinite;
+}
+
+/* Line clamp utilities */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -8,45 +63,9 @@
   overflow: hidden;
 }
 
-.line-clamp-3 {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Ensure smooth scrolling on mobile */
+/* Ensure smooth interactions on mobile */
 @media (max-width: 640px) {
   * {
     -webkit-tap-highlight-color: transparent;
   }
-
-  /* Better touch targets */
-  button,
-  a,
-  input,
-  select,
-  textarea {
-    min-height: 44px;
-  }
-}
-
-/* Seasonal background overlay */
-.seasonal-background {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  pointer-events: none;
-  z-index: 0;
-  transition: opacity 0.5s ease-in-out;
-}
-
-.content-with-background {
-  position: relative;
-  z-index: 1;
 }

@@ -1,125 +1,155 @@
 
 export interface JamefTrackingEvent {
     data: string;
-    hora: string;
-    descricao: string;
-    cidade: string;
-    uf: string;
+    status: string;
+    codigoOcorrencia?: string;
+    localOrigem?: { cidade: string; uf: string };
 }
 
 export interface JamefTrackingItem {
-    numeroNotaFiscal: string;
-    serieNotaFiscal: string;
-    numeroCte: string;
-    status: string;
-    dataPrevisaoEntrega: string;
-    eventos: JamefTrackingEvent[];
-    linkComprovante?: string;
+    notaFiscal?: { numero: string; serie: string; chave: string };
+    conhecimento?: { numero: string; serie: string; chave: string };
+    frete?: { valorFrete: number; previsaoEntrega: string; urlComprovanteEntrega: string };
+    eventosRastreio: JamefTrackingEvent[];
 }
 
 export interface JamefTrackingResponse {
     sucesso: boolean;
     mensagem?: string;
-    items: JamefTrackingItem[];
+    item?: JamefTrackingItem;
 }
-
-const JAMEF_API_TOKEN = import.meta.env.VITE_JAMEF_TOKEN || 'Basic dGVzdGU6dGVzdGU='; // 'teste:teste' default for QA
 
 export const jamefService = {
     /**
-     * Track cargo using Jamef API
+     * Authenticate and get JWT Token (Always Production)
+     * Following Documentation: POST /login -> response.dado[0].accessToken
      */
-    async trackCargo(params: {
-        documento?: string; // One of: Payer, Sender, Recipient
-        docType: 'pagador' | 'remetente' | 'destinatario';
-        numero: string; // One of: Invoice or CT-e
-        numType: 'notaFiscal' | 'cte';
-        useProduction?: boolean;
-    }): Promise<JamefTrackingResponse> {
-        try {
-            // Utiliza o proxy do Vite se estiver em desenvolvimento para evitar CORS
-            const isDev = import.meta.env.DEV;
-            let baseUrl = '';
+    async login(): Promise<string> {
+        const cacheKey = 'jamef_token_prod';
+        const cached = localStorage.getItem(cacheKey);
+        const cachedExpiry = localStorage.getItem(`${cacheKey}_expiry`);
 
-            if (isDev) {
-                baseUrl = params.useProduction ? '/api/jamef-prod/consulta/v1' : '/api/jamef-qa/consulta/v1';
-            } else {
-                baseUrl = params.useProduction ? 'https://api.jamef.com.br/consulta/v1' : 'https://api-qa.jamef.com.br/consulta/v1';
+        // Strictly respect cache to avoid 1R/1M Rate Limit
+        if (cached && cachedExpiry && Date.now() < parseInt(cachedExpiry)) {
+            return cached;
+        }
+
+        const isDev = import.meta.env.DEV;
+        const baseUrl = isDev ? '/api/jamef-prod' : 'https://api.jamef.com.br';
+        const url = `${baseUrl}/auth/v1/login`;
+
+        try {
+            console.log("🔐 Solicitando novo token Jamef (Rate Limit: 1/min)...");
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: 'logistica@mcistore.com.br',
+                    password: '@Maezinha23'
+                })
+            });
+
+            // Handle Rate Limit specifically
+            if (response.status === 429) {
+                if (cached) {
+                    console.warn("Rate limit atingido. Usando token em cache.");
+                    return cached;
+                }
+                throw new Error('Limite de 1 login por minuto atingido pela Jamef. Aguarde e tente novamente.');
             }
 
-            const queryParams = new URLSearchParams();
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`❌ Erro no Login (${response.status}):`, errorText);
+                throw new Error(`Falha na autenticação (Cód: ${response.status})`);
+            }
 
-            // Formata o documento removendo caracteres não numéricos
+            const data = await response.json();
+            console.log("📦 Resposta do Login:", data);
+
+            // De acordo com a documentação: data.dado[0].accessToken
+            let token = data.dado?.[0]?.accessToken;
+
+            // Fallback para outros formatos conhecidos de token
+            if (!token) {
+                token = data.token || data.access_token || (typeof data.dado?.[0] === 'string' ? data.dado[0] : null);
+            }
+
+            if (token && typeof token === 'string' && token.length > 20) {
+                localStorage.setItem(cacheKey, token);
+                // Validade de 1 hora conforme documentação (usamos 55m por segurança)
+                localStorage.setItem(`${cacheKey}_expiry`, (Date.now() + 55 * 60 * 1000).toString());
+                console.log('✅ Autenticação Jamef realizada com sucesso!');
+                return token;
+            }
+
+            throw new Error('Login realizado, mas o campo "accessToken" não foi encontrado. Verifique seu acesso no portal Developers da Jamef.');
+        } catch (err: any) {
+            console.error('Jamef Login Error:', err);
+            // If we have a cached token, even expired, try it as last resort
+            if (cached) return cached;
+            throw err;
+        }
+    },
+
+    /**
+     * Track cargo (Always Production)
+     */
+    async trackCargo(params: {
+        documento?: string;
+        docType: 'remetente' | 'destinatario';
+        numero: string;
+        numType: 'notaFiscal' | 'cte';
+    }): Promise<JamefTrackingResponse> {
+        try {
+            const token = await this.login();
+            const isDev = import.meta.env.DEV;
+            const baseUrl = isDev ? '/api/jamef-prod/consulta/v1' : 'https://api.jamef.com.br/consulta/v1';
+
+            const queryParams = new URLSearchParams();
             const cleanDoc = params.documento?.replace(/\D/g, '') || '';
 
-            if (params.docType === 'pagador') queryParams.append('documentoPagadorFrete', cleanDoc);
             if (params.docType === 'remetente') queryParams.append('documentoRemetente', cleanDoc);
             if (params.docType === 'destinatario') queryParams.append('documentoDestinatario', cleanDoc);
 
-            if (params.numType === 'notaFiscal') queryParams.append('numeroNotaFiscal', params.numero);
-            if (params.numType === 'cte') queryParams.append('numeroCte', params.numero);
+            if (params.numType === 'notaFiscal') {
+                queryParams.append('numeroNotaFiscal', params.numero);
+            } else {
+                queryParams.append('numeroConhecimento', params.numero);
+            }
 
-            const url = `${baseUrl}/rastreamento?${queryParams.toString()}`;
-            console.log(`Buscando rastreamento real em: ${url}`);
-
-            const response = await fetch(url, {
+            const response = await fetch(`${baseUrl}/rastreamento?${queryParams.toString()}`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'Authorization': JAMEF_API_TOKEN
+                    'Authorization': `Bearer ${token}`
                 }
             });
 
             if (!response.ok) {
-                const text = await response.text();
-                // Tenta extrair mensagem de erro do corpo se houver
-                let errorMsg = `Erro na API Jamef (${response.status})`;
-                try {
-                    const errorJson = JSON.parse(text);
-                    if (errorJson.mensagem) errorMsg = errorJson.mensagem;
-                } catch (e) { }
-
-                throw new Error(errorMsg);
+                if (response.status === 401) {
+                    localStorage.removeItem('jamef_token_prod');
+                }
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.mensagem || `Erro ${response.status} na consulta.`);
             }
 
             const data = await response.json();
 
-            // A API Jamef v1 geralmente retorna um Array de objetos diretamente se houver sucesso
-            // ou um envelope se houver muitos resultados. Vamos adaptar para nossa interface.
-            let items: JamefTrackingItem[] = [];
-
-            if (Array.isArray(data)) {
-                items = data;
-            } else if (data && typeof data === 'object') {
-                // Se retornar um objeto único, envelopar num array
-                if (data.numeroNotaFiscal || data.numeroCte) {
-                    items = [data];
-                } else if (data.items && Array.isArray(data.items)) {
-                    // Caso o backend atual do usuário já envie o envelope
-                    items = data.items;
-                }
+            if (data.situacao === 200 && data.dado?.[0]?.rastreamento?.[0]) {
+                return { sucesso: true, item: data.dado[0].rastreamento[0] };
             }
 
-            if (items.length === 0) {
-                return {
-                    sucesso: false,
-                    mensagem: 'Nenhuma mercadoria encontrada com os parâmetros informados.',
-                    items: []
-                };
-            }
-
-            return {
-                sucesso: true,
-                items
-            };
-        } catch (error: any) {
-            console.error('Error tracking Jamef cargo:', error);
             return {
                 sucesso: false,
-                mensagem: error.message || 'Erro ao consultar API da Jamef',
-                items: []
+                mensagem: data.mensagem || 'Dados de rastreio não encontrados.'
             };
+        } catch (error: any) {
+            console.error('Jamef Tracking Error:', error);
+            return { sucesso: false, mensagem: error.message };
         }
     }
 };

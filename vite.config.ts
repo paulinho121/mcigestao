@@ -19,13 +19,13 @@ export default defineConfig(({ mode }) => {
           target: 'https://api.jamef.com.br',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/jamef-prod/, ''),
-          secure: true,
+          secure: false // Desabilita verificação estrita de SSL para o proxy se necessário
         },
         '/api/jamef-qa': {
           target: 'https://api-qa.jamef.com.br',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/jamef-qa/, ''),
-          secure: true,
+          secure: false
         },
       },
     },

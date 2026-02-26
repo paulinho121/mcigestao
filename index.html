@@ -45,7 +45,7 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Inter', 'sans-serif'],
+            sans: ['Inter', 'sans-serif', 'system-ui'],
           },
           colors: {
             brand: {
@@ -54,19 +54,16 @@
               200: '#99f6e4',
               300: '#5eead4',
               400: '#2dd4bf',
-              500: '#00bfa5', // Updated Teal matching logo base
-              600: '#009688',
+              500: '#00bfa5',
+              600: '#00a699', // Professional Teal
               700: '#0f766e',
               800: '#115e59',
               900: '#134e4a',
-              950: '#042f2e',
             },
-            accent: {
-              300: '#bef264',
-              400: '#a3e635',
-              500: '#84cc16',
-              DEFAULT: '#98e05f', // Lime green from logo dot
-            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'bounce-slow': 'bounce 3s cubic-bezier(0, 0, 0.2, 1) infinite',
           }
         }
       }
@@ -75,10 +72,23 @@
   <style>
     body {
       background-color: #f8fafc;
+      color: #1e293b;
     }
 
     .dark body {
-      background-color: #0f172a;
+      background-color: #020617;
+      color: #f8fafc;
+    }
+
+    /* Professional Glass Utilities */
+    .glass {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .dark .glass {
+      background: rgba(15, 23, 42, 0.7);
     }
   </style>
   <script type="importmap">
