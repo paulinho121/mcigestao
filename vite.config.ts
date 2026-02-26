@@ -15,6 +15,18 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) => path.replace(/^\/api\/escalasoft/, '/escalasoft'),
           secure: false, // Aceita conexões http simples
         },
+        '/api/jamef-prod': {
+          target: 'https://api.jamef.com.br',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/jamef-prod/, ''),
+          secure: true,
+        },
+        '/api/jamef-qa': {
+          target: 'https://api-qa.jamef.com.br',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/jamef-qa/, ''),
+          secure: true,
+        },
       },
     },
     plugins: [react()],
