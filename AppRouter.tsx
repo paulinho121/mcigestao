@@ -3,12 +3,18 @@ import App from './App';
 import { EmailConfirmation } from './pages/EmailConfirmation';
 import { SharedProduct } from './pages/SharedProduct';
 import { Tracking } from './pages/Tracking';
+import { HubLogin } from './pages/HubLogin';
+import { HubMarketplace } from './pages/HubMarketplace';
 import { ThemeProvider } from './context/ThemeContext';
+import { HubCompany, clearHubCompanyCache } from './services/hubService';
+import { supabase } from './lib/supabase';
 
 export const AppRouter = () => {
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [sharedProductId, setSharedProductId] = useState<string | null>(null);
     const [isPublicTracking, setIsPublicTracking] = useState(false);
+    const [isHubRoute, setIsHubRoute] = useState(false);
+    const [hubCompany, setHubCompany] = useState<HubCompany | null>(null);
 
     useEffect(() => {
         // Check if we're on the confirmation route or share route
@@ -17,16 +23,25 @@ export const AppRouter = () => {
 
             if (hash.includes('type=signup') || hash.includes('access_token')) {
                 setShowConfirmation(true);
+                setIsHubRoute(false);
             } else if (hash.startsWith('#/share/')) {
                 // Limpa o ID de barras extras ou parâmetros de busca que o Android/WhatsApp podem adicionar
                 const id = hash.replace('#/share/', '').split('/')[0].split('?')[0];
                 setSharedProductId(id);
+                setIsHubRoute(false);
             } else if (hash === '#/tracking') {
                 setIsPublicTracking(true);
+                setIsHubRoute(false);
+            } else if (hash === '#/hub' || hash.startsWith('#/hub/')) {
+                setIsHubRoute(true);
+                setShowConfirmation(false);
+                setSharedProductId(null);
+                setIsPublicTracking(false);
             } else {
                 setShowConfirmation(false);
                 setSharedProductId(null);
                 setIsPublicTracking(false);
+                setIsHubRoute(false);
             }
         };
 
@@ -36,6 +51,13 @@ export const AppRouter = () => {
         window.addEventListener('hashchange', checkRoute);
         return () => window.removeEventListener('hashchange', checkRoute);
     }, []);
+
+    const handleHubLogout = async () => {
+        if (supabase) await supabase.auth.signOut();
+        clearHubCompanyCache();
+        setHubCompany(null);
+        window.location.hash = '#/hub';
+    };
 
     if (showConfirmation) {
         return (
@@ -79,6 +101,20 @@ export const AppRouter = () => {
                     }}
                 />
             </ThemeProvider>
+        );
+    }
+
+    // ── HUB ROUTE ──────────────────────────────────────────────
+    if (isHubRoute) {
+        if (!hubCompany) {
+            return <HubLogin onLogin={(company) => setHubCompany(company)} />;
+        }
+        return (
+            <HubMarketplace
+                company={hubCompany}
+                isMasterUser={false}
+                onLogout={handleHubLogout}
+            />
         );
     }
 
