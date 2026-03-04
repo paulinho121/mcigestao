@@ -12,14 +12,15 @@ import { Suppliers } from './pages/Suppliers';
 import { Brands } from './pages/Brands';
 import { ActivityLogs } from './pages/ActivityLogs';
 import { Tracking } from './pages/Tracking';
+import { Catalogs } from './pages/Catalogs';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
-import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, ShoppingBag, FileText, Sun, Moon, Users, Tag, Truck } from 'lucide-react';
+import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, ShoppingBag, FileText, Sun, Moon, Users, Tag, Truck, BookOpen } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 
-type Tab = 'inventory' | 'reservations' | 'in_import' | 'tracking' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands';
+type Tab = 'inventory' | 'reservations' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -257,6 +258,17 @@ function App() {
               <span className="hidden sm:inline">Rastreamento</span>
               <span className="sm:hidden text-xs">Rastreio</span>
             </button>
+            <button
+              onClick={() => setActiveTab('catalogs')}
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'catalogs'
+                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50 dark:bg-brand-900/20 dark:text-brand-400'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700'
+                }`}
+            >
+              <BookOpen className="w-5 h-5" />
+              <span className="hidden sm:inline">Catálogos</span>
+              <span className="sm:hidden text-xs">Catálogos</span>
+            </button>
 
             {isMaster && (
               <>
@@ -377,6 +389,7 @@ function App() {
       {activeTab === 'brands' && <Brands />}
       {activeTab === 'logs' && <ActivityLogs />}
       {activeTab === 'tracking' && <Tracking />}
+      {activeTab === 'catalogs' && <Catalogs />}
       <Analytics />
     </div>
   );
