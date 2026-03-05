@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Package, FolderOpen, Calendar, Trash2, Search, X } from 'lucide-react';
+import { Plus, Package, FolderOpen, Calendar, Trash2, Search, X, Download } from 'lucide-react';
 import { ImportProject, ImportItem, Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
 import { isMasterUser } from '../config/masterUsers';
@@ -12,6 +12,40 @@ export const InImport: React.FC = () => {
     const [projects, setProjects] = useState<ImportProject[]>([]);
     const [selectedProject, setSelectedProject] = useState<ImportProject | null>(null);
     const [items, setItems] = useState<ImportItem[]>([]);
+
+    const handleExportCSV = () => {
+        if (items.length === 0 || !selectedProject) return;
+
+        const headers = ['Código', 'Produto', 'Marca', 'Quantidade', 'Previsão', 'Observação'];
+        const csvRows = [
+            `${selectedProject.manufacturer} - ${selectedProject.importNumber}`,
+            headers.join(';'),
+            ...items.map(item => {
+                return [
+                    item.productId,
+                    `"${item.productName.replace(/"/g, '""')}"`,
+                    `"${(item.productBrand || '').replace(/"/g, '""')}"`,
+                    item.quantity,
+                    item.expectedDate ? new Date(item.expectedDate).toLocaleDateString('pt-BR') : '',
+                    `"${(item.observation || '').replace(/"/g, '""')}"`
+                ].join(';');
+            })
+        ];
+
+        const csvContent = '\ufeff' + csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const date = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+        const filename = `importacao_${selectedProject.manufacturer.toLowerCase().replace(/\s+/g, '_')}_${selectedProject.importNumber.toLowerCase().replace(/\s+/g, '_')}_${date}.csv`;
+
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
     const [loading, setLoading] = useState(true);
     const [loadingItems, setLoadingItems] = useState(false);
     const [isMaster, setIsMaster] = useState(false);
@@ -269,11 +303,22 @@ export const InImport: React.FC = () => {
                         <div className="lg:col-span-8">
                             {selectedProject && (
                                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
-                                    <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-                                        <h3 className="font-semibold text-slate-900 dark:text-white">
-                                            {selectedProject.manufacturer} - {selectedProject.importNumber}
-                                        </h3>
-                                        <p className="text-sm text-slate-600 dark:text-slate-400">Itens em importação</p>
+                                    <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                                        <div>
+                                            <h3 className="font-semibold text-slate-900 dark:text-white">
+                                                {selectedProject.manufacturer} - {selectedProject.importNumber}
+                                            </h3>
+                                            <p className="text-sm text-slate-600 dark:text-slate-400">Itens em importação</p>
+                                        </div>
+                                        {items.length > 0 && (
+                                            <button
+                                                onClick={handleExportCSV}
+                                                className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 transition-all text-xs font-semibold shadow-sm"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                                Exportar CSV
+                                            </button>
+                                        )}
                                     </div>
                                     <div className="p-4">
                                         {loadingItems ? (

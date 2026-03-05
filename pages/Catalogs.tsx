@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import {
     BookOpen, Folder, File, ChevronRight, Home, ArrowLeft,
     ExternalLink, Loader2, Image, FileText, FileVideo,
-    FileSpreadsheet, RefreshCw, AlertCircle, X, Maximize2, Minimize2
+    FileSpreadsheet, RefreshCw, AlertCircle, X, Maximize2, Minimize2,
+    Download
 } from 'lucide-react';
 
 // ─── Configuration ─────────────────────────────────────────────────────────
@@ -17,6 +18,7 @@ interface DriveItem {
     mimeType: string;
     thumbnailLink?: string;
     webViewLink?: string;
+    webContentLink?: string;
     size?: string;
     modifiedTime?: string;
 }
@@ -33,7 +35,7 @@ async function fetchFolderContents(folderId: string): Promise<DriveItem[]> {
     const params = new URLSearchParams({
         q: `'${folderId}' in parents and trashed = false`,
         key: GDRIVE_API_KEY,
-        fields: 'files(id,name,mimeType,thumbnailLink,webViewLink,size,modifiedTime)',
+        fields: 'files(id,name,mimeType,thumbnailLink,webViewLink,webContentLink,size,modifiedTime)',
         orderBy: 'folder,name',
         pageSize: '200',
     });
@@ -69,33 +71,71 @@ function getDrivePreviewUrl(fileId: string) {
 }
 
 // ─── Icon ─────────────────────────────────────────────────────────────────────
-function DriveIcon({ mimeType, thumbnailLink }: { mimeType: string; thumbnailLink?: string }) {
+function DriveIcon({ mimeType, thumbnailLink, name }: { mimeType: string; thumbnailLink?: string; name?: string }) {
+    // Transform thumbnail link to get a higher resolution if possible (Google Drive thumbnail convention)
+    const highResThumbnail = thumbnailLink?.replace(/=s\d+(?:-c)?$/, '=s400');
+
     if (isFolder(mimeType)) {
         return (
-            <div className="relative">
-                <div className="w-14 h-2.5 bg-amber-400 rounded-t-md ml-1" />
-                <div className="w-16 h-11 bg-amber-400 rounded-b-md rounded-tr-md flex items-center justify-center shadow-md">
-                    <div className="w-8 h-6 bg-amber-300 rounded opacity-50" />
+            <div className="relative group/folder">
+                <div className="w-14 h-3 bg-amber-400 dark:bg-amber-500 rounded-t-lg ml-1" />
+                <div className="w-20 h-14 bg-amber-400 dark:bg-amber-500 rounded-b-lg rounded-tr-lg flex items-center justify-center shadow-md border border-amber-300 dark:border-amber-600">
+                    <Folder className="w-8 h-8 text-amber-700 dark:text-amber-900 opacity-40" />
                 </div>
             </div>
         );
     }
+
     if (thumbnailLink) {
         return (
-            <img
-                src={thumbnailLink}
-                alt=""
-                className="w-16 h-12 object-cover rounded-lg shadow-sm"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
+            <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm group-hover:shadow-md transition-all">
+                <img
+                    src={highResThumbnail || thumbnailLink}
+                    alt={name || ""}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                    }}
+                />
+                {/* Overlay for hover depth */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
+
+                {/* File Type Badge Overlay */}
+                <div className="absolute bottom-1.5 right-1.5 p-1.5 bg-white/90 dark:bg-slate-900/90 rounded-lg shadow-sm border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-sm">
+                    {mimeType.includes('pdf') ? <FileText className="w-3.5 h-3.5 text-red-500" /> :
+                        mimeType.startsWith('image/') ? <Image className="w-3.5 h-3.5 text-blue-500" /> :
+                            mimeType.startsWith('video/') ? <FileVideo className="w-3.5 h-3.5 text-purple-500" /> :
+                                <File className="w-3.5 h-3.5 text-slate-500" />}
+                </div>
+            </div>
         );
     }
-    if (mimeType.startsWith('image/')) return <Image className="w-10 h-10 text-blue-400" />;
-    if (mimeType.startsWith('video/')) return <FileVideo className="w-10 h-10 text-purple-400" />;
-    if (mimeType.includes('pdf')) return <FileText className="w-10 h-10 text-red-400" />;
-    if (mimeType.includes('spreadsheet') || mimeType.includes('excel'))
-        return <FileSpreadsheet className="w-10 h-10 text-green-400" />;
-    return <File className="w-10 h-10 text-slate-400" />;
+
+    // Default Fallback Container
+    const iconSize = "w-10 h-10";
+    let icon = <File className={`${iconSize} text-slate-400`} />;
+    let bgColor = "bg-slate-100 dark:bg-slate-800/50";
+
+    if (mimeType.startsWith('image/')) {
+        icon = <Image className={`${iconSize} text-blue-400`} />;
+        bgColor = "bg-blue-50 dark:bg-blue-900/20";
+    } else if (mimeType.startsWith('video/')) {
+        icon = <FileVideo className={`${iconSize} text-purple-400`} />;
+        bgColor = "bg-purple-50 dark:bg-purple-900/20";
+    } else if (mimeType.includes('pdf')) {
+        icon = <FileText className={`${iconSize} text-red-400`} />;
+        bgColor = "bg-red-50 dark:bg-red-900/20";
+    } else if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
+        icon = <FileSpreadsheet className={`${iconSize} text-green-400`} />;
+        bgColor = "bg-green-50 dark:bg-green-900/20";
+    }
+
+    return (
+        <div className={`w-full aspect-[4/3] rounded-xl ${bgColor} flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700/50 transition-all group-hover:border-slate-300 dark:group-hover:border-slate-600`}>
+            {icon}
+        </div>
+    );
 }
 
 // ─── File Viewer Modal ────────────────────────────────────────────────────────
@@ -117,8 +157,8 @@ function FileViewer({ item, onClose }: { item: DriveItem; onClose: () => void })
         >
             <div
                 className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 ${maximized
-                        ? 'fixed inset-2'
-                        : 'w-full max-w-5xl'
+                    ? 'fixed inset-2'
+                    : 'w-full max-w-5xl'
                     }`}
                 style={maximized ? {} : { height: '85vh' }}
             >
@@ -131,6 +171,15 @@ function FileViewer({ item, onClose }: { item: DriveItem; onClose: () => void })
 
                     {/* Actions */}
                     <div className="flex items-center gap-1 flex-shrink-0">
+                        <a
+                            href={item.webContentLink || `https://drive.google.com/uc?export=download&id=${item.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-500 dark:text-slate-400"
+                            title="Baixar arquivo"
+                        >
+                            <Download className="w-4 h-4" />
+                        </a>
                         <a
                             href={item.webViewLink || `https://drive.google.com/open?id=${item.id}`}
                             target="_blank"
@@ -159,16 +208,26 @@ function FileViewer({ item, onClose }: { item: DriveItem; onClose: () => void })
 
                 {/* Viewer */}
                 <div className="flex-1 relative bg-slate-100 dark:bg-slate-950 min-h-0">
-                    {/* Loading overlay */}
+                    {/* Loading overlay with blurred thumbnail notion */}
                     {!iframeLoaded && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 bg-slate-100 dark:bg-slate-950">
-                            <Loader2 className="w-8 h-8 text-brand-600 dark:text-brand-400 animate-spin" />
-                            <p className="text-slate-500 dark:text-slate-400 text-sm">Carregando arquivo...</p>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+                            {item.thumbnailLink && (
+                                <img
+                                    src={item.thumbnailLink.replace(/=s\d+(?:-c)?$/, '=s800')}
+                                    className="absolute inset-0 w-full h-full object-contain blur-2xl opacity-20 pointer-events-none"
+                                    alt=""
+                                />
+                            )}
+                            <div className="relative z-20 flex flex-col items-center gap-3">
+                                <Loader2 className="w-10 h-10 text-brand-600 dark:text-brand-400 animate-spin" />
+                                <p className="text-slate-600 dark:text-slate-300 font-medium text-sm">Preparando pré-visualização...</p>
+                                <p className="text-slate-400 dark:text-slate-500 text-xs">{item.name}</p>
+                            </div>
                         </div>
                     )}
                     <iframe
                         src={getDrivePreviewUrl(item.id)}
-                        className="w-full h-full border-0"
+                        className="w-full h-full border-0 relative z-0"
                         title={item.name}
                         allow="autoplay"
                         onLoad={() => setIframeLoaded(true)}
@@ -310,8 +369,8 @@ export function Catalogs() {
                                     <button
                                         onClick={() => navigateTo(idx)}
                                         className={`px-2 py-0.5 rounded-md transition-colors truncate max-w-[160px] ${idx === breadcrumb.length - 1
-                                                ? 'text-brand-600 dark:text-brand-400 font-semibold cursor-default'
-                                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700'
+                                            ? 'text-brand-600 dark:text-brand-400 font-semibold cursor-default'
+                                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700'
                                             }`}
                                         title={crumb.name}
                                     >
@@ -382,31 +441,46 @@ export function Catalogs() {
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                                 {items.map((item) => {
                                     const folder = isFolder(item.mimeType);
-                                    const viewable = isViewableInApp(item.mimeType);
                                     return (
-                                        <button
+                                        <div
                                             key={item.id}
-                                            onClick={() => handleClick(item)}
-                                            className="group flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/60 active:scale-95 transition-all duration-150 text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                            className="group relative flex flex-col items-center transition-all duration-300"
                                         >
-                                            <div className="transition-transform duration-150 group-hover:scale-105 group-hover:-translate-y-0.5">
-                                                <DriveIcon mimeType={item.mimeType} thumbnailLink={item.thumbnailLink} />
-                                            </div>
-                                            <span className="text-xs text-slate-700 dark:text-slate-300 leading-tight line-clamp-2 break-words w-full">
-                                                {item.name}
-                                            </span>
+                                            <button
+                                                onClick={() => handleClick(item)}
+                                                className="w-full flex flex-col items-center gap-3 p-2 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/5 transition-all text-center focus:outline-none"
+                                            >
+                                                <div className="w-full transform transition-transform duration-300 group-hover:scale-[1.02] group-hover:-translate-y-1">
+                                                    <DriveIcon mimeType={item.mimeType} thumbnailLink={item.thumbnailLink} name={item.name} />
+                                                </div>
+                                                <div className="w-full px-1">
+                                                    <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 leading-tight line-clamp-2 break-words group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+                                                        {item.name}
+                                                    </span>
+                                                    {!folder && (
+                                                        <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1 block opacity-60">
+                                                            {item.mimeType.split('/').pop()?.toUpperCase() || 'FILE'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </button>
+
+                                            {/* Quick Action Overlay for Files */}
                                             {!folder && (
-                                                <span className={`text-[10px] flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${viewable
-                                                        ? 'text-brand-500 dark:text-brand-400'
-                                                        : 'text-slate-400 dark:text-slate-500'
-                                                    }`}>
-                                                    {viewable
-                                                        ? <><FileText className="w-2.5 h-2.5" /> Visualizar</>
-                                                        : <><ExternalLink className="w-2.5 h-2.5" /> Abrir</>
-                                                    }
-                                                </span>
+                                                <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0 z-20">
+                                                    <a
+                                                        href={item.webContentLink || `https://drive.google.com/uc?export=download&id=${item.id}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="p-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-brand-600 hover:text-white dark:hover:bg-brand-500 transition-all active:scale-90"
+                                                        title="Download Direto"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                    </a>
+                                                </div>
                                             )}
-                                        </button>
+                                        </div>
                                     );
                                 })}
                             </div>

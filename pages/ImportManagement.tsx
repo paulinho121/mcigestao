@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Save, Calendar, Package as PackageIcon, Trash2 } from 'lucide-react';
+import { Search, Save, Calendar, Package as PackageIcon, Trash2, Download } from 'lucide-react';
 import { Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
 
@@ -14,6 +14,38 @@ export const ImportManagement: React.FC<ImportManagementProps> = () => {
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
     const [editedProducts, setEditedProducts] = useState<Map<string, Product>>(new Map());
+
+    const handleExportCSV = () => {
+        if (products.length === 0) return;
+
+        const headers = ['Código', 'Produto', 'Marca', 'Total em Estoque', 'Em Importação', 'Data Prevista'];
+        const csvRows = [
+            headers.join(';'),
+            ...products.map(p => {
+                return [
+                    p.id,
+                    `"${p.name.replace(/"/g, '""')}"`,
+                    `"${(p.brand || '').replace(/"/g, '""')}"`,
+                    p.total || 0,
+                    p.importQuantity || 0,
+                    p.expectedRestockDate || ''
+                ].join(';');
+            })
+        ];
+
+        const csvContent = '\ufeff' + csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const date = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+
+        link.setAttribute('href', url);
+        link.setAttribute('download', `gestao_importacao_${date}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     useEffect(() => {
         loadProducts();
@@ -115,9 +147,18 @@ export const ImportManagement: React.FC<ImportManagementProps> = () => {
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6 transition-colors">
             <div className="max-w-7xl mx-auto">
-                <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Gestão de Importação</h1>
-                    <p className="text-slate-600 dark:text-slate-400">Gerencie quantidades em importação e datas previstas de reposição</p>
+                <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Gestão de Importação</h1>
+                        <p className="text-slate-600 dark:text-slate-400">Gerencie quantidades em importação e datas previstas de reposição</p>
+                    </div>
+                    <button
+                        onClick={handleExportCSV}
+                        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:border-brand-200 transition-all shadow-sm font-medium"
+                    >
+                        <Download className="w-5 h-5" />
+                        Exportar CSV
+                    </button>
                 </div>
 
                 {/* Success/Error Messages */}
