@@ -1,0 +1,31 @@
+﻿{
+    "value":  [
+                  {
+                      "id":  "4557",
+                      "name":  "IP- Electro Storm XT26. Led de fonte pontual colorido de 2600W Compat com acessorios tipo montage",
+                      "brand":  "Aputure",
+                      "stock_ce":  0,
+                      "stock_sc":  9,
+                      "stock_sp":  0,
+                      "total":  9,
+                      "reserved":  0,
+                      "import_quantity":  null,
+                      "expected_restock_date":  null,
+                      "observations":  null,
+                      "created_at":  "2025-11-21T00:07:44.271987+00:00",
+                      "updated_at":  "2026-03-05T16:29:20.619389+00:00",
+                      "price":  null,
+                      "brand_logo":  "https://cdn.brandfetch.io/id2VA1pdQ1/theme/dark/logo.svg?c=1bxid64Mup7aczewSAYMX\u0026t=1769048227926",
+                      "image_url":  "https://cdn.shopify.com/s/files/1/1343/1935/files/XT26_Meuium_Barndoor-6.png?v=1710323628\u0026width=1000\u0026crop=center",
+                      "supplier":  null,
+                      "min_stock_level":  10,
+                      "min_stock":  0,
+                      "max_stock":  0,
+                      "safety_stock":  0,
+                      "average_consumption_daily":  0.0000,
+                      "abc_category":  null,
+                      "last_purchase_price":  null
+                  }
+              ],
+    "Count":  1
+}

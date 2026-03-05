@@ -18,6 +18,14 @@ BEGIN
       UPDATE public.products
       SET 
         stock_sc = (item->>'quantity')::integer,
+        price = CASE 
+                  WHEN (item->>'price')::decimal > 0 THEN (item->>'price')::decimal 
+                  ELSE price 
+                END,
+        last_purchase_price = CASE 
+                  WHEN (item->>'price')::decimal > 0 THEN (item->>'price')::decimal 
+                  ELSE last_purchase_price 
+                END,
         updated_at = NOW()
       WHERE id = (item->>'id')::text;
       
@@ -26,14 +34,16 @@ BEGIN
         updated_count := updated_count + 1;
       ELSE
         -- Se não existe, faz o cadastro automático
-        INSERT INTO public.products (id, name, brand, stock_sc, stock_ce, stock_sp)
+        INSERT INTO public.products (id, name, brand, stock_sc, stock_ce, stock_sp, price, last_purchase_price)
         VALUES (
           (item->>'id')::text,
           COALESCE(item->>'name', 'Produto Novo (Sync)'),
           'SC API',
           (item->>'quantity')::integer,
           0,
-          0
+          0,
+          COALESCE((item->>'price')::decimal, 0),
+          COALESCE((item->>'price')::decimal, 0)
         );
         inserted_count := inserted_count + 1;
         inserted_names := array_append(inserted_names, COALESCE(item->>'name', item->>'id'));

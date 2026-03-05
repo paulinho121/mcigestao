@@ -23,6 +23,7 @@ export interface Product {
     safety_stock?: number;
     average_consumption_daily?: number;
     abc_category?: 'A' | 'B' | 'C';
+    price?: number;
     last_purchase_price?: number;
     created_at?: string;
     updated_at?: string;

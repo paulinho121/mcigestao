@@ -13,6 +13,7 @@ import { Brands } from './pages/Brands';
 import { ActivityLogs } from './pages/ActivityLogs';
 import { Tracking } from './pages/Tracking';
 import { Catalogs } from './pages/Catalogs';
+import { Diretoria } from './pages/Diretoria';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
 import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, ShoppingBag, FileText, Sun, Moon, Users, Tag, Truck, BookOpen } from 'lucide-react';
@@ -20,7 +21,7 @@ import { supabase } from './lib/supabase';
 import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 
-type Tab = 'inventory' | 'reservations' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands';
+type Tab = 'inventory' | 'reservations' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -371,6 +372,20 @@ function App() {
               </button>
             )}
 
+            <button
+              onClick={() => setActiveTab('diretoria')}
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'diretoria'
+                ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50/50 dark:bg-brand-900/20 dark:text-brand-400'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700'
+                }`}
+            >
+              <div className="flex items-center justify-center bg-slate-200 dark:bg-slate-700 rounded-full p-1 mr-[-2px]">
+                <Package className="w-3 h-3 text-slate-500 dark:text-slate-400" />
+              </div>
+              <span className="hidden sm:inline">Diretoria</span>
+              <span className="sm:hidden text-xs">Diretoria</span>
+            </button>
+
             <div className="flex-1"></div>
           </div>
         </div>
@@ -390,6 +405,7 @@ function App() {
       {activeTab === 'logs' && <ActivityLogs />}
       {activeTab === 'tracking' && <Tracking />}
       {activeTab === 'catalogs' && <Catalogs />}
+      {activeTab === 'diretoria' && <Diretoria />}
       <Analytics />
     </div>
   );

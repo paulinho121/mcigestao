@@ -1,0 +1,12 @@
+http://170.82.192.22:9999/escalasoft/materialSuprimento/produto/consultar?cnpj=05502390000200&codigoReferencia=0005.0063 -> 404
+http://170.82.192.22:9999/escalasoft/MaterialSuprimento/Produto/Consultar?cnpj=05502390000200&codigoReferencia=0005.0063 -> 404
+http://170.82.192.22:9999/escalasoft/materialsuprimento/produto/consultar?cnpj=05502390000200&codigoReferencia=0005.0063 -> 404
+http://170.82.192.22:9999/escalasoftapi/materialSuprimento/produto/consultar?cnpj=05502390000200&codigoReferencia=0005.0063 -> 503
+http://170.82.192.22:9999/escalasoftapi/MaterialSuprimento/Produto/Consultar?cnpj=05502390000200&codigoReferencia=0005.0063 -> 503
+http://170.82.192.22:9999/escalasoftapi/materialsuprimento/produto/consultar?cnpj=05502390000200&codigoReferencia=0005.0063 -> 503
+http://170.82.192.22:9999/materialSuprimento/produto/consultar?cnpj=05502390000200&codigoReferencia=0005.0063 -> 503
+http://170.82.192.22:9999/MaterialSuprimento/Produto/Consultar?cnpj=05502390000200&codigoReferencia=0005.0063 -> 503
+http://170.82.192.22:9999/materialsuprimento/produto/consultar?cnpj=05502390000200&codigoReferencia=0005.0063 -> 503
+http://170.82.192.22:9999/api/materialSuprimento/produto/consultar?cnpj=05502390000200&codigoReferencia=0005.0063 -> 503
+http://170.82.192.22:9999/api/MaterialSuprimento/Produto/Consultar?cnpj=05502390000200&codigoReferencia=0005.0063 -> 503
+http://170.82.192.22:9999/api/materialsuprimento/produto/consultar?cnpj=05502390000200&codigoReferencia=0005.0063 -> 503

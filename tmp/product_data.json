@@ -1,0 +1,31 @@
+﻿{
+    "value":  [
+                  {
+                      "id":  "4557.0",
+                      "name":  "IP- Electro Storm XT26. Led de fonte pontual colorido de 2600W Compat com acessorios tipo montage",
+                      "brand":  "",
+                      "stock_ce":  0,
+                      "stock_sc":  0,
+                      "stock_sp":  0,
+                      "total":  0,
+                      "reserved":  0,
+                      "import_quantity":  null,
+                      "expected_restock_date":  null,
+                      "observations":  null,
+                      "created_at":  "2025-11-21T00:07:44.271987+00:00",
+                      "updated_at":  "2025-11-21T00:22:56.539346+00:00",
+                      "price":  null,
+                      "brand_logo":  null,
+                      "image_url":  null,
+                      "supplier":  null,
+                      "min_stock_level":  10,
+                      "min_stock":  0,
+                      "max_stock":  0,
+                      "safety_stock":  0,
+                      "average_consumption_daily":  0.0000,
+                      "abc_category":  null,
+                      "last_purchase_price":  null
+                  }
+              ],
+    "Count":  1
+}

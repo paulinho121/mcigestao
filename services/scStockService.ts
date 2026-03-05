@@ -86,8 +86,8 @@ export const scStockService = {
 
             console.log(`Iniciando processamento de ${items.length} itens...`);
 
-            // Agrega quantidades e nomes por Produto (ID)
-            const aggregatedStock = new Map<string, { quantity: number; name: string }>();
+            // Agrega quantidades, nomes e preços por Produto (ID)
+            const aggregatedStock = new Map<string, { quantity: number; name: string; price: number }>();
 
             items.forEach(item => {
                 // A API retorna o campo 'Item' no formato "CÓDIGO - DESCRIÇÃO" (ex: "4338 - PRODUTO X")
@@ -97,11 +97,24 @@ export const scStockService = {
                     const productId = parts[0].trim();
                     const productName = parts.slice(1).join(' - ').trim() || productId;
 
+                    // Calcula o preço unitário se houver valor e quantidade
+                    const itemValue = item.SaldoDisponivel?.Valor || 0;
+                    const itemQty = item.SaldoDisponivel?.Quantidade || 0;
+                    const unitPrice = itemQty > 0 ? itemValue / itemQty : 0;
+
                     if (productId) {
-                        const existing = aggregatedStock.get(productId) || { quantity: 0, name: productName };
+                        const existing = aggregatedStock.get(productId) || { quantity: 0, name: productName, price: 0 };
+
+                        // Atualiza a quantidade
+                        const newQty = existing.quantity + itemQty;
+
+                        // Para o preço, pegamos o maior valor encontrado entre os lotes (geralmente são iguais)
+                        const newPrice = unitPrice > existing.price ? unitPrice : existing.price;
+
                         aggregatedStock.set(productId, {
-                            quantity: existing.quantity + item.SaldoDisponivel.Quantidade,
-                            name: productName
+                            quantity: newQty,
+                            name: productName,
+                            price: newPrice
                         });
                     }
                 }
@@ -113,7 +126,8 @@ export const scStockService = {
             const stockUpdates = Array.from(aggregatedStock.entries()).map(([id, data]) => ({
                 id,
                 quantity: data.quantity,
-                name: data.name
+                name: data.name,
+                price: data.price
             }));
 
             // Processa em lotes para evitar timeouts ou payload excessivo

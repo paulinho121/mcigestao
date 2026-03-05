@@ -1,0 +1,1 @@
+Não foi encontrada uma operação válida para a URL http://170.82.192.22:9999/escalasoft/materialSuprimento/produto/consultar?cnpj=05502390000200&codigoReferencia=0005.0063
