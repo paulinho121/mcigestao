@@ -89,6 +89,24 @@ export const scStockService = {
             // Agrega quantidades, nomes e preços por Produto (ID)
             const aggregatedStock = new Map<string, { quantity: number; name: string; price: number }>();
 
+            // 1. Busca todos os produtos que atualmente têm estoque em SC para garantir o reset
+            // Isso resolve o problema de itens que "desaparecem" da API em vez de retornarem saldo 0
+            const { data: currentSCProducts } = await supabase
+                .from('products')
+                .select('id, name, price')
+                .gt('stock_sc', 0);
+
+            if (currentSCProducts) {
+                console.log(`Pré-carregando ${currentSCProducts.length} itens para possível zeragem...`);
+                currentSCProducts.forEach(p => {
+                    aggregatedStock.set(p.id, { 
+                        quantity: 0, 
+                        name: p.name, 
+                        price: Number(p.price) || 0 
+                    });
+                });
+            }
+
             items.forEach(item => {
                 // A API retorna o campo 'Item' no formato "CÓDIGO - DESCRIÇÃO" (ex: "4338 - PRODUTO X")
                 if (item.Item && typeof item.SaldoDisponivel?.Quantidade === 'number') {
