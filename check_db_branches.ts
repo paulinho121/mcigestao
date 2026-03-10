@@ -9,7 +9,7 @@ const supabase = createClient(
 );
 
 async function checkStocks() {
-  const { data, count, error } = await supabase
+  const { data, error } = await supabase
     .from('products')
     .select('id, stock_ce, stock_sc, stock_sp, total, price');
 

@@ -43,7 +43,7 @@ const cleanAndDeduplicate = (items: any[]): any[] => {
 };
 
 async function checkDeduplicated() {
-  const { data, count, error } = await supabase
+  const { data, error } = await supabase
     .from('products')
     .select('id, name, price, stock_sc, stock_ce, stock_sp, total');
 

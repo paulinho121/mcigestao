@@ -11,7 +11,7 @@ const supabase = createClient(
 async function checkTotalStock() {
   let { data: products, error } = await supabase
     .from('products')
-    .select('id, stock_ce, stock_sc, stock_sp, price, last_purchase_price');
+    .select('id, name, stock_ce, stock_sc, stock_sp, price, last_purchase_price');
 
   if (error) {
     console.error('Error:', error);
