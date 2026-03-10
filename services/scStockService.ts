@@ -93,9 +93,22 @@ export const scStockService = {
                 // A API retorna o campo 'Item' no formato "CÓDIGO - DESCRIÇÃO" (ex: "4338 - PRODUTO X")
                 if (item.Item && typeof item.SaldoDisponivel?.Quantidade === 'number') {
                     // Extrai o ID e o Nome
-                    const parts = item.Item.split(' - ');
-                    const productId = parts[0].trim();
-                    const productName = parts.slice(1).join(' - ').trim() || productId;
+                    // Tenta ' - ' primeiro, depois apenas '-' como fallback
+                    let productId = '';
+                    let productName = '';
+                    
+                    if (item.Item.includes(' - ')) {
+                        const parts = item.Item.split(' - ');
+                        productId = parts[0].trim();
+                        productName = parts.slice(1).join(' - ').trim();
+                    } else if (item.Item.includes('-')) {
+                        const firstHyphen = item.Item.indexOf('-');
+                        productId = item.Item.substring(0, firstHyphen).trim();
+                        productName = item.Item.substring(firstHyphen + 1).trim();
+                    } else {
+                        productId = item.Item.trim();
+                        productName = item.Item.trim();
+                    }
 
                     // Calcula o preço unitário se houver valor e quantidade
                     const itemValue = item.SaldoDisponivel?.Valor || 0;

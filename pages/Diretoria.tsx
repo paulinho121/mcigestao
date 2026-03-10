@@ -234,7 +234,7 @@ export const Diretoria = () => {
                             <span className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
                                 {stats ? (
                                     stats.totalValue >= 1000000
-                                        ? `R$ ${(stats.totalValue / 1000000).toFixed(1)}M`
+                                        ? `R$ ${(stats.totalValue / 1000000).toFixed(2)}M`
                                         : `R$ ${(stats.totalValue / 1000).toFixed(0)}k`
                                 ) : 'Carregando...'}
                             </span>
@@ -254,7 +254,7 @@ export const Diretoria = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
                             {[
                                 { title: 'Liquidez Estoque', value: stats ? `${stats.liquidity}%` : '...', icon: TrendingUp, color: 'emerald', trend: stats?.trends.liquidity || '+0%' },
-                                { title: 'Custos Parados', value: stats ? (stats.totalValue >= 1000000 ? `R$ ${(stats.totalValue / 1000000).toFixed(1)}M` : `R$ ${(stats.totalValue / 1000).toFixed(0)}k`) : '...', icon: DollarSign, color: 'red', trend: stats?.trends.value || '+0%' },
+                                { title: 'Custos Parados', value: stats ? (stats.idleValue >= 1000000 ? `R$ ${(stats.idleValue / 1000000).toFixed(2)}M` : `R$ ${(stats.idleValue / 1000).toFixed(0)}k`) : '...', icon: DollarSign, color: 'red', trend: stats?.trends.value || '+0.5%' },
                                 { title: 'Taxa de Giro', value: stats ? `${stats.stockTurnover}x` : '...', icon: RefreshCw, color: 'blue', trend: stats?.trends.turnover || '+0%' },
                                 { title: 'Capacidade CD', value: stats ? `${stats.cdCapacity}%` : '...', icon: Layers, color: 'amber', trend: (stats?.cdCapacity ?? 0) > 90 ? 'Crítico' : 'Normal' },
                             ].map((kpi, i) => (

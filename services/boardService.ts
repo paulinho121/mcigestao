@@ -19,6 +19,7 @@ export interface DemandPoint {
 
 export interface ExecutiveStats {
     totalValue: number;
+    idleValue: number; // Campo adicionado para Custos Parados reais
     criticalItems: number;
     liquidity: number;
     stockTurnover: number;
@@ -45,8 +46,8 @@ export const boardService = {
         if (!supabase) return this.getMockAging();
 
         try {
-            // 1. Pegar produtos com estoque (limitar a 200 para manter a performance da página)
-            const products = await inventoryService.getProductsByBranch(branch as any, 200);
+            // 1. Pegar produtos com estoque (limitar a 1000 para manter a performance da página)
+            const products = await inventoryService.getProductsByBranch(branch as any, 1000);
             const productIds = products.map(p => p.id);
 
             // 2. Buscar logs recentes para todos esses produtos de uma vez só
@@ -102,17 +103,24 @@ export const boardService = {
      */
     async getExecutiveSummary(): Promise<ExecutiveStats> {
         if (!supabase) return {
-            totalValue: 1250000,
-            criticalItems: 14,
-            liquidity: 72,
-            stockTurnover: 4.1,
+            totalValue: 9900000,
+            idleValue: 2400000,
+            criticalItems: 12,
+            liquidity: 75,
+            stockTurnover: 4.2,
             cdCapacity: 85,
-            trends: { liquidity: '+12%', value: '+2.4%', turnover: '-5%' }
+            trends: { liquidity: '+12%', value: '+0.5%', turnover: '-5%' }
         };
 
         try {
-            // 1. Valor total e Itens críticos - Usar o serviço que deduplica IDs (ex: 123 e 123.0)
+            // 1. Carregar produtos e calcular valor total e itens críticos
             const products = await inventoryService.getAllProducts(10000);
+            
+            // Buscar aging dos produtos para identificar custos parados
+            const agingData = await this.getInventoryAging('SC');
+            const idleValue = agingData
+                .filter(a => a.days_inactive > 60)
+                .reduce((acc, a) => acc + a.value_imobilizado, 0);
 
             let totalValue = 0;
             let criticalItems = 0;
@@ -120,10 +128,9 @@ export const boardService = {
 
             products?.forEach(p => {
                 const totalStock = (p.stock_ce || 0) + (p.stock_sc || 0) + (p.stock_sp || 0);
-
-                // Priorizar preço de mercado, depois preço da última compra, senão fallback
-                // Aumentei o fallback para 500 considerando que são motores e equipamentos caros
-                const price = p.price || p.last_purchase_price || 1200;
+                
+                // Fallback de 850 é mais conservador que 1200 para equipamentos
+                const price = p.price || p.last_purchase_price || 850;
 
                 totalValue += totalStock * price;
                 totalPhysicalItems += totalStock;
@@ -133,30 +140,30 @@ export const boardService = {
                 }
             });
 
-            // 2. Liquidez Real e Giro
+            // 2. Liquidez Real e Giro baseados em logs de saída
             const now = new Date();
             const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
             const sixtyDaysAgo = new Date(now.getTime() - (60 * 24 * 60 * 60 * 1000));
 
-            // Buscar todos os logs de saída nos últimos 60 dias para comparar tendências
             const { data: trendLogs } = await supabase
                 .from('activity_logs')
                 .select('details, created_at, action_type')
                 .in('action_type', ['stock_adjustment', 'reservation_created'])
                 .gte('created_at', sixtyDaysAgo.toISOString());
 
-            // Dividir logs em dois períodos de 30 dias
             const currentPeriodLogs = trendLogs?.filter(l => new Date(l.created_at) >= thirtyDaysAgo) || [];
             const previousPeriodLogs = trendLogs?.filter(l => new Date(l.created_at) < thirtyDaysAgo) || [];
 
-            // Helper para calcular volume e itens únicos
             const getMetrics = (logs: any[]) => {
                 const unique = new Set();
                 let vol = 0;
                 logs.forEach(l => {
                     const pid = l.details.product_code || l.details.product_id;
                     if (pid) {
-                        if ((l.details.difference && l.details.difference < 0) || l.action_type === 'reservation_created') {
+                        const isAdjustmentOut = l.action_type === 'stock_adjustment' && l.details.difference && l.details.difference < 0;
+                        const isReservation = l.action_type === 'reservation_created';
+                        
+                        if (isAdjustmentOut || isReservation) {
                             unique.add(pid);
                             vol += Math.abs(l.details.difference || l.details.quantity || 0);
                         }
@@ -170,11 +177,8 @@ export const boardService = {
 
             const activeProductsCount = products?.length || 1;
             const liquidity = Math.min(Math.round((currentMetrics.count / activeProductsCount) * 100) + 40, 99);
-
-            // Giro = Saídas Totais (projetadas para o ano) / Capital em Estoque
             const stockTurnover = Number(((currentMetrics.volume / (totalPhysicalItems || 1)) * 12).toFixed(1)) || 4.2;
 
-            // Calcular tendências
             const calcTrend = (curr: number, prev: number) => {
                 if (prev === 0) return curr > 0 ? '+100%' : '0%';
                 const diff = ((curr - prev) / prev) * 100;
@@ -183,16 +187,16 @@ export const boardService = {
 
             const trends = {
                 liquidity: calcTrend(currentMetrics.count, previousMetrics.count),
-                value: '+0.5%',
+                value: calcTrend(currentMetrics.volume, previousMetrics.volume), // Trend baseada em fluxo financeiro/saídas
                 turnover: calcTrend(currentMetrics.volume, previousMetrics.volume)
             };
 
-            // 3. Capacidade CD (Soma de stock_sc vs Capacidade estimada de 5.000 unidades)
             const scStock = products?.reduce((acc, p) => acc + (p.stock_sc || 0), 0) || 0;
             const cdCapacity = Math.min(Math.round((scStock / 5000) * 100), 100);
 
             return {
                 totalValue,
+                idleValue,
                 criticalItems,
                 liquidity,
                 stockTurnover,
@@ -203,6 +207,7 @@ export const boardService = {
             console.error('Error fetching executive summary:', error);
             return {
                 totalValue: 0,
+                idleValue: 0,
                 criticalItems: 0,
                 liquidity: 0,
                 stockTurnover: 0,

@@ -18,6 +18,7 @@ BEGIN
       UPDATE public.products
       SET 
         stock_sc = (item->>'quantity')::integer,
+        total = stock_ce + (item->>'quantity')::integer + stock_sp, -- Garante atualização do total
         price = CASE 
                   WHEN (item->>'price')::decimal > 0 THEN (item->>'price')::decimal 
                   ELSE price 
@@ -34,7 +35,7 @@ BEGIN
         updated_count := updated_count + 1;
       ELSE
         -- Se não existe, faz o cadastro automático
-        INSERT INTO public.products (id, name, brand, stock_sc, stock_ce, stock_sp, price, last_purchase_price)
+        INSERT INTO public.products (id, name, brand, stock_sc, stock_ce, stock_sp, total, price, last_purchase_price)
         VALUES (
           (item->>'id')::text,
           COALESCE(item->>'name', 'Produto Novo (Sync)'),
@@ -42,6 +43,7 @@ BEGIN
           (item->>'quantity')::integer,
           0,
           0,
+          (item->>'quantity')::integer, -- total
           COALESCE((item->>'price')::decimal, 0),
           COALESCE((item->>'price')::decimal, 0)
         );
