@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Search, RefreshCw, Mic, MicOff, MapPin, Printer, Download } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Search, RefreshCw, Mic, MicOff, MapPin, Printer, Download, Layers } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
 import { inventoryService } from '../services/inventoryService';
 import { Product } from '../types';
@@ -15,7 +15,26 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<'CE' | 'SC' | 'SP' | null>(null);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+
+  const displayedProducts = useMemo(() => {
+    if (!selectedType) return products;
+
+    const keywordsMap: Record<string, string[]> = {
+      'Luminária': ['luminaria', 'luminária', 'light', 'led', 'tube', 'panel', 'rgb'],
+      'Modificador': ['modificador', 'softbox', 'fresnel', 'dome', 'grid', 'octa', 'lantern', 'snoot', 'reflector', 'sombrinha', 'bounce'],
+      'Peça': ['peça', 'peca', 'placa', 'diodo', 'parafuso', 'reposição', 'lcd', 'cooler', 'visor', 'knob', 'pino', 'vidro', 'motor'],
+      'Acessórios': ['acessorio', 'acessório', 'bateria', 'tripé', 'tripe', 'cabo', 'suporte', 'maleta', 'case', 'bolsa', 'carregador', 'grip', 'clamp', 'stand'],
+    };
+
+    const keywords = keywordsMap[selectedType] || [selectedType.toLowerCase()];
+
+    return products.filter(p => {
+      const searchName = `${p.name} ${p.brand || ''}`.toLowerCase();
+      return keywords.some(kw => searchName.includes(kw.toLowerCase()));
+    });
+  }, [products, selectedType]);
 
   const handleSyncSC = async () => {
     setSyncing(true);
@@ -157,7 +176,7 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
   };
 
   const handlePrint = () => {
-    if (products.length === 0) return;
+    if (displayedProducts.length === 0) return;
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -198,7 +217,7 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
           <div class="header">
             <div>
               <h1>${title}</h1>
-              <p>Emitido em ${date} | Total de ${products.length} itens encontrados</p>
+              <p>Emitido em ${date} | Total de ${displayedProducts.length} itens encontrados</p>
             </div>
             <div style="text-align: right">
               <span style="font-weight: 900; color: #0f172a; font-size: 20px; font-style: italic;">MC</span>
@@ -217,7 +236,7 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
               </tr>
             </thead>
             <tbody>
-              ${products.map(p => `
+              ${displayedProducts.map(p => `
                 <tr>
                   <td class="code">${p.id}</td>
                   <td>
@@ -248,11 +267,11 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
   };
 
   const handleDownloadCSV = (branch?: 'CE' | 'SC' | 'SP') => {
-    if (products.length === 0) return;
+    if (displayedProducts.length === 0) return;
 
     const filteredProducts = branch
-      ? products.filter(p => (p[`stock_${branch.toLowerCase()}` as keyof Product] as number) > 0)
-      : products;
+      ? displayedProducts.filter(p => (p[`stock_${branch.toLowerCase()}` as keyof Product] as number) > 0)
+      : displayedProducts;
 
     if (filteredProducts.length === 0) {
       alert(branch
@@ -405,6 +424,39 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
             </div>
           </div>
 
+          {/* Type Selector  */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150 mt-4">
+            <span className="text-sm font-medium text-slate-500 flex items-center gap-1.5 dark:text-slate-400">
+              <Layers className="w-4 h-4" />
+              Filtrar por Tipo:
+            </span>
+
+            <div className="flex flex-wrap justify-center gap-2">
+              <button
+                onClick={() => setSelectedType(null)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedType === null
+                  ? 'bg-slate-800 text-white shadow-md ring-2 ring-slate-800 ring-offset-2 dark:bg-slate-700 dark:ring-slate-700'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700'
+                  }`}
+              >
+                Todos
+              </button>
+
+              {(['Luminária', 'Modificador', 'Peça', 'Acessórios']).map((typeLabel) => (
+                <button
+                  key={typeLabel}
+                  onClick={() => setSelectedType(typeLabel)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedType === typeLabel
+                    ? 'bg-brand-600 text-white shadow-md ring-2 ring-brand-600 ring-offset-2'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:border-brand-200 hover:text-brand-600 hover:bg-brand-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-brand-400'
+                    }`}
+                >
+                  {typeLabel}
+                </button>
+              ))}
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -418,7 +470,7 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
             </svg>
             <p className="mt-2 text-slate-600">Carregando dados...</p>
           </div>
-        ) : products.length > 0 ? (
+        ) : displayedProducts.length > 0 ? (
           <>
             <div className="flex justify-between items-center mb-6">
               <div className="text-sm text-slate-500 dark:text-slate-400">
@@ -429,7 +481,7 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-sm font-medium text-slate-700 bg-slate-100 px-3 py-1 rounded-full dark:bg-slate-800 dark:text-slate-300">
-                  {products.length} produtos encontrados
+                  {displayedProducts.length} produtos encontrados
                 </div>
                 <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 flex items-center gap-1">
@@ -462,7 +514,7 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {products.map((product) => (
+              {displayedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
