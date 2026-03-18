@@ -191,6 +191,9 @@ function App() {
                   {user.email === 'logisticasp@mcistore.com.br' && (
                     <img src="/santos_logo.png" alt="Santos FC" className="h-6 w-auto" />
                   )}
+                  {user.email === 'logistica@mcistore.com.br' && (
+                    <img src="/santos_logo.png" alt="Santos FC" className="h-6 w-auto" />
+                  )}
                   {user.email === 'comercial2@mcistore.com.br' && (
                     <img src="/palmeiras_logo.png" alt="Palmeiras" className="h-6 w-auto" />
                   )}
@@ -357,8 +360,8 @@ function App() {
               </>
             )}
 
-            {/* Logs Tab - Only for paulofernandoautomacao@gmail.com */}
-            {user.email === 'paulofernandoautomacao@gmail.com' && (
+            {/* Logs Tab - Visible for master users */}
+            {isMaster && (
               <button
                 onClick={() => setActiveTab('logs')}
                 className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'logs'

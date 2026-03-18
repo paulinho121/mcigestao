@@ -3,6 +3,7 @@ import { Search, RefreshCw, Mic, MicOff, MapPin, Printer, Download, Layers } fro
 import { ProductCard } from '../components/ProductCard';
 import { inventoryService } from '../services/inventoryService';
 import { Product } from '../types';
+import { isMasterUser } from '../config/masterUsers';
 
 interface InventoryProps {
   userEmail: string;
@@ -69,10 +70,9 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
     }
   };
 
-  // Automação: Sincronizar a cada 20 minutos (1200000ms) entre 08:00 e 19:00
   // Apenas se o usuário for o Master
   useEffect(() => {
-    if (userEmail !== 'paulofernandoautomacao@gmail.com') return;
+    if (!isMasterUser(userEmail)) return;
 
     const checkAndAutoSync = () => {
       const now = new Date();
@@ -406,8 +406,8 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
                 </button>
               ))}
 
-              {/* Botão de Sincronização (Visível apenas para o usuário Master) */}
-              {userEmail === 'paulofernandoautomacao@gmail.com' && (
+              {/* Botão de Sincronização (Visível para usuários Master) */}
+              {isMasterUser(userEmail) && (
                 <button
                   onClick={() => handleSyncSC()}
                   disabled={syncing}
