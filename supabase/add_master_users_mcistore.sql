@@ -8,7 +8,8 @@ UPDATE public.profiles
 SET is_master = true
 WHERE email IN (
   'felipe@mcistore.com.br',
-  'bianca@mcistore.com.br'
+  'bianca@mcistore.com.br',
+  'logistica@mcistore.com.br'
 );
 
 -- 2. Verificar se a atualização funcionou
@@ -16,7 +17,8 @@ SELECT id, email, name, is_master, created_at
 FROM public.profiles
 WHERE email IN (
   'felipe@mcistore.com.br',
-  'bianca@mcistore.com.br'
+  'bianca@mcistore.com.br',
+  'logistica@mcistore.com.br'
 );
 
 -- =====================================================
