@@ -41,6 +41,8 @@ export const Shopping = () => {
     const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
     const [orderItems, setOrderItems] = useState<{ product: Product; quantity: number; price: number }[]>([]);
     const [productSearch, setProductSearch] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
+    const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
 
     const [activeOrders, setActiveOrders] = useState<any[]>([
         {
@@ -214,6 +216,36 @@ export const Shopping = () => {
                         <p className="text-slate-500 font-medium">Gestão inteligente e automação de suprimentos.</p>
                     </div>
                     <div className="flex gap-3">
+                        <input
+                            type="file"
+                            id="abc-upload"
+                            className="hidden"
+                            accept=".csv"
+                            onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    setIsUploading(true);
+                                    try {
+                                        const res = await purchaseIntelligenceService.uploadABCCurve(file);
+                                        alert(`Processamento concluído: ${res.success} sucessos, ${res.failed} falhas.`);
+                                        await fetchData();
+                                    } catch (err) {
+                                        alert("Erro ao processar planilha.");
+                                    } finally {
+                                        setIsUploading(false);
+                                        e.target.value = ''; // Clear input
+                                    }
+                                }
+                            }}
+                        />
+                        <button
+                            onClick={() => document.getElementById('abc-upload')?.click()}
+                            disabled={isUploading}
+                            className={`flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-800 text-brand-600 rounded-2xl font-bold transition-all active:scale-95 border border-brand-200 dark:border-brand-900/30 ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-brand-50'}`}
+                        >
+                            {isUploading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+                            {isUploading ? 'Processando...' : 'Subir Curva ABC'}
+                        </button>
                         <button onClick={handleRecalculateABC} className="flex items-center gap-2 px-6 py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl font-bold hover:bg-slate-200 transition-all active:scale-95 border border-slate-200 dark:border-slate-600">
                             <RefreshCw className="w-5 h-5" />
                             Atualizar Inteligência
@@ -301,6 +333,80 @@ export const Shopping = () => {
                                 </div>
                             ))}
                         </div>
+                    </div>
+
+                    {/* ABC Table Section */}
+                    <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                            <div>
+                                <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+                                    <Search className="w-8 h-8 text-brand-600" />
+                                    Pesquisa Curva ABC
+                                </h1>
+                                <p className="text-xs font-bold text-slate-400">Verifique a classificação e dados dos produtos processados</p>
+                            </div>
+                            <div className="relative w-full md:w-80">
+                                <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                                <input
+                                    type="text"
+                                    placeholder="Procurar código ou nome..."
+                                    className="w-full pl-14 pr-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[2rem] outline-none text-sm font-bold dark:text-white focus:ring-4 focus:ring-brand-500/10 transition-all"
+                                    value={productSearch}
+                                    onChange={(e) => setProductSearch(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
+                            {allProducts
+                                .filter(p =>
+                                    p.id.toLowerCase().includes(productSearch.toLowerCase()) ||
+                                    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+                                    p.brand?.toLowerCase().includes(productSearch.toLowerCase())
+                                )
+                                .slice(0, 50)
+                                .map(p => (
+                                    <div
+                                        key={p.id}
+                                        onClick={() => setViewingProduct(p)}
+                                        className="p-5 bg-slate-50 dark:bg-slate-900/50 rounded-[2rem] border border-slate-100 dark:border-slate-700 flex items-center justify-between cursor-pointer group hover:border-brand-500/30 hover:shadow-xl hover:shadow-brand-500/5 transition-all active:scale-[0.98]"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            {p.image_url ? (
+                                                <img src={p.image_url} alt={p.name} className="w-14 h-14 rounded-2xl object-cover bg-white ring-2 ring-slate-100 dark:ring-slate-800" />
+                                            ) : (
+                                                <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center">
+                                                    <ShoppingBag className="w-6 h-6 text-slate-400" />
+                                                </div>
+                                            )}
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{p.id}</span>
+                                                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black ${p.abc_category === 'A' ? 'bg-amber-400 text-amber-900 shadow-lg shadow-amber-500/20' : p.abc_category === 'B' ? 'bg-indigo-500 text-white' : 'bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}`}>
+                                                        CLASSE {p.abc_category || 'C'}
+                                                    </span>
+                                                </div>
+                                                <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-tight group-hover:text-brand-600 transition-colors">{p.name}</h4>
+                                                <p className="text-[10px] font-black text-brand-600 dark:text-brand-400 uppercase mt-1 opacity-60">{p.brand || 'Sem Marca'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase">Mín. Sugerido</p>
+                                            <p className="text-lg font-black text-slate-900 dark:text-white">{p.min_stock || 0}</p>
+                                            <p className="text-[9px] font-bold text-slate-400">un</p>
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                        {allProducts.filter(p =>
+                            p.id.toLowerCase().includes(productSearch.toLowerCase()) ||
+                            p.name.toLowerCase().includes(productSearch.toLowerCase())
+                        ).length === 0 && (
+                                <div className="py-20 text-center opacity-30">
+                                    <Search className="w-16 h-16 mx-auto mb-4" />
+                                    <p className="text-lg font-black">Nenhum produto encontrado</p>
+                                </div>
+                            )}
                     </div>
                 </div>
 
@@ -709,6 +815,107 @@ export const Shopping = () => {
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                                 Dica: Priorize itens da Classe A para melhor retorno sobre o capital
                             </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Product Detail Modal */}
+            {viewingProduct && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 relative animate-in zoom-in-95 duration-300">
+                        <button
+                            onClick={() => setViewingProduct(null)}
+                            className="absolute top-6 right-6 p-3 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-2xl transition-all z-10"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+
+                        <div className="flex flex-col md:flex-row h-full">
+                            {/* Left Side: Image & ABC Badge */}
+                            <div className="md:w-5/12 bg-slate-50 dark:bg-slate-950 p-8 flex flex-col items-center justify-center relative">
+                                <div className="absolute top-6 left-6">
+                                    <div className={`px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase shadow-lg ${viewingProduct.abc_category === 'A' ? 'bg-amber-400 text-amber-900' : viewingProduct.abc_category === 'B' ? 'bg-indigo-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'}`}>
+                                        CLASSE {viewingProduct.abc_category || 'C'}
+                                    </div>
+                                </div>
+
+                                {viewingProduct.image_url ? (
+                                    <img src={viewingProduct.image_url} alt={viewingProduct.name} className="w-full aspect-square object-cover rounded-[2rem] shadow-2xl bg-white" />
+                                ) : (
+                                    <div className="w-48 h-48 bg-slate-200 dark:bg-slate-800 rounded-[2rem] flex items-center justify-center">
+                                        <ShoppingBag className="w-20 h-20 text-slate-300 dark:text-slate-700" />
+                                    </div>
+                                )}
+                                <div className="mt-6 text-center">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{viewingProduct.id}</span>
+                                    <p className="text-xs font-black text-brand-600 uppercase mt-1">{viewingProduct.brand || 'Sem Marca'}</p>
+                                </div>
+                            </div>
+
+                            {/* Right Side: Details & Stock */}
+                            <div className="md:w-7/12 p-10 flex flex-col">
+                                <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-tight mb-8 pr-8">
+                                    {viewingProduct.name}
+                                </h3>
+
+                                <div className="grid grid-cols-3 gap-4 mb-8">
+                                    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                        <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Estoque</p>
+                                        <p className="text-xl font-black text-slate-900 dark:text-white">{viewingProduct.total}</p>
+                                        <p className="text-[10px] font-bold text-slate-400">unids</p>
+                                    </div>
+                                    <div className="p-4 bg-brand-50 dark:bg-brand-900/20 rounded-2xl border border-brand-100 dark:border-brand-900/30">
+                                        <p className="text-[9px] font-black text-brand-600 uppercase mb-1">Mínimo</p>
+                                        <p className="text-xl font-black text-brand-600">{viewingProduct.min_stock || 0}</p>
+                                        <p className="text-[10px] font-bold text-brand-400">meta</p>
+                                    </div>
+                                    <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
+                                        <p className="text-[9px] font-black text-emerald-600 uppercase mb-1">Vendas (Ano)</p>
+                                        <p className="text-xl font-black text-emerald-600 font-black">{viewingProduct.yearly_sales || 0}</p>
+                                        <p className="text-[10px] font-bold text-emerald-400">vendas</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3 flex-grow">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase px-1">Distribuição por Filial</p>
+                                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-[1.5rem] p-5 space-y-4 border border-slate-100 dark:border-slate-800">
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Ceará (CE)</span>
+                                            </div>
+                                            <span className="text-sm font-black text-slate-900 dark:text-white">{viewingProduct.stock_ce} un</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                                                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Santa Catarina (SC)</span>
+                                            </div>
+                                            <span className="text-sm font-black text-slate-900 dark:text-white">{viewingProduct.stock_sc} un</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                                                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">São Paulo (SP)</span>
+                                            </div>
+                                            <span className="text-sm font-black text-slate-900 dark:text-white">{viewingProduct.stock_sp} un</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 flex gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setViewingProduct(null);
+                                            setIsOrderModalOpen(true);
+                                            setOrderStep('supplier');
+                                        }}
+                                        className="flex-grow py-4 bg-brand-600 text-white rounded-2xl font-black text-sm hover:bg-brand-700 transition-all shadow-lg shadow-brand-500/20 active:scale-95"
+                                    >
+                                        Gerar Ordem de Compra
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

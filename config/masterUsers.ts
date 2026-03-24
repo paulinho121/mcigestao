@@ -6,8 +6,8 @@ export const MASTER_USERS = [
     'felipe@mcistore.com.br',
     'bianca@mcistore.com.br',
     'logisticasp@mcistore.com.br',
+    'logistica@mcistore.com.br',
     // Add more master user emails below:
-    // 'another.user@example.com',
 ];
 
 /**

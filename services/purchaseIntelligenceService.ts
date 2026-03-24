@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { PurchaseOrder, PurchaseOrderItem } from '../types';
+import Papa from 'papaparse';
 
 export const purchaseIntelligenceService = {
     /**
@@ -205,5 +206,99 @@ export const purchaseIntelligenceService = {
             .eq('id', poId);
 
         return true;
+    },
+
+    /**
+     * Upload an ABC Curve list from CSV and enrich with HUB images/brands
+     */
+    async uploadABCCurve(file: File): Promise<{ success: number; failed: number }> {
+        if (!supabase) return { success: 0, failed: 0 };
+
+        return new Promise((resolve) => {
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: async (results: any) => {
+                    let successCount = 0;
+                    let failedCount = 0;
+
+                    try {
+                        // 1. Fetch available hub products for enrichment
+                        const { data: hubProducts } = await supabase!
+                            .from('hub_products')
+                            .select('product_code, product_name, brand, image_url')
+                            .eq('is_active', true);
+
+                        const hubMap = new Map();
+                        hubProducts?.forEach(hp => {
+                            if (!hubMap.has(hp.product_code)) {
+                                hubMap.set(hp.product_code, hp);
+                            }
+                        });
+
+                        // 2. Process each row
+                        for (const row of results.data) {
+                            const idHeader = row['ID Produto'] || row['ID'] || row['id'];
+                            if (!idHeader) {
+                                failedCount++;
+                                continue;
+                            }
+
+                            const nameHeader = row['Nome do Produto'] || row['Nome'] || row['name'];
+                            const minStockHeader = row['Estoque Mínimo (75 dias)'] || row['Estoque Mínimo (45 dias)'] || row['min_stock'];
+                            const abcHeader = row['Classe ABC'] || row['abc_category'];
+                            const yearlySalesHeader = row['Quantidade (365 dias)'] || row['Vendas 1 Ano'] || row['yearly_sales'];
+
+                            const rawId = String(idHeader).trim();
+                            // Clean ID (remove .0 suffix)
+                            const id = rawId.endsWith('.0') ? rawId.slice(0, -2) : rawId;
+                            const name = String(nameHeader || '').trim();
+                            const minStock = parseInt(String(minStockHeader || '0')) || 0;
+                            const abcClass = (String(abcHeader || 'C')).trim().toUpperCase() as 'A' | 'B' | 'C';
+                            const yearlySales = parseInt(String(yearlySalesHeader || '0')) || 0;
+
+                            // Check if product exists locally
+                            const { data: existing } = await supabase!
+                                .from('products')
+                                .select('id, brand, image_url')
+                                .in('id', [id, `${id}.0`])
+                                .maybeSingle();
+
+                            // Enrichment data from HUB
+                            const hubMatch = hubMap.get(id);
+                            const finalBrand = existing?.brand || hubMatch?.brand || '';
+                            const finalImage = existing?.image_url || hubMatch?.image_url || '';
+
+                            const productData = {
+                                id,
+                                name: name || (existing ? undefined : 'Produto Sem Nome'),
+                                min_stock: minStock,
+                                abc_category: abcClass,
+                                brand: finalBrand,
+                                image_url: finalImage,
+                                yearly_sales: yearlySales,
+                                updated_at: new Date().toISOString()
+                            };
+
+                            // Upsert
+                            const { error: upsertError } = await supabase!
+                                .from('products')
+                                .upsert(productData, { onConflict: 'id' });
+
+                            if (upsertError) {
+                                console.error(`Error upserting product ${id}:`, upsertError);
+                                failedCount++;
+                            } else {
+                                successCount++;
+                            }
+                        }
+                        resolve({ success: successCount, failed: failedCount });
+                    } catch (error) {
+                        console.error("Error processing ABC upload:", error);
+                        resolve({ success: successCount, failed: failedCount });
+                    }
+                }
+            });
+        });
     }
 };
