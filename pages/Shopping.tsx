@@ -15,15 +15,6 @@ import {
     ArrowRight,
     ArrowLeft
 } from 'lucide-react';
-import {
-    ResponsiveContainer,
-    ComposedChart,
-    Bar,
-    XAxis,
-    CartesianGrid,
-    Tooltip,
-    Cell
-} from 'recharts';
 import { inventoryService } from '../services/inventoryService';
 import { supplierService } from '../services/supplierService';
 import { purchaseIntelligenceService } from '../services/purchaseIntelligenceService';
@@ -43,6 +34,7 @@ export const Shopping = () => {
     const [productSearch, setProductSearch] = useState('');
     const [isUploading, setIsUploading] = useState(false);
     const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
+    const [abcFilter, setAbcFilter] = useState<'ALL' | 'A' | 'B' | 'C'>('ALL');
 
     const [activeOrders, setActiveOrders] = useState<any[]>([
         {
@@ -89,17 +81,6 @@ export const Shopping = () => {
         );
     }, [selectedSupplier, allProducts, productSearch]);
 
-    const abcData = useMemo(() => {
-        const sorted = [...allProducts]
-            .map(p => ({
-                name: p.name.length > 12 ? p.name.substring(0, 10) + '...' : p.name,
-                value: (p.total || 0) * (p.last_purchase_price || 50),
-                class: p.abc_category || 'C'
-            }))
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 10);
-        return sorted;
-    }, [allProducts]);
 
     const addToOrder = (product: Product) => {
         const existing = orderItems.find(item => item.product.id === product.id);
@@ -280,27 +261,6 @@ export const Shopping = () => {
                         </div>
                     </div>
 
-                    {/* ABC Chart */}
-                    <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-sm">
-                        <div className="flex justify-between items-center mb-8">
-                            <h2 className="text-xl font-black text-slate-900 dark:text-white">Curva ABC por Valor</h2>
-                            <span className="text-xs font-bold text-slate-400">Dados baseados no estoque atual</span>
-                        </div>
-                        <div className="h-[250px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <ComposedChart data={abcData}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
-                                    <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
-                                    <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
-                                    <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
-                                        {abcData.map((e, i) => (
-                                            <Cell key={i} fill={e.class === 'A' ? '#0ea5e9' : e.class === 'B' ? '#6366f1' : '#cbd5e1'} />
-                                        ))}
-                                    </Bar>
-                                </ComposedChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
 
                     {/* Active Orders List */}
                     <div className="space-y-4">
@@ -355,15 +315,36 @@ export const Shopping = () => {
                                     onChange={(e) => setProductSearch(e.target.value)}
                                 />
                             </div>
+                            <div className="flex gap-2">
+                                {['ALL', 'A', 'B', 'C'].map((cls) => (
+                                    <button
+                                        key={cls}
+                                        onClick={() => setAbcFilter(cls as any)}
+                                        className={`px-6 py-3 rounded-2xl text-[10px] font-black transition-all active:scale-95 border ${abcFilter === cls
+                                                ? cls === 'A' ? 'bg-amber-400 border-amber-500 text-amber-900 shadow-lg shadow-amber-500/20'
+                                                    : cls === 'B' ? 'bg-indigo-600 border-indigo-700 text-white shadow-lg shadow-indigo-500/20'
+                                                        : cls === 'C' ? 'bg-slate-700 border-slate-800 text-white'
+                                                            : 'bg-brand-600 border-brand-700 text-white shadow-lg shadow-brand-500/20'
+                                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:border-brand-200'
+                                            }`}
+                                    >
+                                        {cls === 'ALL' ? 'TODOS' : `CLASSE ${cls}`}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
                             {allProducts
-                                .filter(p =>
-                                    p.id.toLowerCase().includes(productSearch.toLowerCase()) ||
-                                    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-                                    p.brand?.toLowerCase().includes(productSearch.toLowerCase())
-                                )
+                                .filter(p => {
+                                    const matchesSearch = p.id.toLowerCase().includes(productSearch.toLowerCase()) ||
+                                        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+                                        p.brand?.toLowerCase().includes(productSearch.toLowerCase());
+
+                                    const matchesClass = abcFilter === 'ALL' || (p.abc_category || 'C') === abcFilter;
+
+                                    return matchesSearch && matchesClass;
+                                })
                                 .slice(0, 50)
                                 .map(p => (
                                     <div
@@ -398,10 +379,13 @@ export const Shopping = () => {
                                     </div>
                                 ))}
                         </div>
-                        {allProducts.filter(p =>
-                            p.id.toLowerCase().includes(productSearch.toLowerCase()) ||
-                            p.name.toLowerCase().includes(productSearch.toLowerCase())
-                        ).length === 0 && (
+                        {allProducts.filter(p => {
+                            const matchesSearch = p.id.toLowerCase().includes(productSearch.toLowerCase()) ||
+                                p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+                                p.brand?.toLowerCase().includes(productSearch.toLowerCase());
+                            const matchesClass = abcFilter === 'ALL' || (p.abc_category || 'C') === abcFilter;
+                            return matchesSearch && matchesClass;
+                        }).length === 0 && (
                                 <div className="py-20 text-center opacity-30">
                                     <Search className="w-16 h-16 mx-auto mb-4" />
                                     <p className="text-lg font-black">Nenhum produto encontrado</p>
