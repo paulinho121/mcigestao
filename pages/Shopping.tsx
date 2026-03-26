@@ -188,7 +188,7 @@ export const Shopping = () => {
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-12 transition-colors">
             {/* Header */}
             <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-8">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+                <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <div>
                         <h1 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3">
                             <ShoppingBag className="w-10 h-10 text-brand-600" />
@@ -196,7 +196,7 @@ export const Shopping = () => {
                         </h1>
                         <p className="text-slate-500 font-medium">Gestão inteligente e automação de suprimentos.</p>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-3 justify-end">
                         <input
                             type="file"
                             id="abc-upload"
@@ -243,7 +243,7 @@ export const Shopping = () => {
                 {/* Dashboard Section */}
                 <div className="lg:col-span-2 space-y-8">
                     {/* Metrics */}
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="bg-white dark:bg-slate-800 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
                             <div className="absolute -right-4 -top-4 w-20 h-20 bg-red-500/5 rounded-full group-hover:scale-150 transition-transform"></div>
                             <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Críticos</p>
@@ -513,9 +513,9 @@ export const Shopping = () => {
 
                         {/* STEP 2: SELECT PRODUCTS */}
                         {orderStep === 'products' && (
-                            <div className="flex flex-1 overflow-hidden">
+                            <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
                                 {/* Left Side: Catalog */}
-                                <div className="w-2/3 flex flex-col border-r border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                                <div className="w-full lg:w-2/3 flex flex-col border-b lg:border-b-0 lg:border-r border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
                                     <div className="p-8 border-b border-slate-100 dark:border-slate-700">
                                         <div className="flex justify-between items-center mb-6">
                                             <h3 className="text-xl font-black text-slate-900 dark:text-white">Produtos: {selectedSupplier?.name}</h3>
@@ -572,7 +572,7 @@ export const Shopping = () => {
                                 </div>
 
                                 {/* Right Side: Cart/Current Order */}
-                                <div className="w-1/3 flex flex-col bg-white dark:bg-slate-800">
+                                <div className="w-full lg:w-1/3 flex flex-col bg-white dark:bg-slate-800">
                                     <div className="p-8 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
                                         <h3 className="text-lg font-black text-slate-900 dark:text-white">Intenção de Compra</h3>
                                         <span className="px-3 py-1 bg-brand-600 text-white rounded-full text-[10px] font-black">{orderItems.length} ITENS</span>

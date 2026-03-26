@@ -256,19 +256,19 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                     Quantidade a Reservar (Disponível na {getBranchName(selectedBranch)}: {availableStock})
                                 </label>
-                                <div className="flex gap-4 items-end">
+                                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-end">
                                     <input
                                         type="number"
                                         min="1"
                                         max={availableStock}
                                         value={quantity}
                                         onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                                        className="w-32 px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 dark:bg-slate-700 dark:text-white"
+                                        className="w-full sm:w-32 px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 dark:bg-slate-700 dark:text-white"
                                     />
                                     <button
                                         onClick={handleReserve}
                                         disabled={loading || quantity > availableStock || availableStock === 0}
-                                        className="px-6 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                                        className="w-full sm:w-auto px-6 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                                     >
                                         {loading ? 'Reservando...' : 'Confirmar Reserva'}
                                     </button>
