@@ -424,7 +424,8 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
             </div>
           </div>
 
-          {/* Type Selector  */}
+          {/* Type Selector - hidden */}
+          {false && (
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150 mt-4">
             <span className="text-sm font-medium text-slate-500 flex items-center gap-1.5 dark:text-slate-400">
               <Layers className="w-4 h-4" />
@@ -456,6 +457,7 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
               ))}
             </div>
           </div>
+          )}
 
         </div>
       </div>
