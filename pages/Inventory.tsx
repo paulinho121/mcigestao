@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Search, RefreshCw, Mic, MicOff, MapPin, Printer, Download, Layers } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
 import { inventoryService } from '../services/inventoryService';
@@ -15,6 +15,7 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
   const [loading, setLoading] = useState(true);
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const [selectedBranch, setSelectedBranch] = useState<'CE' | 'SC' | 'SP' | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -98,39 +99,169 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
     return () => clearInterval(intervalId);
   }, [userEmail]); // Dependência apenas do email para reiniciar se mudar logado
 
+  // Normaliza transcrição de voz para códigos de produto
+  // Ex: "pê trezentos cê" -> "p300c" | "b duzentos" -> "b200"
+  const normalizeProductCode = (text: string): string => {
+    const numberWords: Record<string, string> = {
+      'zero': '0', 'um': '1', 'uma': '1', 'dois': '2', 'duas': '2',
+      'três': '3', 'tres': '3', 'quatro': '4', 'cinco': '5',
+      'seis': '6', 'sete': '7', 'oito': '8', 'nove': '9',
+      'dez': '10', 'onze': '11', 'doze': '12', 'treze': '13',
+      'quatorze': '14', 'quinze': '15', 'dezesseis': '16',
+      'dezessete': '17', 'dezoito': '18', 'dezenove': '19',
+      'vinte': '20', 'trinta': '30', 'quarenta': '40',
+      'cinquenta': '50', 'sessenta': '60', 'setenta': '70',
+      'oitenta': '80', 'noventa': '90',
+      'cem': '100', 'cento': '100', 'duzentos': '200', 'duzentas': '200',
+      'trezentos': '300', 'trezentas': '300',
+      'quatrocentos': '400', 'quinhentos': '500', 'seiscentos': '600',
+      'setecentos': '700', 'oitocentos': '800', 'novecentos': '900',
+      'mil': '1000',
+    };
+    // Letras soletradas em português
+    const letterWords: Record<string, string> = {
+      'a': 'a', 'bê': 'b', 'be': 'b', 'cê': 'c', 'ce': 'c',
+      'dê': 'd', 'de': 'd', 'ê': 'e', 'efe': 'f', 'gê': 'g',
+      'ge': 'g', 'agá': 'h', 'aga': 'h', 'i': 'i', 'jota': 'j',
+      'ká': 'k', 'ka': 'k', 'ele': 'l', 'eme': 'm', 'ene': 'n',
+      'o': 'o', 'pê': 'p', 'pe': 'p', 'quê': 'q', 'que': 'q',
+      'erre': 'r', 'ere': 'r', 'esse': 's', 'tê': 't', 'te': 't',
+      'u': 'u', 'vê': 'v', 've': 'v', 'dáblio': 'w', 'xis': 'x',
+      'ípsilon': 'y', 'ipsilon': 'y', 'zê': 'z', 'ze': 'z',
+    };
+
+    let result = text.toLowerCase().trim();
+
+    // Substitui palavras numéricas por dígitos
+    Object.entries(numberWords).forEach(([word, digit]) => {
+      result = result.replace(new RegExp(`\\b${word}\\b`, 'gi'), digit);
+    });
+
+    // Substitui letras soletradas por letras
+    Object.entries(letterWords).forEach(([word, letter]) => {
+      result = result.replace(new RegExp(`\\b${word}\\b`, 'gi'), letter);
+    });
+
+    // Remove espaços entre letras/números que pareçam um código (ex: "p 300 c" → "p300c")
+    // Detecta padrão: letra(s) + número(s) + letra(s) com espaços entre eles
+    const cleaned = result.replace(/\s+/g, ' ').trim();
+    const codePattern = /^[a-z0-9](\s*[a-z0-9])*$/i;
+    if (codePattern.test(cleaned) && cleaned.length <= 20 && !cleaned.includes(' ')) {
+      return cleaned;
+    }
+    // Se parecer um código (curto, mistura letras e números), remove espaços
+    const parts = cleaned.split(' ');
+    if (parts.length <= 4 && parts.every(p => /^[a-z0-9]+$/i.test(p))) {
+      return parts.join('');
+    }
+
+    return cleaned;
+  };
+
   const handleVoiceSearch = () => {
+    // 1. Verificação de Protocolo (Segurança)
+    if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
+      alert("A pesquisa por voz requer uma conexão segura (HTTPS) para funcionar no celular.");
+      return;
+    }
+
+    // 2. Detecção de navegadores específicos
+    const isYandex = navigator.userAgent.includes('YaBrowser');
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+
+    if (isYandex) {
+      alert('O Yandex Browser tem suporte limitado ao reconhecimento de voz.\nPara melhores resultados no Android, use o Google Chrome.');
+      return;
+    }
+
+    // Se já estiver ouvindo, para o reconhecimento
     if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.error("Erro ao parar reconhecimento:", e);
+        }
+        recognitionRef.current = null;
+      }
       setIsListening(false);
-      window.speechSynthesis.cancel();
       return;
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    // 3. Inicialização da API com prefixos
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
-      alert("Seu navegador não suporta pesquisa por voz.");
+    if (!SpeechRecognitionAPI) {
+      let msg = "Seu navegador não suporta pesquisa por voz.";
+      if (isIOS) msg += " No iPhone, use o Safari ou Chrome atualizado.";
+      else msg += " Use o Google Chrome ou Microsoft Edge.";
+      alert(msg);
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'pt-BR';
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    try {
+      const recognition = new SpeechRecognitionAPI();
+      
+      // Configurações otimizadas para mobile
+      recognition.lang = 'pt-BR';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
 
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
+      recognition.onstart = () => {
+        setIsListening(true);
+        // Feedback haptic no Android se disponível
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
+      };
 
-    recognition.onend = () => {
+      recognition.onend = () => {
+        setIsListening(false);
+        recognitionRef.current = null;
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('[VoiceSearch] Erro:', event.error);
+        setIsListening(false);
+        recognitionRef.current = null;
+
+        const errorMap: Record<string, string> = {
+          'not-allowed': 'Permissão de microfone negada. Verifique as configurações de privacidade do seu celular.',
+          'service-not-allowed': 'Serviço de voz não permitido pelo navegador.',
+          'no-speech': 'Nenhuma fala foi detectada. Tente novamente.',
+          'network': 'Erro de rede. A pesquisa por voz requer internet.',
+          'language-not-supported': 'O idioma Português não é suportado neste navegador.',
+          'aborted': 'Reconhecimento interrompido.'
+        };
+
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+          alert(errorMap[event.error] || `Erro no reconhecimento: ${event.error}`);
+        }
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        const normalized = normalizeProductCode(transcript);
+        
+        console.log(`[VoiceSearch] Resultado: "${transcript}" -> "${normalized}"`);
+        setSearchQuery(normalized);
+        setSelectedBranch(null);
+        
+        // Pequena vibração ao sucesso
+        if ('vibrate' in navigator) {
+          navigator.vibrate([30, 50, 30]);
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+
+    } catch (error) {
+      console.error("Falha ao iniciar SpeechRecognition:", error);
+      alert("Não foi possível iniciar o microfone. Tente recarregar a página.");
       setIsListening(false);
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setSearchQuery(transcript);
-    };
-
-    recognition.start();
+    }
   };
 
 
@@ -362,14 +493,14 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
               ) : (
                 <button
                   onClick={handleVoiceSearch}
-                  className={`p-2 rounded-full transition-colors ${isListening
-                    ? 'text-red-500 bg-red-50 hover:bg-red-100'
-                    : 'text-slate-400 hover:text-brand-500 hover:bg-slate-50'
+                  className={`p-3 rounded-full transition-all shadow-sm active:scale-95 ${isListening
+                    ? 'text-red-500 bg-red-100 ring-4 ring-red-500/20'
+                    : 'text-slate-400 hover:text-brand-500 hover:bg-slate-100 dark:bg-slate-700/50 dark:hover:bg-slate-700'
                     }`}
                   title="Pesquisa por voz"
                   disabled={!!selectedBranch}
                 >
-                  {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                  {isListening ? <MicOff className="h-6 w-6 animate-pulse" /> : <Mic className="h-6 w-6" />}
                 </button>
               )}
             </div>
