@@ -192,7 +192,7 @@ function App() {
                     <img src="/santos_logo.png" alt="Santos FC" className="h-6 w-auto" />
                   )}
                   {user.email === 'logistica@mcistore.com.br' && (
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/Fortaleza_Esporte_Clube_logo.png" alt="Fortaleza EC" className="h-6 w-auto" />
+                    <img src="/fortaleza_logo.png" alt="Fortaleza EC" className="h-6 w-auto" />
                   )}
                   {user.email === 'comercial2@mcistore.com.br' && (
                     <img src="/palmeiras_logo.png" alt="Palmeiras" className="h-6 w-auto" />
