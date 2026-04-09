@@ -1366,14 +1366,21 @@ export const inventoryService = {
   },
 
   /**
-   * Update physical location of a product
+   * Update physical location of a product (per branch)
    */
-  async updateLocation(productId: string, location: string): Promise<boolean> {
+  async updateLocation(productId: string, location: string, branch?: 'CE' | 'SC' | 'SP'): Promise<boolean> {
     if (!supabase) return true; // Mock mode success
+
+    const updateData: any = {};
+    if (branch) {
+      updateData[`location_${branch.toLowerCase()}`] = location;
+    } else {
+      updateData.location = location;
+    }
 
     const { error } = await supabase
       .from('products')
-      .update({ location })
+      .update(updateData)
       .eq('id', productId);
 
     if (error) {
@@ -1386,7 +1393,7 @@ export const inventoryService = {
       action_type: 'location_update',
       entity_type: 'product',
       entity_id: productId,
-      details: { location }
+      details: { location, branch }
     });
 
     return true;

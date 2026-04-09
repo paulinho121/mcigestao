@@ -27,6 +27,9 @@ export interface Product {
     price?: number;
     last_purchase_price?: number;
     location?: string;
+    location_ce?: string;
+    location_sc?: string;
+    location_sp?: string;
     created_at?: string;
     updated_at?: string;
 }

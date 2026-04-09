@@ -118,20 +118,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug group-hover:text-brand-600 transition-colors break-words line-clamp-2 dark:text-slate-100 dark:group-hover:text-brand-400">
                         {product.name}
                     </h3>
-                    
-                    {product.location && (
-                        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-brand-700 bg-brand-50 px-2 py-1 rounded-md mt-2 dark:bg-brand-900/30 dark:text-brand-400 w-fit border border-brand-100 dark:border-brand-800">
-                            <MapPin className="w-3 h-3" />
-                            Local: {product.location}
-                        </div>
-                    )}
                 </div>
 
                 <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center text-green-700 dark:text-green-500">
-                            <MapPin className="w-4 h-4 mr-2 text-green-500" />
-                            <span>Ceará</span>
+                        <div className="flex items-center text-emerald-600 dark:text-emerald-500">
+                            <MapPin className="w-4 h-4 mr-2 text-emerald-500" />
+                            <div className="flex flex-col">
+                                <span className="leading-none font-bold">Ceará</span>
+                                {product.location_ce && (
+                                    <span className="text-[9px] font-bold uppercase text-slate-400 tracking-tighter mt-1 leading-none">
+                                        Loc: {product.location_ce}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                         <span className={clsx("font-mono font-medium", product.stock_ce > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
                             {product.stock_ce}
@@ -140,16 +140,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center text-blue-700 dark:text-blue-500">
                             <MapPin className="w-4 h-4 mr-2 text-blue-500" />
-                            <span>Santa Catarina</span>
+                            <div className="flex flex-col">
+                                <span className="leading-none font-bold">Santa Catarina</span>
+                                {product.location_sc && (
+                                    <span className="text-[9px] font-bold uppercase text-slate-400 tracking-tighter mt-1 leading-none">
+                                        Loc: {product.location_sc}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                         <span className={clsx("font-mono font-medium", product.stock_sc > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
                             {product.stock_sc}
                         </span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center text-red-700 dark:text-red-500">
-                            <MapPin className="w-4 h-4 mr-2 text-red-500" />
-                            <span>São Paulo</span>
+                        <div className="flex items-center text-rose-600 dark:text-rose-500">
+                            <MapPin className="w-4 h-4 mr-2 text-rose-500" />
+                            <div className="flex flex-col">
+                                <span className="leading-none font-bold">São Paulo</span>
+                                {product.location_sp && (
+                                    <span className="text-[9px] font-bold uppercase text-slate-400 tracking-tighter mt-1 leading-none">
+                                        Loc: {product.location_sp}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                         <span className={clsx("font-mono font-medium", product.stock_sp > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
                             {product.stock_sp}
@@ -265,12 +279,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                                 {product.name}
                             </h2>
 
-                            {product.location && (
-                                <div className="flex items-center gap-2 text-sm font-bold text-brand-600 mb-6 bg-brand-50 dark:bg-brand-900/20 px-3 py-1.5 rounded-xl w-fit">
-                                    <MapPin className="w-4 h-4" />
-                                    Localização Física: {product.location}
-                                </div>
-                            )}
+                            <div className="h-6" />
 
                             {/* Quantities Section - Highlighted */}
                             <div className="grid grid-cols-1 gap-4 mb-8">
@@ -286,17 +295,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-2">
-                                        <div className="flex flex-col items-center p-2 rounded-lg bg-green-500/10 border border-green-500/20">
-                                            <span className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase">Ceará</span>
+                                        <div className="flex flex-col items-center p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Ceará</span>
                                             <span className="text-lg font-bold text-slate-900 dark:text-white">{product.stock_ce}</span>
+                                            {product.location_ce && (
+                                                <span className="text-[10px] font-black text-emerald-600/60 uppercase truncate w-full text-center mt-0.5 tracking-tighter" title={product.location_ce}>{product.location_ce}</span>
+                                            )}
                                         </div>
                                         <div className="flex flex-col items-center p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
                                             <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">S. Catarina</span>
                                             <span className="text-lg font-bold text-slate-900 dark:text-white">{product.stock_sc}</span>
+                                            {product.location_sc && (
+                                                <span className="text-[10px] font-black text-blue-600/60 uppercase truncate w-full text-center mt-0.5 tracking-tighter" title={product.location_sc}>{product.location_sc}</span>
+                                            )}
                                         </div>
-                                        <div className="flex flex-col items-center p-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                                            <span className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase">S. Paulo</span>
+                                        <div className="flex flex-col items-center p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
+                                            <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase">S. Paulo</span>
                                             <span className="text-lg font-bold text-slate-900 dark:text-white">{product.stock_sp}</span>
+                                            {product.location_sp && (
+                                                <span className="text-[10px] font-black text-rose-600/60 uppercase truncate w-full text-center mt-0.5 tracking-tighter" title={product.location_sp}>{product.location_sp}</span>
+                                            )}
                                         </div>
                                     </div>
 

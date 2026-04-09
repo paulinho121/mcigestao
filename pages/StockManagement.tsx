@@ -33,7 +33,7 @@ export const StockManagement: React.FC<StockManagementProps> = ({ userEmail }) =
   const [movements, setMovements] = useState<InternalMovement[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMovements, setLoadingMovements] = useState(false);
-  const [editingLocation, setEditingLocation] = useState<string | null>(null);
+  const [editingLocation, setEditingLocation] = useState<{ id: string, branch: 'CE' | 'SC' | 'SP' } | null>(null);
   const [locationValue, setLocationValue] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [actionType, setActionType] = useState<'amostra' | 'demonstracao' | null>(null);
@@ -82,10 +82,16 @@ export const StockManagement: React.FC<StockManagementProps> = ({ userEmail }) =
     fetchMovements();
   }, [fetchMovements]);
 
-  const handleUpdateLocation = async (productId: string) => {
-    const success = await inventoryService.updateLocation(productId, locationValue);
+  const handleUpdateLocation = async (productId: string, branch: 'CE' | 'SC' | 'SP') => {
+    const success = await inventoryService.updateLocation(productId, locationValue, branch);
     if (success) {
-      setProducts(prev => prev.map(p => p.id === productId ? { ...p, location: locationValue } : p));
+      setProducts(prev => prev.map(p => {
+        if (p.id === productId) {
+          const col = `location_${branch.toLowerCase()}` as keyof Product;
+          return { ...p, [col]: locationValue };
+        }
+        return p;
+      }));
       setEditingLocation(null);
       showStatus('Localização atualizada com sucesso!', 'success');
     } else {
@@ -217,44 +223,57 @@ export const StockManagement: React.FC<StockManagementProps> = ({ userEmail }) =
                             <span className="font-bold text-slate-900 dark:text-white">{product.total}</span>
                           </div>
                           
-                          {/* Location Field */}
-                          <div className="flex items-center gap-2 text-sm">
-                            <MapPin className="w-4 h-4 text-brand-500" />
-                            <span className="text-slate-500 dark:text-slate-400">Localização:</span>
-                            {editingLocation === product.id ? (
-                              <div className="flex items-center gap-1 animate-in fade-in zoom-in-95 duration-200">
-                                <input
-                                  autoFocus
-                                  className="w-32 bg-slate-50 border border-slate-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-brand-500 outline-none dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                                  value={locationValue}
-                                  onChange={(e) => setLocationValue(e.target.value)}
-                                  onKeyDown={(e) => e.key === 'Enter' && handleUpdateLocation(product.id)}
-                                />
-                                <button 
-                                  onClick={() => handleUpdateLocation(product.id)}
-                                  className="p-1 text-emerald-600 hover:bg-emerald-50 rounded dark:hover:bg-emerald-900/30"
-                                >
-                                  <Save className="w-4 h-4" />
-                                </button>
-                                <button 
-                                  onClick={() => setEditingLocation(null)}
-                                  className="p-1 text-slate-400 hover:bg-slate-100 rounded dark:hover:bg-slate-700"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                          {(['CE', 'SC', 'SP'] as const).map(branch => {
+                            const isEditing = editingLocation?.id === product.id && editingLocation?.branch === branch;
+                            const locKey = `location_${branch.toLowerCase()}` as keyof Product;
+                            const locationValueFromProduct = product[locKey] as string;
+                            const branchColor = branch === 'CE' ? 'text-emerald-600' : branch === 'SP' ? 'text-rose-600' : 'text-blue-600';
+                            
+                            return (
+                              <div key={branch} className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5">
+                                  <MapPin className={cn("w-3.5 h-3.5", branchColor)} />
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{branch}</span>
+                                </div>
+                                {isEditing ? (
+                                  <div className="flex items-center gap-1 animate-in fade-in zoom-in-95 duration-200">
+                                    <input
+                                      autoFocus
+                                      className="flex-grow bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-brand-500 outline-none dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                                      value={locationValue}
+                                      onChange={(e) => setLocationValue(e.target.value)}
+                                      onKeyDown={(e) => e.key === 'Enter' && handleUpdateLocation(product.id, branch)}
+                                    />
+                                    <button 
+                                      onClick={() => handleUpdateLocation(product.id, branch)}
+                                      className="p-1 text-emerald-600 hover:bg-emerald-50 rounded dark:hover:bg-emerald-900/30"
+                                    >
+                                      <Save className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button 
+                                      onClick={() => setEditingLocation(null)}
+                                      className="p-1 text-slate-400 hover:bg-slate-100 rounded dark:hover:bg-slate-700"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button 
+                                    onClick={() => {
+                                      setEditingLocation({ id: product.id, branch });
+                                      setLocationValue(locationValueFromProduct || '');
+                                    }}
+                                    className="text-sm font-bold text-slate-800 dark:text-white hover:text-brand-600 underline decoration-dotted underline-offset-4 transition-colors text-left truncate"
+                                    title={locationValueFromProduct || 'Não definida'}
+                                  >
+                                    {locationValueFromProduct || 'Definir'}
+                                  </button>
+                                )}
                               </div>
-                            ) : (
-                              <button 
-                                onClick={() => {
-                                  setEditingLocation(product.id);
-                                  setLocationValue(product.location || '');
-                                }}
-                                className="font-semibold text-slate-900 dark:text-white hover:text-brand-600 underline decoration-dotted underline-offset-4 transition-colors"
-                              >
-                                {product.location || 'Não definida'}
-                              </button>
-                            )}
-                          </div>
+                            );
+                          })}
+                        </div>
                         </div>
                       </div>
 
@@ -330,14 +349,24 @@ export const StockManagement: React.FC<StockManagementProps> = ({ userEmail }) =
                           {move.product_name}
                         </div>
                         <div className="flex items-center justify-between mt-2">
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest",
-                            move.type === 'amostra' ? "bg-indigo-100 text-indigo-700" : "bg-amber-100 text-amber-700"
-                          )}>
-                            {move.type}
-                          </span>
+                          <div className="flex gap-2">
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest",
+                              move.type === 'amostra' ? "bg-indigo-100 text-indigo-700" : "bg-amber-100 text-amber-700"
+                            )}>
+                              {move.type}
+                            </span>
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest",
+                              move.branch === 'CE' ? "bg-emerald-100 text-emerald-700" :
+                              move.branch === 'SP' ? "bg-rose-100 text-rose-700" :
+                              "bg-blue-100 text-blue-700"
+                            )}>
+                              {move.branch}
+                            </span>
+                          </div>
                           <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                             {move.quantity} x {move.branch}
+                             {move.quantity} un
                           </span>
                         </div>
                         {move.observations && (
@@ -399,7 +428,12 @@ export const StockManagement: React.FC<StockManagementProps> = ({ userEmail }) =
                       className={cn(
                         "py-3 rounded-2xl font-black text-sm transition-all border-2",
                         actionBranch === branch 
-                          ? "bg-brand-600 border-brand-600 text-white shadow-xl shadow-brand-600/20 scale-105"
+                          ? cn(
+                              "text-white shadow-xl scale-105 border-transparent",
+                              branch === 'CE' ? "bg-emerald-600 shadow-emerald-600/20" :
+                              branch === 'SP' ? "bg-rose-600 shadow-rose-600/20" :
+                              "bg-blue-600 shadow-blue-600/20"
+                            )
                           : "bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400"
                       )}
                     >

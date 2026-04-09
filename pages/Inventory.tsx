@@ -529,7 +529,7 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
                   key={branch}
                   onClick={() => handleBranchSelect(branch)}
                   className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedBranch === branch
-                    ? 'bg-brand-600 text-white shadow-md ring-2 ring-brand-600 ring-offset-2'
+                    ? `text-white shadow-md ring-2 ring-offset-2 ${branch === 'CE' ? 'bg-emerald-600 ring-emerald-600' : branch === 'SP' ? 'bg-rose-600 ring-rose-600' : 'bg-blue-600 ring-blue-600'}`
                     : 'bg-white text-slate-600 border border-slate-200 hover:border-brand-200 hover:text-brand-600 hover:bg-brand-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-brand-400'
                     }`}
                 >
