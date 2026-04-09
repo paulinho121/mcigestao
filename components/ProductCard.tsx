@@ -114,9 +114,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     </div>
                 </div>
 
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug mb-4 group-hover:text-brand-600 transition-colors break-words line-clamp-2 dark:text-slate-100 dark:group-hover:text-brand-400">
-                    {product.name}
                 </h3>
+                
+                {product.location && (
+                    <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-brand-700 bg-brand-50 px-2 py-1 rounded-md mb-4 dark:bg-brand-900/30 dark:text-brand-400 w-fit border border-brand-100 dark:border-brand-800">
+                        <MapPin className="w-3 h-3" />
+                        Local: {product.location}
+                    </div>
+                )}
 
                 <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
@@ -252,9 +257,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                                 </button>
                             </div>
 
-                            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white leading-tight mb-6">
+                            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white leading-tight mb-2">
                                 {product.name}
                             </h2>
+
+                            {product.location && (
+                                <div className="flex items-center gap-2 text-sm font-bold text-brand-600 mb-6 bg-brand-50 dark:bg-brand-900/20 px-3 py-1.5 rounded-xl w-fit">
+                                    <MapPin className="w-4 h-4" />
+                                    Localização Física: {product.location}
+                                </div>
+                            )}
 
                             {/* Quantities Section - Highlighted */}
                             <div className="grid grid-cols-1 gap-4 mb-8">

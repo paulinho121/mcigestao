@@ -26,8 +26,21 @@ export interface Product {
     abc_category?: 'A' | 'B' | 'C';
     price?: number;
     last_purchase_price?: number;
+    location?: string;
     created_at?: string;
     updated_at?: string;
+}
+
+export interface InternalMovement {
+    id: string;
+    product_id: string;
+    product_name: string;
+    type: 'amostra' | 'demonstracao';
+    quantity: number;
+    branch: 'CE' | 'SC' | 'SP';
+    user_email: string;
+    observations?: string;
+    created_at: string;
 }
 
 export interface Reservation {

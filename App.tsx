@@ -14,14 +14,15 @@ import { ActivityLogs } from './pages/ActivityLogs';
 import { Tracking } from './pages/Tracking';
 import { Catalogs } from './pages/Catalogs';
 import { Diretoria } from './pages/Diretoria';
+import { StockManagement } from './pages/StockManagement';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
-import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, ShoppingBag, FileText, Sun, Moon, Users, Tag, Truck, BookOpen } from 'lucide-react';
+import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, ShoppingBag, FileText, Sun, Moon, Users, Tag, Truck, BookOpen, MapPin } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 
-type Tab = 'inventory' | 'reservations' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria';
+type Tab = 'inventory' | 'reservations' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -357,6 +358,18 @@ function App() {
                   <span className="hidden sm:inline">Gestão Importação</span>
                   <span className="sm:hidden text-xs">Gest. Import.</span>
                 </button>
+
+                <button
+                  onClick={() => setActiveTab('stock_management')}
+                  className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-3 font-semibold transition-all whitespace-nowrap flex-shrink-0 ${activeTab === 'stock_management'
+                    ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50 dark:bg-brand-900/20 dark:text-brand-400'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                >
+                  <MapPin className="w-5 h-5" />
+                  <span className="hidden sm:inline">Gestão de Estoque</span>
+                  <span className="sm:hidden text-xs">Gestão</span>
+                </button>
               </>
             )}
 
@@ -409,6 +422,7 @@ function App() {
       {activeTab === 'tracking' && <Tracking />}
       {activeTab === 'catalogs' && <Catalogs />}
       {activeTab === 'diretoria' && <Diretoria />}
+      {activeTab === 'stock_management' && isMaster && <StockManagement userEmail={user.email} />}
       <Analytics />
     </div>
   );

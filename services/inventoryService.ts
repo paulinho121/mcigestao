@@ -1363,5 +1363,119 @@ export const inventoryService = {
       quantity: totalQuantity,
       expectedDate: earliestDate
     };
+  },
+
+  /**
+   * Update physical location of a product
+   */
+  async updateLocation(productId: string, location: string): Promise<boolean> {
+    if (!supabase) return true; // Mock mode success
+
+    const { error } = await supabase
+      .from('products')
+      .update({ location })
+      .eq('id', productId);
+
+    if (error) {
+      console.error('Error updating location:', error);
+      return false;
+    }
+
+    // Log the change
+    await logService.logActivity({
+      action_type: 'location_update',
+      entity_type: 'product',
+      entity_id: productId,
+      details: { location }
+    });
+
+    return true;
+  },
+
+  /**
+   * Record an internal movement (sample/demo)
+   */
+  async recordInternalMovement(movement: {
+    productId: string;
+    productName: string;
+    type: 'amostra' | 'demonstracao';
+    quantity: number;
+    branch: 'CE' | 'SC' | 'SP';
+    userEmail: string;
+    observations?: string;
+  }): Promise<boolean> {
+    if (!supabase) return true; // Mock mode success
+
+    // 1. Record the movement
+    const { error: moveError } = await supabase
+      .from('internal_movements')
+      .insert({
+        product_id: movement.productId,
+        product_name: movement.productName,
+        type: movement.type,
+        quantity: movement.quantity,
+        branch: movement.branch,
+        user_email: movement.userEmail,
+        observations: movement.observations
+      });
+
+    if (moveError) {
+      console.error('Error recording movement:', moveError);
+      return false;
+    }
+
+    // 2. Adjust stock
+    const branchColumn = `stock_${movement.branch.toLowerCase()}`;
+    
+    // Get current stock
+    const { data: product } = await supabase
+      .from('products')
+      .select(`*`)
+      .eq('id', movement.productId)
+      .single();
+
+    if (product) {
+      const currentStock = product[branchColumn] || 0;
+      const newStock = Math.max(0, currentStock - movement.quantity);
+      
+      const stockUpdates: any = {
+        [branchColumn]: newStock
+      };
+
+      await supabase
+        .from('products')
+        .update(stockUpdates)
+        .eq('id', movement.productId);
+    }
+
+    // 3. Log the activity
+    await logService.logActivity({
+      action_type: 'internal_movement',
+      entity_type: 'product',
+      entity_id: movement.productId,
+      details: movement
+    });
+
+    return true;
+  },
+
+  /**
+   * Get recent internal movements
+   */
+  async getInternalMovements(limit = 100): Promise<any[]> {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from('internal_movements')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching movements:', error);
+      return [];
+    }
+
+    return data;
   }
 };
