@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Login } from './pages/Login';
 import { Inventory } from './pages/Inventory';
 import { Reservations } from './pages/Reservations';

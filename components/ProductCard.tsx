@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Product, Reservation } from '../types';
 import { MapPin, Box, AlertCircle, Package, Calendar, FileText, Share2 } from 'lucide-react';
 import { clsx } from 'clsx';
