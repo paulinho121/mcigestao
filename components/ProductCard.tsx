@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product, Reservation } from '../types';
 import { MapPin, Box, AlertCircle, Package, Calendar, FileText, Share2 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -114,14 +114,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     </div>
                 </div>
 
-                </h3>
-                
-                {product.location && (
-                    <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-brand-700 bg-brand-50 px-2 py-1 rounded-md mb-4 dark:bg-brand-900/30 dark:text-brand-400 w-fit border border-brand-100 dark:border-brand-800">
-                        <MapPin className="w-3 h-3" />
-                        Local: {product.location}
-                    </div>
-                )}
+                <div className="mb-4">
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug group-hover:text-brand-600 transition-colors break-words line-clamp-2 dark:text-slate-100 dark:group-hover:text-brand-400">
+                        {product.name}
+                    </h3>
+                    
+                    {product.location && (
+                        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-brand-700 bg-brand-50 px-2 py-1 rounded-md mt-2 dark:bg-brand-900/30 dark:text-brand-400 w-fit border border-brand-100 dark:border-brand-800">
+                            <MapPin className="w-3 h-3" />
+                            Local: {product.location}
+                        </div>
+                    )}
+                </div>
 
                 <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
