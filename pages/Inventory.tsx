@@ -9,6 +9,8 @@ interface InventoryProps {
   userEmail: string;
 }
 
+import { ProductCarousel } from '../components/ProductCarousel';
+
 export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
@@ -475,13 +477,13 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
             </div>
             <input
               type="text"
-              className={`block w-full pl-14 pr-14 py-3 sm:py-4 border-2 border-slate-200 rounded-2xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all text-base sm:text-lg shadow-sm group-hover:border-brand-200 dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:placeholder-slate-500 ${selectedBranch ? 'bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-500' : ''}`}
-              placeholder={isListening ? "Ouvindo..." : selectedBranch ? `Filtrando por filial ${selectedBranch} (Limpe o filtro para buscar)` : "Ex: 1896, Sony, Tripé..."}
+              className={`block w-full pl-12 sm:pl-14 pr-12 sm:pr-14 py-3.5 sm:py-4 border-2 border-slate-200 rounded-2xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all text-base sm:text-lg shadow-sm group-hover:border-brand-200 dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:placeholder-slate-500 ${selectedBranch ? 'bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-500' : ''}`}
+              placeholder={isListening ? "Ouvindo..." : selectedBranch ? `Filtrando por filial ${selectedBranch}` : "Ex: 1896, Sony, Tripé..."}
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 if (e.target.value && selectedBranch) {
-                  setSelectedBranch(null); // Clear branch filter if user starts typing
+                  setSelectedBranch(null);
                 }
               }}
               disabled={!!selectedBranch}
@@ -513,45 +515,47 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
               Filtrar por Filial:
             </span>
 
-            <div className="flex flex-wrap justify-center gap-2">
-              <button
-                onClick={() => handleBranchSelect(null)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedBranch === null
-                  ? 'bg-slate-800 text-white shadow-md ring-2 ring-slate-800 ring-offset-2 dark:bg-slate-700 dark:ring-slate-700'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700'
-                  }`}
-              >
-                Todas (Busca)
-              </button>
-
-              {(['CE', 'SC', 'SP'] as const).map((branch) => (
+            <div className="w-full overflow-x-auto pb-2 -mb-2 no-scrollbar">
+              <div className="flex items-center justify-center min-w-max gap-2 px-1">
                 <button
-                  key={branch}
-                  onClick={() => handleBranchSelect(branch)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${selectedBranch === branch
-                    ? `text-white shadow-md ring-2 ring-offset-2 ${branch === 'CE' ? 'bg-emerald-600 ring-emerald-600' : branch === 'SP' ? 'bg-rose-600 ring-rose-600' : 'bg-blue-600 ring-blue-600'}`
-                    : 'bg-white text-slate-600 border border-slate-200 hover:border-brand-200 hover:text-brand-600 hover:bg-brand-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-brand-400'
+                  onClick={() => handleBranchSelect(null)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap shadow-sm ${selectedBranch === null
+                    ? 'bg-slate-800 text-white shadow-slate-200 dark:bg-slate-700 dark:shadow-none'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700'
                     }`}
                 >
-                  {branch}
+                  Todas (Busca)
                 </button>
-              ))}
 
-              {/* Botão de Sincronização (Visível para usuários Master) */}
-              {isMasterUser(userEmail) && (
-                <button
-                  onClick={() => handleSyncSC()}
-                  disabled={syncing}
-                  className={`ml-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-2 ${syncing
-                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                    : 'bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800'
-                    }`}
-                  title="Sincronizar Estoque SC (API)"
-                >
-                  <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
-                  {syncing ? 'Sincronizando...' : 'Sync SC'}
-                </button>
-              )}
+                {(['CE', 'SC', 'SP'] as const).map((branch) => (
+                  <button
+                    key={branch}
+                    onClick={() => handleBranchSelect(branch)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap shadow-sm ${selectedBranch === branch
+                      ? `text-white ${branch === 'CE' ? 'bg-emerald-600' : branch === 'SP' ? 'bg-rose-600' : 'bg-blue-600'}`
+                      : 'bg-white text-slate-600 border border-slate-200 hover:border-brand-200 hover:text-brand-600 hover:bg-brand-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 dark:hover:text-brand-400'
+                      }`}
+                  >
+                    {branch}
+                  </button>
+                ))}
+
+                {/* Botão de Sincronização (Visível para usuários Master) */}
+                {isMasterUser(userEmail) && (
+                  <button
+                    onClick={() => handleSyncSC()}
+                    disabled={syncing}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-2 whitespace-nowrap ${syncing
+                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : 'bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800'
+                      }`}
+                    title="Sincronizar Estoque SC (API)"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
+                    {syncing ? 'Sincronizando...' : 'Sync SC'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -595,6 +599,19 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
 
       {/* Content Area */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Featured Carousel (Only shown on initial landing) */}
+        {!searchQuery && !selectedBranch && !loading && (
+          <div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-1000">
+            <div className="text-center mb-10">
+              <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2 tracking-tight">Destaques do Catálogo</h3>
+              <p className="text-base text-slate-500 dark:text-slate-400">Produtos selecionados para facilitar sua consulta rápida</p>
+              <div className="w-12 h-1 bg-brand-500 rounded-full mx-auto mt-4 opacity-50"></div>
+            </div>
+            <ProductCarousel />
+          </div>
+        )}
+
         {loading && products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <svg className="animate-spin h-8 w-8 text-brand-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -605,32 +622,35 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
           </div>
         ) : displayedProducts.length > 0 ? (
           <>
-            <div className="flex justify-between items-center mb-6">
-              <div className="text-sm text-slate-500 dark:text-slate-400">
-                {selectedBranch
-                  ? `Exibindo produtos com estoque em ${selectedBranch}`
-                  : `Resultados da busca`
-                }
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="text-sm font-medium text-slate-700 bg-slate-100 px-3 py-1 rounded-full dark:bg-slate-800 dark:text-slate-300">
-                  {displayedProducts.length} produtos encontrados
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+              <div className="flex items-center justify-between sm:justify-start gap-3">
+                <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+                  {selectedBranch
+                    ? `Estoque em ${selectedBranch}`
+                    : `Resultados da busca`
+                  }
                 </div>
-                <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                <div className="text-[10px] sm:text-xs font-bold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-full border border-brand-100 dark:bg-brand-900/20 dark:text-brand-400 dark:border-brand-800/50">
+                  {displayedProducts.length} itens
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+                <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm min-w-max">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 flex items-center gap-1">
-                    <Download className="w-3 h-3" /> CSV:
+                    <Download className="w-3 h-3" /> <span className="hidden xs:inline">CSV:</span>
                   </span>
                   <button
                     onClick={() => handleDownloadCSV()}
-                    className="px-2 py-1 text-[10px] font-bold bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded hover:bg-green-50 hover:text-green-600 transition-colors"
+                    className="px-2 py-1 text-[10px] font-bold bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
                   >
-                    Geral
+                    Tudo
                   </button>
                   {(['CE', 'SC', 'SP'] as const).map(branch => (
                     <button
                       key={branch}
                       onClick={() => handleDownloadCSV(branch)}
-                      className="px-2 py-1 text-[10px] font-bold bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded hover:bg-green-50 hover:text-green-600 transition-colors"
+                      className="px-2 py-1 text-[10px] font-bold bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
                     >
                       {branch}
                     </button>
@@ -638,11 +658,11 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
                 </div>
                 <button
                   onClick={handlePrint}
-                  className="p-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 transition-all flex items-center gap-2 shadow-sm group"
-                  title="Imprimir relatório atual"
+                  className="p-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 transition-all flex items-center gap-2 shadow-sm group min-w-max"
+                  title="Imprimir relatório"
                 >
                   <Printer className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  <span className="text-sm font-medium">Imprimir</span>
+                  <span className="hidden sm:inline text-sm font-medium">Imprimir</span>
                 </button>
               </div>
             </div>
@@ -653,7 +673,7 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
             </div>
           </>
         ) : (
-          !loading && (
+          !loading && (searchQuery || selectedBranch) && (
             <div className="text-center py-20">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4 dark:bg-slate-800">
                 <Search className="w-8 h-8 text-slate-400" />

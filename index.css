@@ -11,11 +11,11 @@
 }
 
 /* Custom utility classes */
-.scrollbar-hide::-webkit-scrollbar {
+.scrollbar-hide, .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
-.scrollbar-hide {
+.scrollbar-hide, .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
