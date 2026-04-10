@@ -123,6 +123,31 @@ export const inventoryService = {
   },
 
   /**
+   * Fetch the most recently added products
+   */
+  async getLatestProducts(limit = 10): Promise<Product[]> {
+    if (!supabase) {
+      // Mock mode: Sort by ID as a proxy for "latest" or just return first N
+      return cleanAndDeduplicate([...MOCK_INVENTORY])
+        .sort((a, b) => (b.created_at || b.id).localeCompare(a.created_at || a.id))
+        .slice(0, limit);
+    }
+
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Supabase error fetching latest products:', error);
+      return [];
+    }
+
+    return cleanAndDeduplicate(data || []);
+  },
+
+  /**
    * Fetch a single product by ID
    */
   async getProductById(id: string): Promise<Product | null> {

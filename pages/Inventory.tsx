@@ -9,7 +9,7 @@ interface InventoryProps {
   userEmail: string;
 }
 
-import { ProductCarousel } from '../components/ProductCarousel';
+import { RecentItemsCarousel } from '../components/RecentItemsCarousel';
 
 export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -604,11 +604,11 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
         {!searchQuery && !selectedBranch && !loading && (
           <div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-1000">
             <div className="text-center mb-10">
-              <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2 tracking-tight">Destaques do Catálogo</h3>
-              <p className="text-base text-slate-500 dark:text-slate-400">Produtos selecionados para facilitar sua consulta rápida</p>
+              <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2 tracking-tight">Novidades no Estoque</h3>
+              <p className="text-base text-slate-500 dark:text-slate-400">Os últimos itens que chegaram ao nosso inventário global</p>
               <div className="w-12 h-1 bg-brand-500 rounded-full mx-auto mt-4 opacity-50"></div>
             </div>
-            <ProductCarousel />
+            <RecentItemsCarousel />
           </div>
         )}
 
