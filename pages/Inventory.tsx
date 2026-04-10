@@ -608,7 +608,7 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
               <p className="text-base text-slate-500 dark:text-slate-400">Os últimos itens que chegaram ao nosso inventário global</p>
               <div className="w-12 h-1 bg-brand-500 rounded-full mx-auto mt-4 opacity-50"></div>
             </div>
-            <RecentItemsCarousel />
+            <RecentItemsCarousel onProductClick={(id) => setSearchQuery(id)} />
           </div>
         )}
 

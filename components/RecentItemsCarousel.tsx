@@ -3,7 +3,11 @@ import { Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
 import { ChevronLeft, ChevronRight, ShoppingBag, PlusCircle, Calendar } from 'lucide-react';
 
-export const RecentItemsCarousel = () => {
+interface RecentItemsCarouselProps {
+  onProductClick?: (productId: string) => void;
+}
+
+export const RecentItemsCarousel = ({ onProductClick }: RecentItemsCarouselProps) => {
   const [latestProducts, setLatestProducts] = useState<Product[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -125,7 +129,7 @@ export const RecentItemsCarousel = () => {
           <div className="flex items-center justify-between mt-auto">
             <button 
               className="flex items-center gap-2 px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold rounded-2xl hover:bg-brand-500 dark:hover:bg-brand-500 hover:text-white transition-all transform active:scale-95 shadow-xl shadow-slate-900/10"
-              onClick={() => window.location.href = `/inventory?search=${current.id}`}
+              onClick={() => onProductClick?.(current.id)}
             >
               Ver Detalhes
             </button>
