@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
-import { ChevronLeft, ChevronRight, Package, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const ProductCarousel = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
