@@ -129,7 +129,7 @@ export const nfeService = {
    */
   async processNfe(nfe: NfeData): Promise<boolean> {
     // 1. Check if already processed (Idempotency)
-    const { data: existing } = await supabase
+    const { data: existing } = await supabase!
       .from('nfe_automation_history')
       .select('id')
       .eq('access_key', nfe.access_key)
@@ -223,22 +223,26 @@ export const nfeService = {
     // 4. Log the operation
     const status = itemsAdjusted === 0 && processedItems.length > 0 ? 'skipped' : 'processed';
     
-    await supabase.from('nfe_automation_history').insert({
+    await supabase!.from('nfe_automation_history').insert({
       access_key: nfe.access_key,
       nfe_number: nfe.nfe_number,
       series: nfe.series,
       cnpj_monitored: branch === 'CE' ? MONITORED_CNPJS.CE : MONITORED_CNPJS.SP,
       branch: branch,
       operation_type: operation,
-      raw_data: nfe,
+      raw_data: nfe as any,
       status: status
     });
 
     // 5. System Log
-    await logService.logCustom({
-      type: 'NFE_AUTO',
-      message: `Processamento automático NFe ${nfe.nfe_number} (${operation}) na filial ${branch}`,
-      details: { access_key: nfe.access_key, items_count: nfe.items.length }
+    await logService.logActivity({
+      action_type: 'NFE_AUTO',
+      entity_type: 'STOCK_SYNC',
+      details: { 
+        message: `Processamento automático NFe ${nfe.nfe_number} (${operation}) na filial ${branch}`,
+        access_key: nfe.access_key, 
+        items_count: nfe.items.length 
+      }
     });
 
     // 6. WhatsApp Notification for Sales (Senior Feature)

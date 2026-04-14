@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { predictionService, StockPrediction } from '../services/predictionService';
-import { TrendingDown, AlertTriangle, CheckCircle, Info, Calendar, ArrowRight } from 'lucide-react';
+import { TrendingDown, AlertTriangle, CheckCircle, Calendar } from 'lucide-react';
 
 interface StockInsightsProps {
   branch: 'CE' | 'SC' | 'SP';

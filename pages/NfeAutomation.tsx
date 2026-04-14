@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { nfeService } from '../services/nfeService';
 import { RefreshCw, CheckCircle, AlertCircle, Clock, FileText, ArrowRight, ArrowLeft, Search, Filter, ShieldCheck } from 'lucide-react';
-import { logService } from '../services/logService';
+
 
 interface NfeLog {
   id: string;
