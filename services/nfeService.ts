@@ -167,15 +167,18 @@ export const nfeService = {
     // Importação: 3xxx (Entrada)
     const VALID_CFOP_RULES = {
       entry: [
-        /^[12]909$/, // Retorno Locação
-        /^[12]913$/, // Retorno Demonstração
-        /^3/         // Importação
+        /^[12]10/, // Compras (Industrialização/Comercialização)
+        /^[12]20/, // Devolução de Venda
+        /^[12]40/, // Compra com ST
+        /^[12]90[89]$/, // Retorno de Locação (1908, 1909, 2908, 2909)
+        /^[12]91[23]$/, // Retorno de Demonstração (1912, 1913, 2912, 2913)
+        /^3/            // Importação
       ],
       exit: [
-        /^510/, /^610/, /^540/, /^640/, // Vendas
-        /^[56]908$/, // Remessa Locação
-        /^[56]910$/, // Brinde (Sempre sai)
-        /^[56]912$/  // Remessa Demonstração
+        /^[56]10/, /^[56]40/, // Vendas (Produção/Terceiros/ST)
+        /^[56]908$/,          // Remessa Locação
+        /^[56]910$/,          // Brinde / Doação
+        /^[56]912$/           // Remessa Demonstração
       ]
     };
 
