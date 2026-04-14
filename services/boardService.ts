@@ -353,7 +353,8 @@ export const boardService = {
     },
 
     async updatePrices(priceData: { code: string, price: number }[]): Promise<{ success: number, error: number }> {
-        if (!supabase) return { success: 0, error: priceData.length };
+        const client = supabase;
+        if (!client) return { success: 0, error: priceData.length };
 
         let successCount = 0;
         let errorCount = 0;
@@ -366,7 +367,7 @@ export const boardService = {
             await Promise.all(batch.map(async (item) => {
                 try {
                     // Try exact ID or with .0 suffix
-                    const { error } = await supabase
+                    const { error } = await client
                         .from('products')
                         .update({ price: item.price })
                         .or(`id.eq.${item.code},id.eq.${item.code}.0`);

@@ -4,7 +4,7 @@ import {
     TrendingUp, AlertTriangle, DollarSign, ArrowUpRight,
     LayoutDashboard, History,
     RefreshCw, Layers, Download, PieChart as PieIcon,
-    Upload, CheckCircle2
+    Upload, CheckCircle2, Edit
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -41,6 +41,11 @@ export const Diretoria = () => {
     const [csvFile, setCsvFile] = useState<File | null>(null);
     const [importResult, setImportResult] = useState<{ success: number, error: number } | null>(null);
     const [isImporting, setIsImporting] = useState(false);
+    const [pricingMode, setPricingMode] = useState<'csv' | 'manual'>('csv');
+    const [manualSearch, setManualSearch] = useState('');
+    const [manualProducts, setManualProducts] = useState<any[]>([]);
+    const [isSearchingManual, setIsSearchingManual] = useState(false);
+    const [updateStatus, setUpdateStatus] = useState<{id: string, status: 'idle'|'saving'|'success'|'error'}>({id: '', status: 'idle'});
 
     // Fetch real-time data when authenticated and tab changes
     useEffect(() => {
@@ -189,6 +194,46 @@ export const Diretoria = () => {
                 setIsImporting(false);
             }
         });
+    };
+
+    const handleManualSearch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!manualSearch.trim() || !supabase) return;
+
+        setIsSearchingManual(true);
+        try {
+            const { data, error } = await supabase
+                .from('products')
+                .select('id, name, price, brand')
+                .or(`id.ilike.%${manualSearch}%,name.ilike.%${manualSearch}%`)
+                .limit(5);
+
+            if (error) throw error;
+            setManualProducts(data || []);
+        } catch (err) {
+            console.error('Erro na busca manual:', err);
+        } finally {
+            setIsSearchingManual(false);
+        }
+    };
+
+    const handleManualUpdate = async (id: string, newPrice: number) => {
+        setUpdateStatus({ id, status: 'saving' });
+        try {
+            const result = await boardService.updatePrices([{ code: id, price: newPrice }]);
+            if (result.success > 0) {
+                setUpdateStatus({ id, status: 'success' });
+                // Update local list
+                setManualProducts(prev => prev.map(p => p.id === id ? { ...p, price: newPrice } : p));
+                loadStrategicData();
+            } else {
+                setUpdateStatus({ id, status: 'error' });
+            }
+        } catch (err) {
+            setUpdateStatus({ id, status: 'error' });
+        } finally {
+            setTimeout(() => setUpdateStatus({ id: '', status: 'idle' }), 3000);
+        }
     };
 
     if (!isAuthenticated) {
@@ -653,83 +698,185 @@ export const Diretoria = () => {
                     </div>
                 )}
                 {activeAnalysis === 'precos' && (
-                    <div className="max-w-4xl animate-in fade-in slide-in-from-top-8 duration-500">
+                    <div className="max-w-5xl animate-in fade-in slide-in-from-top-8 duration-500">
                         <div className="bg-white dark:bg-slate-900 p-12 rounded-[3.5rem] shadow-2xl border border-slate-50 dark:border-slate-800">
-                            <div className="flex items-center gap-6 mb-12">
-                                <div className="w-16 h-16 rounded-[1.5rem] bg-emerald-600 flex items-center justify-center shadow-2xl shadow-emerald-500/40">
-                                    <DollarSign className="text-white w-8 h-8" />
-                                </div>
-                                <div>
-                                    <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">Atualização Massiva de Preços</h3>
-                                    <p className="text-sm font-semibold text-slate-400 italic">Atualize o valuation do seu estoque via CSV.</p>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                <div className="space-y-6">
-                                    <div className="p-8 bg-slate-50 dark:bg-slate-950/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center group hover:border-brand-500 transition-all">
-                                        <Upload className="w-12 h-12 text-slate-300 group-hover:text-brand-500 mb-4 transition-colors" />
-                                        <h5 className="font-black text-slate-800 dark:text-slate-200 text-sm mb-2">Selecione o arquivo CSV</h5>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">Colunas esperadas: "codigo" e "preco"</p>
-                                        
-                                        <input 
-                                            type="file" 
-                                            id="csvPrice" 
-                                            className="hidden" 
-                                            accept=".csv"
-                                            onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                                        />
-                                        <label 
-                                            htmlFor="csvPrice"
-                                            className="bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 px-6 py-3 rounded-xl text-[10px] font-black cursor-pointer hover:bg-slate-50 transition-all shadow-sm"
-                                        >
-                                            {csvFile ? csvFile.name : 'PROCURAR ARQUIVO'}
-                                        </label>
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+                                <div className="flex items-center gap-6">
+                                    <div className="w-16 h-16 rounded-[1.5rem] bg-emerald-600 flex items-center justify-center shadow-2xl shadow-emerald-500/40">
+                                        <DollarSign className="text-white w-8 h-8" />
                                     </div>
+                                    <div>
+                                        <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">Gestão de Pricing</h3>
+                                        <p className="text-sm font-semibold text-slate-400 italic">Atualize o valuation do seu estoque via CSV ou ajuste manual.</p>
+                                    </div>
+                                </div>
 
-                                    <button
-                                        onClick={handlePriceImport}
-                                        disabled={!csvFile || isImporting}
-                                        className="w-full bg-slate-900 dark:bg-brand-600 hover:bg-black dark:hover:bg-brand-500 disabled:opacity-50 text-white py-6 rounded-3xl font-black transition-all flex items-center justify-center gap-4 text-xs tracking-[0.2em] shadow-2xl hover:shadow-brand-500/40 active:scale-95"
+                                <div className="flex bg-slate-100 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner">
+                                    <button 
+                                        onClick={() => setPricingMode('csv')}
+                                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${pricingMode === 'csv' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-md ring-1 ring-slate-200 dark:ring-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
                                     >
-                                        {isImporting ? (
-                                            <div className="w-5 h-5 border-4 border-white/20 border-t-white rounded-full animate-spin" />
-                                        ) : (
-                                            <>
-                                                <CheckCircle2 className="w-5 h-5" />
-                                                EXECUTAR IMPORTAÇÃO
-                                            </>
-                                        )}
+                                        Massiva (CSV)
+                                    </button>
+                                    <button 
+                                        onClick={() => setPricingMode('manual')}
+                                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${pricingMode === 'manual' ? 'bg-white dark:bg-slate-800 text-emerald-600 shadow-md ring-1 ring-slate-200 dark:ring-slate-700' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Ajuste Manual
                                     </button>
                                 </div>
+                            </div>
 
-                                <div className="bg-slate-50 dark:bg-slate-950/50 p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 flex flex-col justify-center">
-                                    <h6 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 border-b border-slate-200 dark:border-slate-800 pb-4">Status da Importação</h6>
-                                    
-                                    {importResult ? (
-                                        <div className="space-y-6">
-                                            <div className="flex justify-between items-end">
-                                                <span className="text-xs font-bold text-emerald-500 uppercase tracking-tight">Sucesso</span>
-                                                <span className="text-4xl font-black text-slate-900 dark:text-white truncate tracking-tighter">{importResult.success} <span className="text-sm text-slate-400">SKUs</span></span>
-                                            </div>
-                                            <div className="flex justify-between items-end">
-                                                <span className="text-xs font-bold text-red-500 uppercase tracking-tight">Erros/Não Encontrados</span>
-                                                <span className="text-4xl font-black text-slate-900 dark:text-white truncate tracking-tighter">{importResult.error} <span className="text-sm text-slate-400">SKUs</span></span>
-                                            </div>
-                                            <div className="pt-6">
-                                                <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-emerald-500" style={{ width: `${(importResult.success / (importResult.success + importResult.error)) * 100}%` }}></div>
+                            {pricingMode === 'csv' ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-10 animate-in fade-in zoom-in-95 duration-500">
+                                    <div className="space-y-6">
+                                        <div className="p-8 bg-slate-50 dark:bg-slate-950/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center group hover:border-brand-500 transition-all">
+                                            <Upload className="w-12 h-12 text-slate-300 group-hover:text-brand-500 mb-4 transition-colors" />
+                                            <h5 className="font-black text-slate-800 dark:text-slate-200 text-sm mb-2">Selecione o arquivo CSV</h5>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">Colunas esperadas: "codigo" e "preco"</p>
+                                            
+                                            <input 
+                                                type="file" 
+                                                id="csvPrice" 
+                                                className="hidden" 
+                                                accept=".csv"
+                                                onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                                            />
+                                            <label 
+                                                htmlFor="csvPrice"
+                                                className="bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 px-6 py-3 rounded-xl text-[10px] font-black cursor-pointer hover:bg-slate-50 transition-all shadow-sm"
+                                            >
+                                                {csvFile ? csvFile.name : 'PROCURAR ARQUIVO'}
+                                            </label>
+                                        </div>
+
+                                        <button
+                                            onClick={handlePriceImport}
+                                            disabled={!csvFile || isImporting}
+                                            className="w-full bg-slate-900 dark:bg-brand-600 hover:bg-black dark:hover:bg-brand-500 disabled:opacity-50 text-white py-6 rounded-3xl font-black transition-all flex items-center justify-center gap-4 text-xs tracking-[0.2em] shadow-2xl hover:shadow-brand-500/40 active:scale-95"
+                                        >
+                                            {isImporting ? (
+                                                <div className="w-5 h-5 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+                                            ) : (
+                                                <>
+                                                    <CheckCircle2 className="w-5 h-5" />
+                                                    EXECUTAR IMPORTAÇÃO
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+
+                                    <div className="bg-slate-50 dark:bg-slate-950/50 p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 flex flex-col justify-center">
+                                        <h6 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 border-b border-slate-200 dark:border-slate-800 pb-4">Status da Importação</h6>
+                                        
+                                        {importResult ? (
+                                            <div className="space-y-6">
+                                                <div className="flex justify-between items-end">
+                                                    <span className="text-xs font-bold text-emerald-500 uppercase tracking-tight">Sucesso</span>
+                                                    <span className="text-4xl font-black text-slate-900 dark:text-white truncate tracking-tighter">{importResult.success} <span className="text-sm text-slate-400">SKUs</span></span>
+                                                </div>
+                                                <div className="flex justify-between items-end">
+                                                    <span className="text-xs font-bold text-red-500 uppercase tracking-tight">Erros/Não Encontrados</span>
+                                                    <span className="text-4xl font-black text-slate-900 dark:text-white truncate tracking-tighter">{importResult.error} <span className="text-sm text-slate-400">SKUs</span></span>
+                                                </div>
+                                                <div className="pt-6">
+                                                    <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-emerald-500" style={{ width: `${(importResult.success / (importResult.success + importResult.error)) * 100}%` }}></div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center gap-4 py-10 opacity-30 select-none">
-                                            <Download className="w-12 h-12 text-slate-400" />
-                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Aguardando processamento</p>
-                                        </div>
-                                    )}
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-4 py-10 opacity-30 select-none">
+                                                <Download className="w-12 h-12 text-slate-400" />
+                                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Aguardando processamento</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="space-y-12 animate-in fade-in zoom-in-95 duration-500">
+                                    <div className="bg-slate-50 dark:bg-slate-950/50 p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800">
+                                        <form onSubmit={handleManualSearch} className="flex gap-4">
+                                            <div className="relative flex-1 group">
+                                                <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />
+                                                <input
+                                                    type="text"
+                                                    value={manualSearch}
+                                                    onChange={(e) => setManualSearch(e.target.value)}
+                                                    placeholder="Buscar por código ou nome do produto..."
+                                                    className="w-full pl-16 pr-8 py-5 bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl focus:ring-8 focus:ring-emerald-500/10 focus:border-emerald-500 dark:text-white outline-none font-bold text-lg tracking-tight transition-all"
+                                                />
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                disabled={isSearchingManual || !manualSearch.trim()}
+                                                className="bg-slate-900 dark:bg-emerald-600 hover:bg-black dark:hover:bg-emerald-500 disabled:opacity-50 text-white px-8 py-5 rounded-2xl font-black transition-all flex items-center gap-3 text-xs tracking-widest shadow-xl active:scale-95"
+                                            >
+                                                {isSearchingManual ? <div className="w-5 h-5 border-4 border-white/20 border-t-white rounded-full animate-spin" /> : 'BUSCAR'}
+                                            </button>
+                                        </form>
+
+                                        {manualProducts.length > 0 && (
+                                            <div className="mt-10 space-y-4">
+                                                <h6 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Resultados da Busca</h6>
+                                                <div className="grid grid-cols-1 gap-4">
+                                                    {manualProducts.map(p => (
+                                                        <div key={p.id} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 hover:shadow-md transition-shadow">
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center gap-3 mb-1">
+                                                                    <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-black rounded uppercase">COD: {p.id}</span>
+                                                                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{p.brand}</span>
+                                                                </div>
+                                                                <h4 className="font-black text-slate-900 dark:text-white truncate max-w-md tracking-tight">{p.name}</h4>
+                                                                <p className="text-xs font-bold text-slate-400 mt-1">Preço Atual: <span className="text-slate-900 dark:text-slate-100">R$ {p.price?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '---'}</span></p>
+                                                            </div>
+                                                            
+                                                            <div className="flex items-center gap-4 w-full md:w-auto">
+                                                                <div className="relative flex-1 md:w-40 group">
+                                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
+                                                                    <input 
+                                                                        type="number"
+                                                                        step="0.01"
+                                                                        placeholder="0,00"
+                                                                        defaultValue={p.price}
+                                                                        onBlur={(e) => {
+                                                                            const val = parseFloat(e.target.value);
+                                                                            if (!isNaN(val) && val !== p.price) {
+                                                                                handleManualUpdate(p.id, val);
+                                                                            }
+                                                                        }}
+                                                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 dark:text-white outline-none font-bold text-sm transition-all shadow-inner"
+                                                                    />
+                                                                </div>
+                                                                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
+                                                                    {updateStatus.id === p.id ? (
+                                                                        updateStatus.status === 'saving' ? (
+                                                                            <RefreshCw className="w-5 h-5 text-emerald-500 animate-spin" />
+                                                                        ) : updateStatus.status === 'success' ? (
+                                                                            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                                                        ) : (
+                                                                            <AlertTriangle className="w-5 h-5 text-red-500" />
+                                                                        )
+                                                                    ) : (
+                                                                        <Edit className="w-5 h-5 text-slate-300" />
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {manualSearch && manualProducts.length === 0 && !isSearchingManual && (
+                                            <div className="mt-10 py-20 text-center bg-white dark:bg-slate-900 rounded-[2rem] border-2 border-dashed border-slate-100 dark:border-slate-800">
+                                                <Layers className="w-12 h-12 text-slate-200 dark:text-slate-800 mx-auto mb-4" />
+                                                <p className="text-slate-400 font-bold italic">Nenhum produto encontrado com esse termo.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
