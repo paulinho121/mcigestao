@@ -15,14 +15,16 @@ import { Tracking } from './pages/Tracking';
 import { Catalogs } from './pages/Catalogs';
 import { Diretoria } from './pages/Diretoria';
 import { StockManagement } from './pages/StockManagement';
+import { NfeAutomation } from './pages/NfeAutomation';
+import { nfeService } from './services/nfeService';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
-import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, ShoppingBag, FileText, Sun, Moon, Users, Tag, Truck, BookOpen, MapPin, Menu, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, ShoppingBag, FileText, Sun, Moon, Users, Tag, Truck, BookOpen, MapPin, Menu, X, ChevronDown, ChevronRight, ShieldCheck } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 
-type Tab = 'inventory' | 'reservations' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management';
+type Tab = 'inventory' | 'reservations' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation';
 
 // Helper Components for the New Navigation
 function NavGroup({ title, icon, children, isExpanded, onToggle, id }: { 
@@ -159,6 +161,24 @@ function App() {
       };
     }
   }, []);
+
+  // Background SEFAZ Sync for Master Users
+  useEffect(() => {
+    if (isMaster && connectionStatus === 'connected') {
+      const runSync = async () => {
+        try {
+          console.log('Background SEFAZ Sync started...');
+          await nfeService.syncFromSefaz();
+        } catch (err) {
+          console.error('Background sync failed:', err);
+        }
+      };
+      
+      // Delay slightly to not interfere with initial load
+      const timer = setTimeout(runSync, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [isMaster, connectionStatus]);
 
   const handleLogin = (email: string, name?: string) => {
     // This is mainly for mock mode or immediate UI update
@@ -366,6 +386,14 @@ function App() {
                     label="Gestão de Importação"
                   />
                 )}
+                {isMaster && (
+                  <NavButton 
+                    active={activeTab === 'nfe_automation'} 
+                    onClick={() => { setActiveTab('nfe_automation'); setIsMenuOpen(false); }} 
+                    icon={<ShieldCheck className="w-4 h-4" />}
+                    label="Automação SEFAZ"
+                  />
+                )}
               </NavGroup>
 
               {/* Group 3: Administração */}
@@ -502,6 +530,7 @@ function App() {
       {activeTab === 'catalogs' && <Catalogs />}
       {activeTab === 'diretoria' && <Diretoria />}
       {activeTab === 'stock_management' && isMaster && <StockManagement userEmail={user.email} />}
+      {activeTab === 'nfe_automation' && isMaster && <NfeAutomation />}
       <Analytics />
     </div>
   );

@@ -27,6 +27,12 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) => path.replace(/^\/api\/jamef-qa/, ''),
           secure: false
         },
+        '/api/focus-nfe': {
+          target: 'https://api.focusnfe.com.br',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/focus-nfe/, ''),
+          secure: false
+        },
       },
     },
     plugins: [react()],

@@ -4,6 +4,7 @@ import { ProductCard } from '../components/ProductCard';
 import { inventoryService } from '../services/inventoryService';
 import { Product } from '../types';
 import { isMasterUser } from '../config/masterUsers';
+import { StockInsights } from '../components/StockInsights';
 
 interface InventoryProps {
   userEmail: string;
@@ -622,6 +623,13 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
           </div>
         ) : displayedProducts.length > 0 ? (
           <>
+            {/* AI Insights Section (Master Users Only) */}
+            {selectedBranch && isMasterUser(userEmail) && (
+              <div className="mb-8 animate-in fade-in slide-in-from-left-4 duration-700">
+                <StockInsights branch={selectedBranch} />
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
               <div className="flex items-center justify-between sm:justify-start gap-3">
                 <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
