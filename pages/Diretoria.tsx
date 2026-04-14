@@ -3,13 +3,15 @@ import {
     Lock, Search, ShieldAlert,
     TrendingUp, AlertTriangle, DollarSign, ArrowUpRight,
     LayoutDashboard, History,
-    RefreshCw, Layers, Download, PieChart as PieIcon
+    RefreshCw, Layers, Download, PieChart as PieIcon,
+    Upload, CheckCircle2
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, Cell,
     AreaChart, Area, PieChart as RePieChart, Pie
 } from 'recharts';
+import Papa from 'papaparse';
 import { boardService, AgingProduct, ExecutiveStats, DemandPoint, ABCItem } from '../services/boardService';
 import { supabase } from '../lib/supabase';
 
@@ -19,7 +21,7 @@ export const Diretoria = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [activeAnalysis, setActiveAnalysis] = useState<'dashboard' | 'aging' | 'consultar'>('dashboard');
+    const [activeAnalysis, setActiveAnalysis] = useState<'dashboard' | 'aging' | 'consultar' | 'precos'>('dashboard');
 
     // Real Data States
     const [stats, setStats] = useState<ExecutiveStats | null>(null);
@@ -34,6 +36,11 @@ export const Diretoria = () => {
     const [loading, setLoading] = useState(false);
     const [productData, setProductData] = useState<any>(null);
     const [searchError, setSearchError] = useState('');
+
+    // Preços Import State
+    const [csvFile, setCsvFile] = useState<File | null>(null);
+    const [importResult, setImportResult] = useState<{ success: number, error: number } | null>(null);
+    const [isImporting, setIsImporting] = useState(false);
 
     // Fetch real-time data when authenticated and tab changes
     useEffect(() => {
@@ -123,6 +130,67 @@ export const Diretoria = () => {
         }
     };
 
+    const handlePriceImport = async () => {
+        if (!csvFile) return;
+
+        setIsImporting(true);
+        setImportResult(null);
+
+        Papa.parse(csvFile, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                const data = results.data as any[];
+                const priceData = data
+                    .filter(row => {
+                        const code = row.CODIGO || row.codigo || row.code || row.id || row.Código;
+                        const price = row.PREÇO || row.PREÇO || row.preco || row.price || row.Preço;
+                        return code && price;
+                    })
+                    .map(row => {
+                        const code = String(row.CODIGO || row.codigo || row.code || row.id || row.Código).trim();
+                        const rawPrice = String(row.PREÇO || row.PREÇO || row.preco || row.price || row.Preço).trim();
+                        
+                        // Sanitize price: Remove "R$", thousand dots, and fix decimal comma
+                        const sanitizedPrice = rawPrice
+                            .replace(/R\$\s*/g, '') // Remove R$ and spaces
+                            .replace(/[^\d,.-]/g, '') // Remove any other non-numeric chars except , . -
+                            .replace(/\./g, '')     // Remove thousand dots
+                            .replace(',', '.');      // Replace decimal comma with dot
+                        
+                        return {
+                            code: code,
+                            price: parseFloat(sanitizedPrice)
+                        };
+                    })
+                    .filter(item => !isNaN(item.price));
+
+                if (priceData.length === 0) {
+                    setError('Nenhum dado válido encontrado. Certifique-se que o CSV tem as colunas "CODIGO" e "PREÇO" (como na sua planilha).');
+                    setIsImporting(false);
+                    return;
+                }
+
+                try {
+                    const result = await boardService.updatePrices(priceData);
+                    setImportResult(result);
+                    loadStrategicData(); // Refresh values
+                } catch (err) {
+                    console.error('Erro ao importar preços:', err);
+                    setError('Falha crítica na importação via Supabase.');
+                } finally {
+                    setIsImporting(false);
+                    setCsvFile(null);
+                }
+            },
+            error: (err) => {
+                console.error('Erro ao processar CSV:', err);
+                setError('Erro ao ler o arquivo CSV.');
+                setIsImporting(false);
+            }
+        });
+    };
+
     if (!isAuthenticated) {
         return (
             <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-slate-50 dark:bg-slate-900 font-sans">
@@ -198,6 +266,14 @@ export const Diretoria = () => {
                         <RefreshCw className="w-5 h-5" />
                         Consultor WMS
                     </button>
+
+                    <button
+                        onClick={() => setActiveAnalysis('precos')}
+                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all font-bold text-sm ${activeAnalysis === 'precos' ? 'bg-brand-600 text-white shadow-2xl shadow-brand-500/40' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                    >
+                        <DollarSign className="w-5 h-5" />
+                        Importar Preços
+                    </button>
                 </div>
 
                 <div className="mt-auto p-6 bg-slate-50 dark:bg-slate-950/50 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
@@ -221,6 +297,7 @@ export const Diretoria = () => {
                             {activeAnalysis === 'dashboard' && "Executive Hub"}
                             {activeAnalysis === 'aging' && "Estoque Aging"}
                             {activeAnalysis === 'consultar' && "WMS Core Terminal"}
+                            {activeAnalysis === 'precos' && "Gestão de Pricing"}
                             <span className="text-brand-600 text-[10px] font-black bg-brand-50 dark:bg-brand-900/20 px-3 py-1 rounded-full border border-brand-100 dark:border-brand-800 tracking-[0.2em] uppercase">Online</span>
                         </h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-2 font-semibold italic text-sm">
@@ -572,6 +649,87 @@ export const Diretoria = () => {
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                )}
+                {activeAnalysis === 'precos' && (
+                    <div className="max-w-4xl animate-in fade-in slide-in-from-top-8 duration-500">
+                        <div className="bg-white dark:bg-slate-900 p-12 rounded-[3.5rem] shadow-2xl border border-slate-50 dark:border-slate-800">
+                            <div className="flex items-center gap-6 mb-12">
+                                <div className="w-16 h-16 rounded-[1.5rem] bg-emerald-600 flex items-center justify-center shadow-2xl shadow-emerald-500/40">
+                                    <DollarSign className="text-white w-8 h-8" />
+                                </div>
+                                <div>
+                                    <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">Atualização Massiva de Preços</h3>
+                                    <p className="text-sm font-semibold text-slate-400 italic">Atualize o valuation do seu estoque via CSV.</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                <div className="space-y-6">
+                                    <div className="p-8 bg-slate-50 dark:bg-slate-950/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center group hover:border-brand-500 transition-all">
+                                        <Upload className="w-12 h-12 text-slate-300 group-hover:text-brand-500 mb-4 transition-colors" />
+                                        <h5 className="font-black text-slate-800 dark:text-slate-200 text-sm mb-2">Selecione o arquivo CSV</h5>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">Colunas esperadas: "codigo" e "preco"</p>
+                                        
+                                        <input 
+                                            type="file" 
+                                            id="csvPrice" 
+                                            className="hidden" 
+                                            accept=".csv"
+                                            onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                                        />
+                                        <label 
+                                            htmlFor="csvPrice"
+                                            className="bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 px-6 py-3 rounded-xl text-[10px] font-black cursor-pointer hover:bg-slate-50 transition-all shadow-sm"
+                                        >
+                                            {csvFile ? csvFile.name : 'PROCURAR ARQUIVO'}
+                                        </label>
+                                    </div>
+
+                                    <button
+                                        onClick={handlePriceImport}
+                                        disabled={!csvFile || isImporting}
+                                        className="w-full bg-slate-900 dark:bg-brand-600 hover:bg-black dark:hover:bg-brand-500 disabled:opacity-50 text-white py-6 rounded-3xl font-black transition-all flex items-center justify-center gap-4 text-xs tracking-[0.2em] shadow-2xl hover:shadow-brand-500/40 active:scale-95"
+                                    >
+                                        {isImporting ? (
+                                            <div className="w-5 h-5 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+                                        ) : (
+                                            <>
+                                                <CheckCircle2 className="w-5 h-5" />
+                                                EXECUTAR IMPORTAÇÃO
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+
+                                <div className="bg-slate-50 dark:bg-slate-950/50 p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 flex flex-col justify-center">
+                                    <h6 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 border-b border-slate-200 dark:border-slate-800 pb-4">Status da Importação</h6>
+                                    
+                                    {importResult ? (
+                                        <div className="space-y-6">
+                                            <div className="flex justify-between items-end">
+                                                <span className="text-xs font-bold text-emerald-500 uppercase tracking-tight">Sucesso</span>
+                                                <span className="text-4xl font-black text-slate-900 dark:text-white truncate tracking-tighter">{importResult.success} <span className="text-sm text-slate-400">SKUs</span></span>
+                                            </div>
+                                            <div className="flex justify-between items-end">
+                                                <span className="text-xs font-bold text-red-500 uppercase tracking-tight">Erros/Não Encontrados</span>
+                                                <span className="text-4xl font-black text-slate-900 dark:text-white truncate tracking-tighter">{importResult.error} <span className="text-sm text-slate-400">SKUs</span></span>
+                                            </div>
+                                            <div className="pt-6">
+                                                <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-emerald-500" style={{ width: `${(importResult.success / (importResult.success + importResult.error)) * 100}%` }}></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-4 py-10 opacity-30 select-none">
+                                            <Download className="w-12 h-12 text-slate-400" />
+                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Aguardando processamento</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}

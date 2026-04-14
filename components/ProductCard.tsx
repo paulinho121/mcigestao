@@ -25,7 +25,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         let text = `*ESTOQUE MCI* 📦\n`;
         text += `_Gestão Corporativa de Equipamentos_\n\n`;
         text += `*Item:* *${product.name}*\n`;
-        text += `*Cód:* ${product.id}\n\n`;
+        text += `*Cód:* ${product.id}\n`;
+        if (product.price) {
+            text += `*Preço:* R$ ${product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
+        }
+        text += `\n`;
 
         text += `✅ *Confira a disponibilidade atualizada:*\n`;
         text += `👉 ${shareUrl}\n\n`;
@@ -95,9 +99,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
             <div className="p-4 sm:p-5 flex-grow relative z-10">
                 <div className="flex justify-between items-start mb-3 gap-2 flex-wrap">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800 whitespace-nowrap dark:bg-slate-700 dark:text-slate-300">
-                        COD: {product.id}
-                    </span>
+                    <div className="flex gap-2">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800 whitespace-nowrap dark:bg-slate-700 dark:text-slate-300">
+                            COD: {product.id}
+                        </span>
+                        {product.price && (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 whitespace-nowrap border border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800">
+                                R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                        )}
+                    </div>
                     <div className="flex items-center gap-2">
                         {product.brand && (
                             <span className="text-xs font-semibold text-brand-600 uppercase tracking-wider truncate max-w-[120px] sm:max-w-none">
@@ -118,6 +129,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug group-hover:text-brand-600 transition-colors break-words line-clamp-2 dark:text-slate-100 dark:group-hover:text-brand-400">
                         {product.name}
                     </h3>
+                    {product.location && (
+                        <div className="flex items-center gap-1.5 mt-2">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                Loc. Geral: <span className="text-brand-600">{product.location}</span>
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="space-y-3">
@@ -127,8 +146,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                             <div className="flex flex-col">
                                 <span className="leading-none font-bold">Ceará</span>
                                 {product.location_ce && (
-                                    <span className="text-[9px] font-bold uppercase text-slate-400 tracking-tighter mt-1 leading-none">
-                                        Loc: {product.location_ce}
+                                    <span className="text-[10px] font-black uppercase text-brand-600/60 dark:text-brand-400/60 tracking-tight mt-1 leading-none bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
+                                        RUA/BOX: {product.location_ce}
                                     </span>
                                 )}
                             </div>
@@ -143,8 +162,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                             <div className="flex flex-col">
                                 <span className="leading-none font-bold">Santa Catarina</span>
                                 {product.location_sc && (
-                                    <span className="text-[9px] font-bold uppercase text-slate-400 tracking-tighter mt-1 leading-none">
-                                        Loc: {product.location_sc}
+                                    <span className="text-[10px] font-black uppercase text-brand-600/60 dark:text-brand-400/60 tracking-tight mt-1 leading-none bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
+                                        RUA/BOX: {product.location_sc}
                                     </span>
                                 )}
                             </div>
@@ -159,8 +178,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                             <div className="flex flex-col">
                                 <span className="leading-none font-bold">São Paulo</span>
                                 {product.location_sp && (
-                                    <span className="text-[9px] font-bold uppercase text-slate-400 tracking-tighter mt-1 leading-none">
-                                        Loc: {product.location_sp}
+                                    <span className="text-[10px] font-black uppercase text-brand-600/60 dark:text-brand-400/60 tracking-tight mt-1 leading-none bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
+                                        RUA/BOX: {product.location_sp}
                                     </span>
                                 )}
                             </div>
@@ -256,6 +275,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                                     <span className="px-3 py-1 bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-lg">DISPONÍVEL</span>
                                 )}
                                 <span className="px-3 py-1 bg-slate-800 text-slate-100 text-xs font-mono rounded-lg shadow-lg">COD: {product.id}</span>
+                                {product.price && (
+                                    <span className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-lg shadow-lg">
+                                        R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </span>
+                                )}
                             </div>
                         </div>
 

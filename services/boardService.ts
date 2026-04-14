@@ -350,5 +350,40 @@ export const boardService = {
             { code: '1029', name: 'VALVULA SOLENOIDE', stock_sc: 45, last_movement: '20/12/2025', days_inactive: 75, value_imobilizado: 12000, status: 'Alerta' },
             { code: '3044', name: 'PAINEL ELÉTRICO V2', stock_sc: 2, last_movement: '15/01/2026', days_inactive: 49, value_imobilizado: 98000, status: 'Ok' },
         ];
+    },
+
+    async updatePrices(priceData: { code: string, price: number }[]): Promise<{ success: number, error: number }> {
+        if (!supabase) return { success: 0, error: priceData.length };
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        // Process in batches of 50 to avoid overloading
+        const batchSize = 50;
+        for (let i = 0; i < priceData.length; i += batchSize) {
+            const batch = priceData.slice(i, i + batchSize);
+            
+            await Promise.all(batch.map(async (item) => {
+                try {
+                    // Try exact ID or with .0 suffix
+                    const { error } = await supabase
+                        .from('products')
+                        .update({ price: item.price })
+                        .or(`id.eq.${item.code},id.eq.${item.code}.0`);
+
+                    if (error) {
+                        console.error(`Error updating price for ${item.code}:`, error);
+                        errorCount++;
+                    } else {
+                        successCount++;
+                    }
+                } catch (err) {
+                    console.error(`Exception updating price for ${item.code}:`, err);
+                    errorCount++;
+                }
+            }));
+        }
+
+        return { success: successCount, error: errorCount };
     }
 };
