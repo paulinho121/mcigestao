@@ -70,7 +70,7 @@ export const nfeService = {
         // Define endpoints to check: Received (Input) and Emitted (Output)
         const endpoints = [
           { url: `/api/focus-nfe/v2/nfes_recebidas?cnpj=${cnpj}`, type: 'received' },
-          { url: `/api/focus-nfe/v2/nfes?cnpj=${cnpj}`, type: 'emitted' }
+          { url: `/api/focus-nfe/v2/nfes?cnpj_emitente=${cnpj}`, type: 'emitted' }
         ];
 
         for (const endpoint of endpoints) {
@@ -78,7 +78,7 @@ export const nfeService = {
             console.log(`Fetching ${endpoint.type} NFes for ${branch}...`);
             const response = await fetch(endpoint.url, {
               headers: {
-                'Authorization': `Basic ${btoa(token + ':')}`,
+                'X-Focus-Token': token.trim(),
                 'Content-Type': 'application/json'
               }
             });
