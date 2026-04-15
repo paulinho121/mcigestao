@@ -250,7 +250,7 @@ export const nfeService = {
       access_key: nfe.access_key,
       nfe_number: nfe.nfe_number,
       series: nfe.series,
-      cnpj_monitored: branch === 'CE' ? MONITORED_CNPJS.CE : MONITORED_CNPJS.SP,
+      cnpj_monitored: branch === 'CE' ? MONITORED_CNPJS.CE : (branch === 'SP' ? MONITORED_CNPJS.SP : MONITORED_CNPJS.SC),
       branch: branch,
       operation_type: operation,
       raw_data: nfe as any,

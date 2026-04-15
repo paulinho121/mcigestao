@@ -81,7 +81,7 @@ export const predictionService = {
   /**
    * Periodically check for critical stock and notify team
    */
-  async checkAndNotifyCriticalStock(branch: 'CE' | 'SP') {
+  async checkAndNotifyCriticalStock(branch: 'CE' | 'SP' | 'SC') {
     const predictions = await this.getPredictions(branch);
     const criticalItems = predictions.filter(p => p.status === 'critical');
 
