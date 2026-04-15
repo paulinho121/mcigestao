@@ -60,23 +60,24 @@ export const nfeService = {
         
         console.log(`🔍 [DEBUG] Verificando conexão para Filial ${branch}...`);
         
-        // Skip branches with missing or placeholder tokens to avoid 401 popups
-        if (!token || token.trim() === '' || token.includes('AQUI') || token === 'undefined') {
-          console.warn(`⚠️ Token para filial ${branch} não configurado ou está 'undefined'. Verifique o Vercel.`);
+        if (!token || token.trim().length < 5) {
+          console.error(`❌ [ERRO] Token para filial ${branch} está VAZIO ou INVÁLIDO no código!`);
           continue;
         }
 
+        console.log(`✅ [INFO] Token para ${branch} carregado (inicia com: ${token.substring(0, 3)}...)`);
+
         console.log(`Syncing branch ${branch} (CNPJ: ${cnpj})...`);
         
-        // Define endpoints to check: Received (Input) and Emitted (Output)
+        // Define endpoints: Received uses 'cnpj', Emitted also uses 'cnpj' in many v2 versions
         const endpoints = [
           { url: `/api/focus-nfe/v2/nfes_recebidas?cnpj=${cnpj}`, type: 'received' },
-          { url: `/api/focus-nfe/v2/nfes?cnpj_emitente=${cnpj}`, type: 'emitted' }
+          { url: `/api/focus-nfe/v2/nfes?cnpj=${cnpj}`, type: 'emitted' }
         ];
 
         for (const endpoint of endpoints) {
           try {
-            console.log(`Fetching ${endpoint.type} NFes for ${branch}...`);
+            console.log(`📡 Fetching ${endpoint.type} NFes for ${branch}...`);
             const response = await fetch(endpoint.url, {
               headers: {
                 'Authorization': `Basic ${btoa(token.trim() + ':')}`,
@@ -84,7 +85,14 @@ export const nfeService = {
               }
             });
 
-            if (response.ok) {
+            if (response.status === 404) {
+              console.warn(`ℹ️ [404] Nenhuma nota encontrada ou endpoint inexistente para ${branch} (${endpoint.type})`);
+              continue;
+            }
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
               const data = await response.json();
               // Focus can return the array directly or inside a key
               // For /nfes (emitted), it's usually the array itself or in a search result
