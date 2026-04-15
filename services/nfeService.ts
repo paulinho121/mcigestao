@@ -77,11 +77,11 @@ export const nfeService = {
 
         for (const endpoint of endpoints) {
           try {
-            console.log(`📡 Fetching ${endpoint.type} NFes for ${branch}...`);
-            const response = await fetch(endpoint.url, {
+            console.log(`📡 Fetching ${endpoint.type} NFes for ${branch} via Proxy...`);
+            const proxyUrl = `/api/proxy-focus?path=${encodeURIComponent(endpoint.url.replace('/api/focus-nfe', ''))}&token=${encodeURIComponent(token.trim())}`;
+            
+            const response = await fetch(proxyUrl, {
               headers: {
-                'Authorization': `Basic ${btoa(token.trim())}`,
-                'X-Focus-Token': token.trim(),
                 'Content-Type': 'application/json'
               }
             });
