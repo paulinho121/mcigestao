@@ -1,3 +1,4 @@
+// Last Sync Validation: 2026-04-15 13:00
 import { supabase } from '../lib/supabase';
 import { inventoryService } from './inventoryService';
 import { logService } from './logService';
