@@ -80,7 +80,8 @@ export const nfeService = {
             console.log(`📡 Fetching ${endpoint.type} NFes for ${branch}...`);
             const response = await fetch(endpoint.url, {
               headers: {
-                'Authorization': `Basic ${btoa(token.trim() + ':')}`,
+                'Authorization': `Basic ${btoa(token.trim())}`,
+                'X-Focus-Token': token.trim(),
                 'Content-Type': 'application/json'
               }
             });
