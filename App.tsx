@@ -16,7 +16,7 @@ import { Catalogs } from './pages/Catalogs';
 import { Diretoria } from './pages/Diretoria';
 import { StockManagement } from './pages/StockManagement';
 import { NfeAutomation } from './pages/NfeAutomation';
-import { nfeService } from './services/nfeService';
+// import { nfeService } from './services/nfeService';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
 import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, ShoppingBag, FileText, Sun, Moon, Users, Tag, Truck, BookOpen, MapPin, Menu, X, ChevronDown, ChevronRight, ShieldCheck } from 'lucide-react';
