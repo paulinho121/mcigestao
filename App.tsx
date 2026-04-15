@@ -27,17 +27,17 @@ import { useTheme } from './context/ThemeContext';
 type Tab = 'inventory' | 'reservations' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation';
 
 // Helper Components for the New Navigation
-function NavGroup({ title, icon, children, isExpanded, onToggle, id }: { 
-  title: string, 
-  icon: React.ReactNode, 
-  children: React.ReactNode, 
-  isExpanded: boolean, 
+function NavGroup({ title, icon, children, isExpanded, onToggle, id }: {
+  title: string,
+  icon: React.ReactNode,
+  children: React.ReactNode,
+  isExpanded: boolean,
   onToggle: (id: string) => void,
-  id: string 
+  id: string
 }) {
   return (
     <div className="space-y-1">
-      <button 
+      <button
         onClick={() => onToggle(id)}
         className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
       >
@@ -56,20 +56,19 @@ function NavGroup({ title, icon, children, isExpanded, onToggle, id }: {
   );
 }
 
-function NavButton({ active, onClick, icon, label }: { 
-  active: boolean, 
-  onClick: () => void, 
-  icon: React.ReactNode, 
-  label: string 
+function NavButton({ active, onClick, icon, label }: {
+  active: boolean,
+  onClick: () => void,
+  icon: React.ReactNode,
+  label: string
 }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all ${
-        active 
-          ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400 shadow-sm ring-1 ring-brand-200/50' 
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all ${active
+          ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400 shadow-sm ring-1 ring-brand-200/50'
           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
-      }`}
+        }`}
     >
       <span className={active ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400'}>{icon}</span>
       <span className="text-sm truncate">{label}</span>
@@ -263,7 +262,7 @@ function App() {
               <div className="hidden sm:block text-right">
                 {connectionStatus === 'connected' && <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">● Online</span>}
               </div>
-              
+
               <div className="flex flex-col items-end justify-center">
                 <div className="hidden md:block text-right">
                   <div className="text-[10px] text-slate-400">Logado como</div>
@@ -309,11 +308,11 @@ function App() {
       {isMenuOpen && (
         <div className="fixed inset-0 z-50 overflow-hidden">
           {/* Backdrop */}
-          <div 
+          <div
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
             onClick={() => setIsMenuOpen(false)}
           />
-          
+
           <div className="absolute inset-y-0 left-0 max-w-xs w-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out">
             {/* Drawer Header */}
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
@@ -321,7 +320,7 @@ function App() {
                 <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center text-white font-bold">M</div>
                 <span className="font-bold text-slate-800 dark:text-white">Menu Principal</span>
               </div>
-              <button 
+              <button
                 onClick={() => setIsMenuOpen(false)}
                 className="p-2 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
               >
@@ -331,67 +330,67 @@ function App() {
 
             {/* Navigation Content */}
             <div className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
-              
+
               {/* Group 1: Estoque */}
-              <NavGroup 
-                title="Estoque & Catálogos" 
+              <NavGroup
+                title="Estoque & Catálogos"
                 id="estoque"
                 icon={<Package className="w-4 h-4" />}
                 isExpanded={expandedGroups.includes('estoque')}
                 onToggle={(id) => setExpandedGroups(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])}
               >
-                <NavButton 
-                  active={activeTab === 'inventory'} 
-                  onClick={() => { setActiveTab('inventory'); setIsMenuOpen(false); }} 
+                <NavButton
+                  active={activeTab === 'inventory'}
+                  onClick={() => { setActiveTab('inventory'); setIsMenuOpen(false); }}
                   icon={<Package className="w-4 h-4" />}
                   label="Consulta de Estoque"
                 />
-                <NavButton 
-                  active={activeTab === 'catalogs'} 
-                  onClick={() => { setActiveTab('catalogs'); setIsMenuOpen(false); }} 
+                <NavButton
+                  active={activeTab === 'catalogs'}
+                  onClick={() => { setActiveTab('catalogs'); setIsMenuOpen(false); }}
                   icon={<BookOpen className="w-4 h-4" />}
                   label="Catálogos de Produtos"
                 />
               </NavGroup>
 
               {/* Group 2: Logística */}
-              <NavGroup 
-                title="Logística & Operações" 
+              <NavGroup
+                title="Logística & Operações"
                 id="logistica"
                 icon={<Ship className="w-4 h-4" />}
                 isExpanded={expandedGroups.includes('logistica')}
                 onToggle={(id) => setExpandedGroups(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])}
               >
-                <NavButton 
-                  active={activeTab === 'reservations'} 
-                  onClick={() => { setActiveTab('reservations'); setIsMenuOpen(false); }} 
+                <NavButton
+                  active={activeTab === 'reservations'}
+                  onClick={() => { setActiveTab('reservations'); setIsMenuOpen(false); }}
                   icon={<ClipboardList className="w-4 h-4" />}
                   label="Minhas Reservas"
                 />
-                <NavButton 
-                  active={activeTab === 'in_import'} 
-                  onClick={() => { setActiveTab('in_import'); setIsMenuOpen(false); }} 
+                <NavButton
+                  active={activeTab === 'in_import'}
+                  onClick={() => { setActiveTab('in_import'); setIsMenuOpen(false); }}
                   icon={<Ship className="w-4 h-4" />}
                   label="Produtos em Importação"
                 />
-                <NavButton 
-                  active={activeTab === 'tracking'} 
-                  onClick={() => { setActiveTab('tracking'); setIsMenuOpen(false); }} 
+                <NavButton
+                  active={activeTab === 'tracking'}
+                  onClick={() => { setActiveTab('tracking'); setIsMenuOpen(false); }}
                   icon={<Truck className="w-4 h-4" />}
                   label="Rastreamento Logístico"
                 />
                 {isMaster && (
-                  <NavButton 
-                    active={activeTab === 'import_management'} 
-                    onClick={() => { setActiveTab('import_management'); setIsMenuOpen(false); }} 
+                  <NavButton
+                    active={activeTab === 'import_management'}
+                    onClick={() => { setActiveTab('import_management'); setIsMenuOpen(false); }}
                     icon={<Container className="w-4 h-4" />}
                     label="Gestão de Importação"
                   />
                 )}
                 {isMaster && (
-                  <NavButton 
-                    active={activeTab === 'nfe_automation'} 
-                    onClick={() => { setActiveTab('nfe_automation'); setIsMenuOpen(false); }} 
+                  <NavButton
+                    active={activeTab === 'nfe_automation'}
+                    onClick={() => { setActiveTab('nfe_automation'); setIsMenuOpen(false); }}
                     icon={<ShieldCheck className="w-4 h-4" />}
                     label="Automação SEFAZ"
                   />
@@ -400,34 +399,34 @@ function App() {
 
               {/* Group 3: Administração */}
               {isMaster && (
-                <NavGroup 
-                  title="Gestão Comercial" 
+                <NavGroup
+                  title="Gestão Comercial"
                   id="gestao"
                   icon={<ShoppingBag className="w-4 h-4" />}
                   isExpanded={expandedGroups.includes('gestao')}
                   onToggle={(id) => setExpandedGroups(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])}
                 >
-                  <NavButton 
-                    active={activeTab === 'shopping'} 
-                    onClick={() => { setActiveTab('shopping'); setIsMenuOpen(false); }} 
+                  <NavButton
+                    active={activeTab === 'shopping'}
+                    onClick={() => { setActiveTab('shopping'); setIsMenuOpen(false); }}
                     icon={<ShoppingBag className="w-4 h-4" />}
                     label="Planejamento de Compras"
                   />
-                  <NavButton 
-                    active={activeTab === 'suppliers'} 
-                    onClick={() => { setActiveTab('suppliers'); setIsMenuOpen(false); }} 
+                  <NavButton
+                    active={activeTab === 'suppliers'}
+                    onClick={() => { setActiveTab('suppliers'); setIsMenuOpen(false); }}
                     icon={<Users className="w-4 h-4" />}
                     label="Cadastro Fornecedores"
                   />
-                  <NavButton 
-                    active={activeTab === 'brands'} 
-                    onClick={() => { setActiveTab('brands'); setIsMenuOpen(false); }} 
+                  <NavButton
+                    active={activeTab === 'brands'}
+                    onClick={() => { setActiveTab('brands'); setIsMenuOpen(false); }}
                     icon={<Tag className="w-4 h-4" />}
                     label="Gestão de Marcas"
                   />
-                  <NavButton 
-                    active={activeTab === 'stock_management'} 
-                    onClick={() => { setActiveTab('stock_management'); setIsMenuOpen(false); }} 
+                  <NavButton
+                    active={activeTab === 'stock_management'}
+                    onClick={() => { setActiveTab('stock_management'); setIsMenuOpen(false); }}
                     icon={<MapPin className="w-4 h-4" />}
                     label="Gestão de Filiais"
                   />
@@ -435,33 +434,33 @@ function App() {
               )}
 
               {/* Group 4: Serviços */}
-              <NavGroup 
-                title="Serviços & Suporte" 
+              <NavGroup
+                title="Serviços & Suporte"
                 id="servicos"
                 icon={<Wrench className="w-4 h-4" />}
                 isExpanded={expandedGroups.includes('servicos')}
                 onToggle={(id) => setExpandedGroups(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])}
               >
                 {isMaster && (
-                   <NavButton 
-                    active={activeTab === 'rental_management'} 
-                    onClick={() => { setActiveTab('rental_management'); setIsMenuOpen(false); }} 
+                  <NavButton
+                    active={activeTab === 'rental_management'}
+                    onClick={() => { setActiveTab('rental_management'); setIsMenuOpen(false); }}
                     icon={<CalendarClock className="w-4 h-4" />}
                     label="Gestão de Locação"
                   />
                 )}
                 {isMaster && (
-                  <NavButton 
-                    active={activeTab === 'maintenance'} 
-                    onClick={() => { setActiveTab('maintenance'); setIsMenuOpen(false); }} 
+                  <NavButton
+                    active={activeTab === 'maintenance'}
+                    onClick={() => { setActiveTab('maintenance'); setIsMenuOpen(false); }}
                     icon={<Wrench className="w-4 h-4" />}
                     label="Painel de Manutenção"
                   />
                 )}
                 {isMaster && (
-                  <NavButton 
-                    active={activeTab === 'upload'} 
-                    onClick={() => { setActiveTab('upload'); setIsMenuOpen(false); }} 
+                  <NavButton
+                    active={activeTab === 'upload'}
+                    onClick={() => { setActiveTab('upload'); setIsMenuOpen(false); }}
                     icon={<UploadIcon className="w-4 h-4" />}
                     label="Importar Dados (Excel)"
                   />
@@ -469,23 +468,23 @@ function App() {
               </NavGroup>
 
               {/* Group 5: Sistema */}
-              <NavGroup 
-                title="Sistema & Relatórios" 
+              <NavGroup
+                title="Sistema & Relatórios"
                 id="sistema"
                 icon={<FileText className="w-4 h-4" />}
                 isExpanded={expandedGroups.includes('sistema')}
                 onToggle={(id) => setExpandedGroups(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])}
               >
-                <NavButton 
-                  active={activeTab === 'diretoria'} 
-                  onClick={() => { setActiveTab('diretoria'); setIsMenuOpen(false); }} 
+                <NavButton
+                  active={activeTab === 'diretoria'}
+                  onClick={() => { setActiveTab('diretoria'); setIsMenuOpen(false); }}
                   icon={<Package className="w-4 h-4" />}
                   label="Painel Diretoria"
                 />
                 {isMaster && (
-                  <NavButton 
-                    active={activeTab === 'logs'} 
-                    onClick={() => { setActiveTab('logs'); setIsMenuOpen(false); }} 
+                  <NavButton
+                    active={activeTab === 'logs'}
+                    onClick={() => { setActiveTab('logs'); setIsMenuOpen(false); }}
                     icon={<FileText className="w-4 h-4" />}
                     label="Logs de Atividade"
                   />
@@ -504,7 +503,7 @@ function App() {
                   <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={handleLogout}
                 className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-lg bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors font-semibold"
               >
