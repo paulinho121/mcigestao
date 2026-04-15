@@ -91,56 +91,45 @@ export const nfeService = {
             }
 
             if (!response.ok) {
-              throw new Error(`HTTP ${response.status}`);
+              console.error(`❌ Erro HTTP ${response.status} para ${branch} (${endpoint.type})`);
+              errorCount++;
+              continue;
             }
-              const data = await response.json();
-              // Focus can return the array directly or inside a key
-              // For /nfes (emitted), it's usually the array itself or in a search result
-              const nfes = Array.isArray(data) ? data : (data.nfes_recebidas || data.dfes || data.nfes || []);
-              
-              for (const nfeWrapper of nfes) {
-                // Determine if it's a valid NFe record based on Focus structure
-                // Focus API v2 Emitted Notes return objects directly. 
-                // Received Notes usually have a 'tipo' or wrapper.
-                const isReceived = endpoint.type === 'received';
-                const isNfe = isReceived ? nfeWrapper.tipo === 'nfe' : (nfeWrapper.status === 'autorizado');
 
-                if (isNfe) {
-                  const nfeData: NfeData = {
-                    access_key: isReceived ? nfeWrapper.chave_nfe : nfeWrapper.chave_nfe,
-                    nfe_number: isReceived ? (nfeWrapper.numero || 'N/A') : (nfeWrapper.numero || 'N/A'),
-                    series: isReceived ? (nfeWrapper.serie || '1') : (nfeWrapper.serie || '1'),
-                    cnpj_emit: isReceived ? nfeWrapper.cnpj_emitente : nfeWrapper.cnpj_emitente,
-                    cnpj_dest: isReceived ? nfeWrapper.cnpj_destinatario : nfeWrapper.cnpj_destinatario,
-                    dhEmi: isReceived ? nfeWrapper.data_emissao : nfeWrapper.data_emissao,
-                    tpNF: isReceived ? (nfeWrapper.tipo_operacao === 'entrada' ? '0' : '1') : '1', // Emitted is always Exit (1) unless specified
-                    items: []
-                  };
+            const data = await response.json();
+            // Focus can return the array directly or inside a key
+            const nfes = Array.isArray(data) ? data : (data.nfes_recebidas || data.dfes || data.nfes || []);
+            
+            for (const nfeWrapper of nfes) {
+              const isReceived = endpoint.type === 'received';
+              const isNfe = isReceived ? nfeWrapper.tipo === 'nfe' : (nfeWrapper.status === 'autorizado');
 
-                  // Map items based on endpoint type structure
-                  const rawItems = isReceived ? (nfeWrapper.itens || []) : (nfeWrapper.items || []);
-                  nfeData.items = rawItems.map((it: any) => ({
-                    cProd: String(it.codigo_produto || it.codigo || ''),
-                    xProd: String(it.descricao || it.nome || 'Produto Indefinido'),
-                    qCom: Number(it.quantidade || 0),
-                    uCom: String(it.unidade || 'UN'),
-                    vUnCom: Number(it.valor_unitario || 0),
-                    cfop: String(it.cfop || '')
-                  }));
+              if (isNfe) {
+                const nfeData: NfeData = {
+                  access_key: nfeWrapper.chave_nfe,
+                  nfe_number: nfeWrapper.numero || 'N/A',
+                  series: nfeWrapper.serie || '1',
+                  cnpj_emit: nfeWrapper.cnpj_emitente,
+                  cnpj_dest: nfeWrapper.cnpj_destinatario,
+                  dhEmi: nfeWrapper.data_emissao,
+                  tpNF: isReceived ? (nfeWrapper.tipo_operacao === 'entrada' ? '0' : '1') : '1',
+                  items: []
+                };
 
-                  if (nfeData.items.length === 0) {
-                    console.warn(`NFe ${nfeData.access_key} sem itens detalhados. Pulando.`);
-                    continue;
-                  }
-                  
+                const rawItems = isReceived ? (nfeWrapper.itens || []) : (nfeWrapper.items || []);
+                nfeData.items = rawItems.map((it: any) => ({
+                  cProd: String(it.codigo_produto || it.codigo || ''),
+                  xProd: String(it.descricao || it.nome || 'Produto Indefinido'),
+                  qCom: Number(it.quantidade || 0),
+                  uCom: String(it.unidade || 'UN'),
+                  vUnCom: Number(it.valor_unitario || 0),
+                  cfop: String(it.cfop || '')
+                }));
+
+                if (nfeData.items.length > 0) {
                   const result = await this.processNfe(nfeData);
                   if (result) processedCount++;
                 }
-              }
-            } else {
-              if (response.status !== 404) { // Focus sometimes 404s if list is empty
-                console.error(`Error from FocusNFe (${endpoint.type}) for ${branch}: ${response.status}`);
-                errorCount++;
               }
             }
           } catch (branchErr) {
