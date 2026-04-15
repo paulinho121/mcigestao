@@ -26,12 +26,14 @@ interface NfeData {
 
 const MONITORED_CNPJS = {
   'CE': '05502390000111',
-  'SP': '05502390000383'
+  'SP': '05502390000383',
+  'SC': '05502390000200'
 };
 
-const REVERSE_CNPJ_MAP: Record<string, 'CE' | 'SP'> = {
+const REVERSE_CNPJ_MAP: Record<string, 'CE' | 'SP' | 'SC'> = {
   '05502390000111': 'CE',
-  '05502390000383': 'SP'
+  '05502390000383': 'SP',
+  '05502390000200': 'SC'
 };
 
 export const nfeService = {
@@ -47,7 +49,8 @@ export const nfeService = {
     try {
       const tokens: Record<string, string | undefined> = {
         'CE': import.meta.env.VITE_FOCUS_NFE_TOKEN_CE,
-        'SP': import.meta.env.VITE_FOCUS_NFE_TOKEN_SP
+        'SP': import.meta.env.VITE_FOCUS_NFE_TOKEN_SP,
+        'SC': import.meta.env.VITE_FOCUS_NFE_TOKEN_SC
       };
 
       // Sync for each monitored branch
@@ -60,60 +63,77 @@ export const nfeService = {
 
         console.log(`Syncing branch ${branch} (CNPJ: ${cnpj})...`);
         
-        try {
-          // Senior Engineering Note: Using a Standardized Proxy Relay via Vite
-          const proxyUrl = `/api/focus-nfe/v2/nfes_recebidas?cnpj=${cnpj}`;
-          
-          const response = await fetch(proxyUrl, {
-            headers: {
-              'Authorization': `Basic ${btoa(token + ':')}`,
-              'Content-Type': 'application/json'
-            }
-          });
+        // Define endpoints to check: Received (Input) and Emitted (Output)
+        const endpoints = [
+          { url: `/api/focus-nfe/v2/nfes_recebidas?cnpj=${cnpj}`, type: 'received' },
+          { url: `/api/focus-nfe/v2/nfes?cnpj=${cnpj}`, type: 'emitted' }
+        ];
 
-          if (response.ok) {
-            const data = await response.json();
-            // Focus can return the array directly or inside a key
-            const nfes = Array.isArray(data) ? data : (data.nfes_recebidas || data.dfes || []);
-            
-            for (const nfeWrapper of nfes) {
-              if (nfeWrapper.tipo === 'nfe') {
-                // Focus provides a summary or the full data
-                // For simplicity and automation, we'll map the Focus structure to our NfeData
-                const nfeData: NfeData = {
-                  access_key: nfeWrapper.chave_nfe,
-                  nfe_number: nfeWrapper.numero || 'N/A',
-                  series: nfeWrapper.serie || '1',
-                  cnpj_emit: nfeWrapper.cnpj_emitente,
-                  cnpj_dest: nfeWrapper.cnpj_destinatario,
-                  dhEmi: nfeWrapper.data_emissao,
-                  tpNF: nfeWrapper.tipo_operacao === 'entrada' ? '0' : '1',
-                  items: (nfeWrapper.itens || []).map((it: any) => ({
-                    cProd: String(it.codigo_produto || ''),
-                    xProd: String(it.descricao || 'Produto Indefinido'),
+        for (const endpoint of endpoints) {
+          try {
+            console.log(`Fetching ${endpoint.type} NFes for ${branch}...`);
+            const response = await fetch(endpoint.url, {
+              headers: {
+                'Authorization': `Basic ${btoa(token + ':')}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              // Focus can return the array directly or inside a key
+              // For /nfes (emitted), it's usually the array itself or in a search result
+              const nfes = Array.isArray(data) ? data : (data.nfes_recebidas || data.dfes || data.nfes || []);
+              
+              for (const nfeWrapper of nfes) {
+                // Determine if it's a valid NFe record based on Focus structure
+                // Focus API v2 Emitted Notes return objects directly. 
+                // Received Notes usually have a 'tipo' or wrapper.
+                const isReceived = endpoint.type === 'received';
+                const isNfe = isReceived ? nfeWrapper.tipo === 'nfe' : (nfeWrapper.status === 'autorizado');
+
+                if (isNfe) {
+                  const nfeData: NfeData = {
+                    access_key: isReceived ? nfeWrapper.chave_nfe : nfeWrapper.chave_nfe,
+                    nfe_number: isReceived ? (nfeWrapper.numero || 'N/A') : (nfeWrapper.numero || 'N/A'),
+                    series: isReceived ? (nfeWrapper.serie || '1') : (nfeWrapper.serie || '1'),
+                    cnpj_emit: isReceived ? nfeWrapper.cnpj_emitente : nfeWrapper.cnpj_emitente,
+                    cnpj_dest: isReceived ? nfeWrapper.cnpj_destinatario : nfeWrapper.cnpj_destinatario,
+                    dhEmi: isReceived ? nfeWrapper.data_emissao : nfeWrapper.data_emissao,
+                    tpNF: isReceived ? (nfeWrapper.tipo_operacao === 'entrada' ? '0' : '1') : '1', // Emitted is always Exit (1) unless specified
+                    items: []
+                  };
+
+                  // Map items based on endpoint type structure
+                  const rawItems = isReceived ? (nfeWrapper.itens || []) : (nfeWrapper.items || []);
+                  nfeData.items = rawItems.map((it: any) => ({
+                    cProd: String(it.codigo_produto || it.codigo || ''),
+                    xProd: String(it.descricao || it.nome || 'Produto Indefinido'),
                     qCom: Number(it.quantidade || 0),
                     uCom: String(it.unidade || 'UN'),
                     vUnCom: Number(it.valor_unitario || 0),
                     cfop: String(it.cfop || '')
-                  }))
-                };
+                  }));
 
-                if (nfeData.items.length === 0) {
-                  console.warn(`NFe ${nfeData.access_key} sem itens detalhados no resumo. Pulando.`);
-                  continue;
+                  if (nfeData.items.length === 0) {
+                    console.warn(`NFe ${nfeData.access_key} sem itens detalhados. Pulando.`);
+                    continue;
+                  }
+                  
+                  const result = await this.processNfe(nfeData);
+                  if (result) processedCount++;
                 }
-                
-                const result = await this.processNfe(nfeData);
-                if (result) processedCount++;
+              }
+            } else {
+              if (response.status !== 404) { // Focus sometimes 404s if list is empty
+                console.error(`Error from FocusNFe (${endpoint.type}) for ${branch}: ${response.status}`);
+                errorCount++;
               }
             }
-          } else {
-            console.error(`Error from FocusNFe for ${branch}: ${response.status}`);
+          } catch (branchErr) {
+            console.error(`Failed ${endpoint.type} sync for branch ${branch}:`, branchErr);
             errorCount++;
           }
-        } catch (branchErr) {
-          console.error(`Failed branch ${branch} sync:`, branchErr);
-          errorCount++;
         }
       }
 
@@ -141,7 +161,7 @@ export const nfeService = {
     }
 
     // 2. Identify the target branch and operation
-    let branch: 'CE' | 'SP' | null = null;
+    let branch: 'CE' | 'SP' | 'SC' | null = null;
     let operation: 'entry' | 'exit' = 'entry';
 
     if (REVERSE_CNPJ_MAP[nfe.cnpj_dest]) {
