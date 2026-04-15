@@ -162,7 +162,8 @@ function App() {
     }
   }, []);
 
-  // Background SEFAZ Sync for Master Users
+  // Background SEFAZ Sync for Master Users (DISABLED TO AVOID AUTH POPUPS)
+  /*
   useEffect(() => {
     if (isMaster && connectionStatus === 'connected') {
       const runSync = async () => {
@@ -179,6 +180,7 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [isMaster, connectionStatus]);
+  */
 
   const handleLogin = (email: string, name?: string) => {
     // This is mainly for mock mode or immediate UI update
