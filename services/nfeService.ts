@@ -72,7 +72,7 @@ export const nfeService = {
         // Define endpoints: Received uses 'cnpj', Emitted also uses 'cnpj' in many v2 versions
         const endpoints = [
           { url: `/api/focus-nfe/v2/nfes_recebidas?cnpj=${cnpj}`, type: 'received' },
-          { url: `/api/focus-nfe/v2/nfes?cnpj_emitente=${cnpj}`, type: 'emitted' }
+          { url: `/api/focus-nfe/v2/nfes`, type: 'emitted' }
         ];
 
         for (const endpoint of endpoints) {
