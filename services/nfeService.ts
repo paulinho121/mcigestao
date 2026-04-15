@@ -56,9 +56,12 @@ export const nfeService = {
       // Sync for each monitored branch
       for (const [branch, cnpj] of Object.entries(MONITORED_CNPJS)) {
         const token = tokens[branch];
+        
+        console.log(`🔍 [DEBUG] Verificando conexão para Filial ${branch}...`);
+        
         // Skip branches with missing or placeholder tokens to avoid 401 popups
         if (!token || token.trim() === '' || token.includes('AQUI') || token === 'undefined') {
-          console.warn(`Token para filial ${branch} não configurado. Pulando para evitar pop-up de login.`);
+          console.warn(`⚠️ Token para filial ${branch} não configurado ou está 'undefined'. Verifique o Vercel.`);
           continue;
         }
 
