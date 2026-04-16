@@ -150,58 +150,50 @@ export const generateStoryImage = async (product: Product): Promise<File> => {
     const titleY = 1240;
     const lastY = wrapText(product.name.toUpperCase(), 90, titleY, 900, fontSize + 10);
 
-    // --- Availability Cards (Grid Style) ---
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
-    roundRect(90, lastY + 60, 900, 320, 40);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.stroke();
+    // --- Availability / CTA Section (Replaced Grid with Promotional Message) ---
+    const messageY = lastY + 180;
+    
+    // Background glow/gradient for the message area
+    const msgGradient = ctx.createRadialGradient(540, messageY, 0, 540, messageY, 600);
+    msgGradient.addColorStop(0, 'rgba(16, 185, 129, 0.15)');
+    msgGradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+    ctx.fillStyle = msgGradient;
+    ctx.fillRect(0, messageY - 200, 1080, 500);
 
-    // Total Badge
+    ctx.textAlign = 'center';
+    
+    // Large "DISPONÍVEL" Highlight
     ctx.fillStyle = '#10b981';
-    roundRect(140, lastY + 110, 60, 60, 15);
-    ctx.fill();
-    // (Simple box icon drawing)
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(155, lastY + 125, 30, 30);
-    
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '900 28px Inter, sans-serif';
-    ctx.fillText('ESTOQUE TOTAL', 220, lastY + 150);
-    
-    ctx.textAlign = 'right';
+    ctx.font = '900 130px Inter, sans-serif';
+    ctx.shadowColor = 'rgba(16, 185, 129, 0.5)';
+    ctx.shadowBlur = 40;
+    ctx.fillText('DISPONÍVEL', 540, messageY);
+    ctx.shadowBlur = 0; // Reset shadow
+
+    // Strong Commercial Phrase
     ctx.fillStyle = '#ffffff';
-    ctx.font = '900 64px Inter, sans-serif';
-    ctx.fillText(product.total.toString(), 940, lastY + 160);
+    ctx.font = '700 48px Inter, sans-serif';
+    const commercialPhrase = "QUALIDADE, AGILIDADE E O MELHOR SUPORTE PARA SUA PRODUÇÃO.";
+    
+    // Using the wrapText with center alignment adjustment
+    const words = commercialPhrase.split(' ');
+    let line = '';
+    let currentY = messageY + 110;
+    const maxWidth = 900;
+    const lineHeight = 65;
 
-    // Branch Grid
-    const branches = [
-        { name: 'CEARÁ', stock: product.stock_ce, color: 'rgba(16, 185, 129, 0.1)', textColor: '#10b981' },
-        { name: 'S. CATARINA', stock: product.stock_sc, color: 'rgba(59, 130, 246, 0.1)', textColor: '#3b82f6' },
-        { name: 'S. PAULO', stock: product.stock_sp, color: 'rgba(244, 63, 94, 0.1)', textColor: '#f43f5e' }
-    ];
-
-    branches.forEach((branch, i) => {
-        const x = 140 + (i * 280);
-        const y = lastY + 200;
-        const w = 240;
-        const h = 160;
-
-        ctx.fillStyle = branch.color;
-        roundRect(x, y, w, h, 20);
-        ctx.fill();
-
-        ctx.textAlign = 'center';
-        ctx.fillStyle = branch.textColor;
-        ctx.font = 'bold 22px Inter, sans-serif';
-        ctx.fillText(branch.name, x + w / 2, y + 50);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 56px Inter, sans-serif';
-        ctx.fillText(branch.stock.toString(), x + w / 2, y + 120);
-    });
+    for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && n > 0) {
+            ctx.fillText(line.trim(), 540, currentY);
+            line = words[n] + ' ';
+            currentY += lineHeight;
+        } else {
+            line = testLine;
+        }
+    }
+    ctx.fillText(line.trim(), 540, currentY);
 
     // --- Footer CTA ---
     const footerGradient = ctx.createLinearGradient(0, 1750, 0, 1920);
