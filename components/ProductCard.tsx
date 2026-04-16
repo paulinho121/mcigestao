@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Product, Reservation } from '../types';
-import { MapPin, Box, AlertCircle, Package, Calendar, FileText, Share2 } from 'lucide-react';
+import { MapPin, Box, AlertCircle, Package, Calendar, FileText, Share2, Instagram, Loader2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { inventoryService } from '../services/inventoryService';
+import { generateStoryImage } from '../utils/storyGenerator';
 
 interface ProductCardProps {
     product: Product;
@@ -12,6 +13,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [importInfo, setImportInfo] = useState<{ quantity: number; expectedDate?: string } | null>(null);
+    const [isGeneratingStory, setIsGeneratingStory] = useState(false);
     const availableStock = product.total - (product.reserved || 0);
     const isLowStock = availableStock < 5 && availableStock > 0;
     const isOutOfStock = availableStock === 0;
@@ -26,9 +28,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         text += `_Gestão Corporativa de Equipamentos_\n\n`;
         text += `*Item:* *${product.name}*\n`;
         text += `*Cód:* ${product.id}\n`;
-        if (product.price) {
+        /* if (product.price) {
             text += `*Preço:* R$ ${product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n`;
-        }
+        } */
         text += `\n`;
 
         text += `✅ *Confira a disponibilidade atualizada:*\n`;
@@ -38,6 +40,36 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
         window.open(whatsappUrl, '_blank');
+    };
+
+    const handleInstagramStory = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            setIsGeneratingStory(true);
+            const file = await generateStoryImage(product);
+            
+            if (navigator.share && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: `MCI Estoque - ${product.name}`,
+                    text: `Confira nosso estoque para o item ${product.name}!`,
+                });
+            } else {
+                // Fallback for desktop: Download
+                const url = URL.createObjectURL(file);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `story-mci-${product.id}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+                alert('Arte gerada com sucesso! A imagem foi baixada para você postar no seu Story.');
+            }
+        } catch (error) {
+            console.error('Erro ao gerar story:', error);
+            alert('Erro ao gerar a arte. Tente novamente.');
+        } finally {
+            setIsGeneratingStory(false);
+        }
     };
 
     // Fetch reservations and import info when spotlight is opened
@@ -115,13 +147,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                                 {product.brand}
                             </span>
                         )}
-                        <button
-                            onClick={handleShare}
-                            className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all dark:bg-slate-700 dark:text-slate-400 dark:hover:text-green-400"
-                            title="Compartilhar no WhatsApp"
-                        >
-                            <Share2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                            <button
+                                onClick={handleInstagramStory}
+                                disabled={isGeneratingStory}
+                                className="p-1.5 rounded-full bg-pink-50 text-pink-500 hover:text-pink-600 hover:bg-pink-100 transition-all dark:bg-pink-900/20 dark:text-pink-400 dark:hover:text-pink-300 disabled:opacity-50"
+                                title="Gerar Arte para Instagram Story"
+                            >
+                                {isGeneratingStory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Instagram className="w-4 h-4" />}
+                            </button>
+                            <button
+                                onClick={handleShare}
+                                className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all dark:bg-slate-700 dark:text-slate-400 dark:hover:text-green-400"
+                                title="Compartilhar no WhatsApp"
+                            >
+                                <Share2 className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -412,13 +454,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                                 )}
                             </div>
 
-                            <button
-                                onClick={handleShare}
-                                className="mt-8 w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-transform active:scale-[0.98] shadow-lg shadow-emerald-500/20"
-                            >
-                                <Share2 className="w-5 h-5" />
-                                Compartilhar Disponibilidade
-                            </button>
+                            <div className="mt-8 flex gap-3">
+                                <button
+                                    onClick={handleInstagramStory}
+                                    disabled={isGeneratingStory}
+                                    className="flex-1 bg-gradient-to-tr from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-transform active:scale-[0.98] shadow-lg shadow-pink-500/20 disabled:opacity-70"
+                                >
+                                    {isGeneratingStory ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                    ) : (
+                                        <Instagram className="w-5 h-5" />
+                                    )}
+                                    Criar Arte Story
+                                </button>
+                                <button
+                                    onClick={handleShare}
+                                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-transform active:scale-[0.98] shadow-lg shadow-emerald-500/20"
+                                >
+                                    <Share2 className="w-5 h-5" />
+                                    WhatsApp
+                                </button>
+                            </div>
 
                             <p className="text-center text-[10px] text-slate-400 mt-4 uppercase tracking-[0.2em] font-bold">
                                 Clique fora para fechar
