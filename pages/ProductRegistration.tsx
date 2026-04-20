@@ -1,14 +1,11 @@
 import { useState } from 'react';
 import { 
-  Package, 
   Save, 
   Tag, 
   ImageIcon, 
   Plus, 
-  X, 
   AlertCircle, 
   CheckCircle2, 
-  ChevronRight, 
   MapPin, 
   Building2,
   Image as ImageIconLucide,
