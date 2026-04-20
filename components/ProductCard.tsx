@@ -90,7 +90,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }, [isSpotlightOpen, product.id, product.reserved]);
 
     return (
-        <GlowingShadow className="h-full">
+        <GlowingShadow className={`h-full relative ${isSpotlightOpen ? 'z-[9999]' : 'z-10'}`}>
             <div
                 onClick={() => setIsSpotlightOpen(true)}
                 className={`w-full bg-white rounded-xl overflow-hidden transition-all duration-200 flex flex-col h-full group cursor-pointer relative ${isSpotlightOpen ? 'ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-slate-900' : ''} dark:bg-slate-800`}
@@ -261,7 +261,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     </div>
 
                     <div className="text-right flex-shrink-0">
-                        {isOutOfStock ? (
+                        {product.is_future ? (
+                            <span className="inline-block px-2.5 sm:px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-md whitespace-nowrap">
+                                Em Breve
+                            </span>
+                        ) : isOutOfStock ? (
                             <span className="inline-block px-2.5 sm:px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-md whitespace-nowrap">
                                 Sem Estoque
                             </span>
@@ -317,7 +321,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
                                 {/* Tags */}
                                 <div className="absolute top-4 left-4 flex flex-col gap-2">
-                                    {isOutOfStock ? (
+                                    {product.is_future ? (
+                                        <span className="px-3 py-1 bg-indigo-600 text-white text-xs font-bold rounded-lg shadow-lg">EM BREVE</span>
+                                    ) : isOutOfStock ? (
                                         <span className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-lg shadow-lg">ESGOTADO</span>
                                     ) : isLowStock ? (
                                         <span className="px-3 py-1 bg-yellow-400 text-yellow-950 text-xs font-bold rounded-lg shadow-lg">BAIXO ESTOQUE</span>

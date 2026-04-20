@@ -80,7 +80,6 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  z-index: 2;
   border-radius: var(--card-radius);
 }
 
