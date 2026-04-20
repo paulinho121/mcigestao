@@ -36,6 +36,11 @@ ON public.withdrawal_protocols FOR INSERT
 TO authenticated
 WITH CHECK (true);
 
+CREATE POLICY "Apenas master pode deletar protocolos"
+ON public.withdrawal_protocols FOR DELETE
+TO authenticated
+USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_master = TRUE));
+
 -- Comentários
 COMMENT ON TABLE public.withdrawal_protocols IS 'Registro de protocolos de saída/retirada de clientes';
 
