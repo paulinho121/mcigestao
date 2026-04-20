@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Product, Reservation, ImportProject, ImportItem } from '../types';
+import { Product, Reservation, ImportProject, ImportItem, WithdrawalProtocol } from '../types';
 import { MOCK_INVENTORY } from './mockData';
 import { logService } from './logService';
 
@@ -1544,5 +1544,146 @@ export const inventoryService = {
     }
 
     return data;
+  },
+
+  /**
+   * Register a new withdrawal protocol
+   */
+  async registerWithdrawal(protocol: Omit<WithdrawalProtocol, 'id' | 'created_at' | 'photo_url'>, photo?: File): Promise<WithdrawalProtocol | null> {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    let photo_url = '';
+    
+    // 1. Upload photo if provided
+    if (photo) {
+      photo_url = await this.uploadWithdrawalPhoto(photo);
+    }
+
+    // 2. Insert protocol (the trigger in DB handles stock deduction)
+    const { data, error } = await supabase
+      .from('withdrawal_protocols')
+      .insert({
+        product_id: protocol.product_id,
+        product_name: protocol.product_name,
+        customer_name: protocol.customer_name,
+        receiver_name: protocol.receiver_name,
+        branch: protocol.branch,
+        quantity: protocol.quantity,
+        serial_number: protocol.serial_number,
+        observations: protocol.observations,
+        photo_url,
+        user_email: protocol.user_email
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error registering withdrawal:', error);
+      throw error;
+    }
+
+    // 3. Log the activity
+    await logService.logActivity({
+      action_type: 'withdrawal',
+      entity_type: 'product',
+      entity_id: protocol.product_id,
+      details: { ...protocol, photo_url }
+    });
+
+    return data;
+  },
+
+  /**
+   * Upload a photo for a withdrawal protocol
+   */
+  async uploadWithdrawalPhoto(file: File): Promise<string> {
+    if (!supabase) return '';
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+    const filePath = `withdrawals/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('withdrawals')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      if (uploadError.message.includes('Bucket not found')) {
+        throw new Error('O bucket "withdrawals" não foi encontrado no Supabase Storage. Por favor, crie-o para habilitar fotos.');
+      }
+      console.error('Error uploading photo:', uploadError);
+      throw uploadError;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('withdrawals')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  },
+
+  /**
+   * Get withdrawal protocols history
+   */
+  async getWithdrawalProtocols(limit = 100): Promise<WithdrawalProtocol[]> {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from('withdrawal_protocols')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching withdrawal protocols:', error);
+      return [];
+    }
+
+    return data;
+  },
+
+  /**
+   * Delete a withdrawal protocol and restore stock
+   */
+  async deleteWithdrawalProtocol(protocol: WithdrawalProtocol, userEmail: string): Promise<boolean> {
+    if (!supabase) return false;
+
+    // 1. Fetch current product to restore stock safely via RPC if possible, 
+    // or just direct update if user is master. 
+    // Wait, since we are doing this from client, let's use the DB trigger for safety or direct update.
+    // If direct update fails due to RLS, it means only master can delete.
+    const { data: product } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', protocol.product_id)
+      .single();
+
+    if (product) {
+      const branchStockKey = `stock_${protocol.branch.toLowerCase()}`;
+      await supabase.from('products').update({
+        [branchStockKey]: Number(product[branchStockKey]) + protocol.quantity
+      }).eq('id', protocol.product_id);
+    }
+
+    // 2. Delete the protocol
+    const { error } = await supabase
+      .from('withdrawal_protocols')
+      .delete()
+      .eq('id', protocol.id);
+
+    if (error) {
+      console.error('Error deleting protocol:', error);
+      throw error;
+    }
+
+    // 3. Log the deletion
+    await logService.logActivity({
+      action_type: 'withdrawal_deleted',
+      entity_type: 'product',
+      entity_id: protocol.product_id,
+      details: { ...protocol, deleted_by: userEmail }
+    });
+
+    return true;
   }
 };

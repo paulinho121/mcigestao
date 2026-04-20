@@ -17,15 +17,16 @@ import { Diretoria } from './pages/Diretoria';
 import { StockManagement } from './pages/StockManagement';
 import { NfeAutomation } from './pages/NfeAutomation';
 import { ProductRegistration } from './pages/ProductRegistration';
+import { Withdrawals } from './pages/Withdrawals';
 // import { nfeService } from './services/nfeService';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
-import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, ShoppingBag, FileText, Sun, Moon, Users, Tag, Truck, BookOpen, MapPin, Menu, X, ChevronDown, ChevronRight, ShieldCheck, Plus } from 'lucide-react';
+import { Package, ClipboardList, Upload as UploadIcon, Wrench, LogOut, Ship, Container, CalendarClock, ShoppingBag, FileText, Sun, Moon, Users, Tag, Truck, BookOpen, MapPin, Menu, X, ChevronDown, ChevronRight, ShieldCheck, Plus, PackageCheck } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 
-type Tab = 'inventory' | 'reservations' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration';
+type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration';
 
 // Helper Components for the New Navigation
 function NavGroup({ title, icon, children, isExpanded, onToggle, id }: {
@@ -352,6 +353,14 @@ function App() {
                   icon={<BookOpen className="w-4 h-4" />}
                   label="Catálogos de Produtos"
                 />
+                {isMaster && (
+                  <NavButton
+                    active={activeTab === 'withdrawals'}
+                    onClick={() => { setActiveTab('withdrawals'); setIsMenuOpen(false); }}
+                    icon={<PackageCheck className="w-4 h-4" />}
+                    label="Protocolos de Retirada"
+                  />
+                )}
               </NavGroup>
 
               {/* Group 2: Logística */}
@@ -525,6 +534,7 @@ function App() {
       {/* Content */}
       {activeTab === 'inventory' && <Inventory userEmail={user.email} />}
       {activeTab === 'reservations' && <Reservations userEmail={user.email} userName={user.name} isMasterUser={isMaster} />}
+      {activeTab === 'withdrawals' && isMaster && <Withdrawals userEmail={user.email} />}
       {activeTab === 'in_import' && <InImport />}
       {activeTab === 'upload' && <Upload />}
       {activeTab === 'maintenance' && <Maintenance />}

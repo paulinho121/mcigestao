@@ -148,3 +148,18 @@ export interface PurchaseOrderItem {
     unit_price: number;
     created_at: string;
 }
+
+export interface WithdrawalProtocol {
+    id: string;
+    product_id: string;
+    product_name: string;
+    customer_name: string;
+    receiver_name: string;
+    branch: 'CE' | 'SC' | 'SP';
+    quantity: number;
+    serial_number?: string;
+    observations?: string;
+    photo_url?: string;
+    user_email: string;
+    created_at: string;
+}
