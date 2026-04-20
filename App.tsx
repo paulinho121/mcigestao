@@ -16,6 +16,7 @@ import { Catalogs } from './pages/Catalogs';
 import { Diretoria } from './pages/Diretoria';
 import { StockManagement } from './pages/StockManagement';
 import { NfeAutomation } from './pages/NfeAutomation';
+import { ProductRegistration } from './pages/ProductRegistration';
 // import { nfeService } from './services/nfeService';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
@@ -24,7 +25,7 @@ import { supabase } from './lib/supabase';
 import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 
-type Tab = 'inventory' | 'reservations' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation';
+type Tab = 'inventory' | 'reservations' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration';
 
 // Helper Components for the New Navigation
 function NavGroup({ title, icon, children, isExpanded, onToggle, id }: {
@@ -430,6 +431,12 @@ function App() {
                     icon={<MapPin className="w-4 h-4" />}
                     label="Gestão de Filiais"
                   />
+                  <NavButton
+                    active={activeTab === 'product_registration'}
+                    onClick={() => { setActiveTab('product_registration'); setIsMenuOpen(false); }}
+                    icon={<Plus className="w-4 h-4" />}
+                    label="Cadastrar Produto"
+                  />
                 </NavGroup>
               )}
 
@@ -532,6 +539,7 @@ function App() {
       {activeTab === 'diretoria' && <Diretoria />}
       {activeTab === 'stock_management' && isMaster && <StockManagement userEmail={user.email} />}
       {activeTab === 'nfe_automation' && isMaster && <NfeAutomation />}
+      {activeTab === 'product_registration' && isMaster && <ProductRegistration />}
       <Analytics />
     </div>
   );

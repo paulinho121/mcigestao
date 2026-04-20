@@ -115,12 +115,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                         }}
                     />
                     <div className="absolute top-2 left-2 flex gap-1">
-                        {isLowStock && (
+                        {product.is_future && (
+                            <div className="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
+                                EM BREVE
+                            </div>
+                        )}
+                        {isLowStock && !product.is_future && (
                             <div className="bg-yellow-400 text-yellow-950 text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
                                 BAIXO
                             </div>
                         )}
-                        {isOutOfStock && (
+                        {isOutOfStock && !product.is_future && (
                             <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
                                 ESGOTADO
                             </div>

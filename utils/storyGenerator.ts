@@ -93,13 +93,14 @@ export const generateStoryImage = async (product: Product): Promise<File> => {
         const isOutOfStock = product.total === 0;
         
         // Status Tag
-        ctx.fillStyle = isOutOfStock ? '#ef4444' : '#10b981'; // red-500 : emerald-500
+        const statusText = product.is_future ? 'EM BREVE' : (isOutOfStock ? 'ESGOTADO' : 'DISPONÍVEL');
+        ctx.fillStyle = product.is_future ? '#6366f1' : (isOutOfStock ? '#ef4444' : '#10b981'); // indigo-500 : red-500 : emerald-500
         roundRect(imgX + 30, imgY + 30, 240, 64, 16);
         ctx.fill();
         ctx.fillStyle = '#ffffff';
         ctx.font = '900 28px Inter, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(isOutOfStock ? 'ESGOTADO' : 'DISPONÍVEL', imgX + 150, imgY + 72);
+        ctx.fillText(statusText, imgX + 150, imgY + 72);
 
         // COD Tag
         ctx.fillStyle = '#1e293b'; // slate-800
@@ -162,12 +163,21 @@ export const generateStoryImage = async (product: Product): Promise<File> => {
 
     ctx.textAlign = 'center';
     
-    // Large "DISPONÍVEL" Highlight
-    ctx.fillStyle = '#10b981';
-    ctx.font = '900 130px Inter, sans-serif';
-    ctx.shadowColor = 'rgba(16, 185, 129, 0.5)';
-    ctx.shadowBlur = 40;
-    ctx.fillText('DISPONÍVEL', 540, messageY);
+    // Large Status Highlight
+    if (product.is_future) {
+        ctx.fillStyle = '#6366f1'; // indigo-500
+        ctx.font = '900 90px Inter, sans-serif';
+        ctx.shadowColor = 'rgba(99, 102, 241, 0.5)';
+        ctx.shadowBlur = 40;
+        ctx.fillText('LOGO MAIS EM', 540, messageY - 80);
+        ctx.fillText('NOSSO ESTOQUE', 540, messageY + 40);
+    } else {
+        ctx.fillStyle = '#10b981'; // emerald-500
+        ctx.font = '900 130px Inter, sans-serif';
+        ctx.shadowColor = 'rgba(16, 185, 129, 0.5)';
+        ctx.shadowBlur = 40;
+        ctx.fillText('DISPONÍVEL', 540, messageY);
+    }
     ctx.shadowBlur = 0; // Reset shadow
 
     // Strong Commercial Phrase
@@ -203,9 +213,9 @@ export const generateStoryImage = async (product: Product): Promise<File> => {
     ctx.fillRect(0, 1700, 1080, 220);
 
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#10b981';
+    ctx.fillStyle = product.is_future ? '#6366f1' : '#10b981';
     ctx.font = '900 42px Inter, sans-serif';
-    ctx.fillText('🚀 GARANTA JÁ O SEU NO MCI ESTOQUE', 540, 1840);
+    ctx.fillText(product.is_future ? '👀 FIQUE DE OLHO NO MCI ESTOQUE' : '🚀 GARANTA JÁ O SEU NO MCI ESTOQUE', 540, 1840);
 
     return new Promise((resolve) => {
         canvas.toBlob((blob) => {

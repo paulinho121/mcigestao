@@ -30,6 +30,7 @@ export interface Product {
     location_ce?: string;
     location_sc?: string;
     location_sp?: string;
+    is_future?: boolean;
     created_at?: string;
     updated_at?: string;
 }

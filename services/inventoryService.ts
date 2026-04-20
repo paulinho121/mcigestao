@@ -958,6 +958,81 @@ export const inventoryService = {
   },
 
   /**
+   * Create a new product manually
+   */
+  async createProduct(product: Partial<Product>): Promise<Product> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    if (!product.id || !product.name) {
+      throw new Error('Código e nome são obrigatórios para o cadastro.');
+    }
+
+    const cleanId = product.id.endsWith('.0') ? product.id.slice(0, -2) : product.id;
+
+    const newProduct: Product = {
+      id: cleanId,
+      name: product.name,
+      brand: product.brand || 'Sem Marca',
+      brand_logo: product.brand_logo,
+      image_url: product.image_url,
+      stock_ce: product.stock_ce || 0,
+      stock_sc: product.stock_sc || 0,
+      stock_sp: product.stock_sp || 0,
+      total: (product.stock_ce || 0) + (product.stock_sc || 0) + (product.stock_sp || 0),
+      reserved: 0,
+      observations: product.observations,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    if (!supabase) {
+      // Mock mode
+      MOCK_INVENTORY.push(newProduct);
+      return newProduct;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .insert({
+          id: newProduct.id,
+          name: newProduct.name,
+          brand: newProduct.brand,
+          brand_logo: newProduct.brand_logo,
+          image_url: newProduct.image_url,
+          stock_ce: newProduct.stock_ce,
+          stock_sc: newProduct.stock_sc,
+          stock_sp: newProduct.stock_sp,
+          total: newProduct.total,
+          reserved: newProduct.reserved,
+          observations: newProduct.observations,
+          is_future: product.is_future
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(`Erro ao cadastrar produto ${newProduct.id}: ${error.message}`);
+      }
+
+      const created = cleanAndDeduplicate([data])[0];
+
+      // Log creation
+      await logService.logProductCreated({
+        code: created.id,
+        name: created.name,
+        brand: created.brand,
+        category: 'Manual'
+      });
+
+      return created;
+    } catch (error: any) {
+      console.error('Product creation error:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Create a new product from XML data
    * Used when uploading XML files with products that don't exist in the database
    */
@@ -966,65 +1041,7 @@ export const inventoryService = {
     productName: string,
     productBrand: string = 'Sem Marca'
   ): Promise<Product> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    const newProduct: Product = {
-      id: productId,
-      name: productName,
-      brand: productBrand,
-      stock_ce: 0,
-      stock_sc: 0,
-      stock_sp: 0,
-      total: 0,
-      reserved: 0
-    };
-
-    if (!supabase) {
-      // Mock mode: Add to MOCK_INVENTORY
-      console.warn('Supabase not configured. Adding to mock data.');
-      MOCK_INVENTORY.push(newProduct);
-      console.log(`Mock: Created product ${productId}`);
-      return newProduct;
-    }
-
-    // Real Supabase Implementation
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .insert({
-          id: productId,
-          name: productName,
-          brand: productBrand,
-          stock_ce: 0,
-          stock_sc: 0,
-          stock_sp: 0,
-          total: 0,
-          reserved: 0
-        })
-        .select()
-        .single();
-
-      if (error) {
-        throw new Error(`Erro ao criar produto ${productId}: ${error.message}`);
-      }
-
-      console.log(`Successfully created product ${productId}`);
-
-      const createdProduct = cleanAndDeduplicate([data])[0];
-
-      // Log product creation
-      await logService.logProductCreated({
-        code: createdProduct.id,
-        name: createdProduct.name,
-        brand: createdProduct.brand,
-        category: 'XML Auto-Create'
-      });
-
-      return createdProduct;
-    } catch (error: any) {
-      console.error('Product creation error:', error);
-      throw error;
-    }
+    return this.createProduct({ id: productId, name: productName, brand: productBrand });
   },
 
 
@@ -1131,6 +1148,24 @@ export const inventoryService = {
       console.error('Observations update error:', error);
       throw error;
     }
+  },
+
+  /**
+   * Update brand logo for a product
+   */
+  async updateProductBrandLogo(productId: string, brandLogo: string): Promise<void> {
+    if (!supabase) {
+      const product = MOCK_INVENTORY.find(p => p.id === productId);
+      if (product) product.brand_logo = brandLogo;
+      return;
+    }
+
+    const { error } = await supabase
+      .from('products')
+      .update({ brand_logo: brandLogo })
+      .eq('id', productId);
+
+    if (error) throw new Error(error.message);
   },
 
   /**
