@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { X, Trash2, Edit, Printer, AlertTriangle, Loader2, Info } from 'lucide-react';
+import { X, Trash2, Edit, AlertTriangle, Loader2, Info } from 'lucide-react';
 import { WithdrawalProtocol } from '../../types';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { inventoryService } from '../../services/inventoryService';
 
 interface ProtocolDetailsModalProps {

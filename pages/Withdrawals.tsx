@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PackageCheck, Plus, Search, Calendar, User, MapPin, ExternalLink, Image as ImageIcon, ClipboardList, Filter, Download, Printer, LayoutGrid, List } from 'lucide-react';
+import { PackageCheck, Plus, Search, Calendar, MapPin, Image as ImageIcon, ClipboardList, Filter, Download, Printer, LayoutGrid, List } from 'lucide-react';
 import { inventoryService } from '../services/inventoryService';
 import { WithdrawalProtocol } from '../types';
 import { WithdrawalModal } from '../components/modals/WithdrawalModal';
