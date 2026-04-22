@@ -39,8 +39,8 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
 
     const filteredProtocols = protocols.filter(p => 
         p.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.product_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.receiver_name.toLowerCase().includes(searchQuery.toLowerCase())
+        p.receiver_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.items?.some(item => item.product_name.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
     const handlePrint = (protocol: WithdrawalProtocol) => {

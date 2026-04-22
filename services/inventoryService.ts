@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Product, Reservation, ImportProject, ImportItem, WithdrawalProtocol } from '../types';
+import { Product, Reservation, ImportProject, ImportItem, WithdrawalProtocol, WithdrawalItem } from '../types';
 import { MOCK_INVENTORY } from './mockData';
 import { logService } from './logService';
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Camera, Upload, CheckCircle2, AlertCircle, Search, User, UserCheck, MapPin, Hash, FileText, ChevronRight, Loader2, Printer } from 'lucide-react';
+import { X, Camera, Upload, CheckCircle2, AlertCircle, Search, User, UserCheck, MapPin, FileText, ChevronRight, Loader2, Printer, ImageIcon, Calendar } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
-import { Product, WithdrawalProtocol } from '../../types';
+import { Product, WithdrawalProtocol, WithdrawalItem } from '../../types';
 import { WithdrawalReceipt } from '../reports/WithdrawalReceipt';
 
 interface WithdrawalModalProps {
@@ -387,7 +387,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                         </div>
                     )}
 
-                    {step === 'confirm' && selectedProduct && (
+                    {step === 'confirm' && selectedItems.length > 0 && (
                         <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                             <h3 className="text-lg font-bold text-center dark:text-white">Resumo do Protocolo</h3>
                             
