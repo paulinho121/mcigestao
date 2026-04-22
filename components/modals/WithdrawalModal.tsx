@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Camera, Upload, CheckCircle2, AlertCircle, Search, User, UserCheck, MapPin, FileText, ChevronRight, Loader2, Printer, ImageIcon, Calendar } from 'lucide-react';
+import { X, Camera, Upload, CheckCircle2, AlertCircle, Search, User, UserCheck, MapPin, FileText, ChevronRight, Loader2, Printer } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { Product, WithdrawalProtocol, WithdrawalItem } from '../../types';
 import { WithdrawalReceipt } from '../reports/WithdrawalReceipt';
