@@ -61,57 +61,74 @@ export const generateStoryImage = async (product: Product): Promise<File> => {
     }
 
     // --- Product Showcase Image ---
-    const productImage = await loadImage(product.image_url || '');
-    if (productImage) {
-        // Draw image container background
-        ctx.fillStyle = '#ffffff';
-        const imgW = 900;
-        const imgH = 900;
-        const imgX = (1080 - imgW) / 2;
-        const imgY = 280;
-        
-        ctx.save();
-        ctx.shadowColor = 'rgba(16, 185, 129, 0.2)';
-        ctx.shadowBlur = 60;
-        roundRect(imgX, imgY, imgW, imgH, 40);
-        ctx.fill();
-        ctx.restore();
+    const imgW = 900;
+    const imgH = 900;
+    const imgX = (1080 - imgW) / 2;
+    const imgY = 280;
 
+    // Draw image container background (ALWAYS DRAW)
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(16, 185, 129, 0.2)';
+    ctx.shadowBlur = 60;
+    roundRect(imgX, imgY, imgW, imgH, 40);
+    ctx.fill();
+    ctx.restore();
+
+    // Attempt to load product image with fallback
+    let productImage = await loadImage(product.image_url || '');
+    
+    // Fallback image if main one fails
+    if (!productImage) {
+        console.warn(`[StoryGen] Failed to load image for ${product.id}, using fallback.`);
+        productImage = await loadImage('https://images.unsplash.com/photo-1553413077-190dd305871c?w=1000&auto=format&fit=crop&q=80');
+    }
+
+    if (productImage) {
         // Clip and Draw Product
         ctx.save();
         roundRect(imgX, imgY, imgW, imgH, 40);
         ctx.clip();
         
-        // Dark overlay on image for contrast if needed, but usually images are white background
         const ratio = Math.min(imgW / productImage.width, imgH / productImage.height);
         const w = productImage.width * ratio;
         const h = productImage.height * ratio;
         ctx.drawImage(productImage, imgX + (imgW - w) / 2, imgY + (imgH - h) / 2, w, h);
         ctx.restore();
-
-        // --- Floating Tags (Matches Screenshot Aesthetic) ---
-        const isOutOfStock = product.total === 0;
-        
-        // Status Tag
-        const statusText = product.is_future ? 'EM BREVE' : (isOutOfStock ? 'ESGOTADO' : 'DISPONÍVEL');
-        ctx.fillStyle = product.is_future ? '#6366f1' : (isOutOfStock ? '#ef4444' : '#10b981'); // indigo-500 : red-500 : emerald-500
-        roundRect(imgX + 30, imgY + 30, 240, 64, 16);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 28px Inter, sans-serif';
+    } else {
+        // If even fallback fails, draw a placeholder icon
+        ctx.fillStyle = '#f1f5f9';
+        ctx.font = 'bold 200px Inter, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(statusText, imgX + 150, imgY + 72);
-
-        // COD Tag
-        ctx.fillStyle = '#1e293b'; // slate-800
-        roundRect(imgX + 30, imgY + 110, 210, 56, 16);
-        ctx.fill();
-        ctx.fillStyle = '#cbd5e1'; // slate-300
-        ctx.font = 'bold 22px Inter, sans-serif';
-        ctx.fillText(`COD: ${product.id}`, imgX + 135, imgY + 146);
-
-        // Price Tag REMOVED per user request
+        ctx.fillText('📦', 540, imgY + imgH / 2 + 60);
     }
+
+    // --- Floating Tags (Matches Screenshot Aesthetic) ---
+    // These should ALWAYS be drawn on top of the box
+    const isOutOfStock = product.total === 0;
+    
+    // Status Tag
+    const statusText = product.is_future ? 'EM BREVE' : (isOutOfStock ? 'ESGOTADO' : 'DISPONÍVEL');
+    ctx.save();
+    ctx.fillStyle = product.is_future ? '#6366f1' : (isOutOfStock ? '#ef4444' : '#10b981'); // indigo-500 : red-500 : emerald-500
+    roundRect(imgX + 30, imgY + 30, 240, 64, 16);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 28px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(statusText, imgX + 150, imgY + 72);
+    ctx.restore();
+
+    // COD Tag
+    ctx.save();
+    ctx.fillStyle = '#1e293b'; // slate-800
+    roundRect(imgX + 30, imgY + 110, 210, 56, 16);
+    ctx.fill();
+    ctx.fillStyle = '#cbd5e1'; // slate-300
+    ctx.font = 'bold 22px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`COD: ${product.id}`, imgX + 135, imgY + 146);
+    ctx.restore();
 
     // --- Product Title Section ---
     ctx.textAlign = 'left';
