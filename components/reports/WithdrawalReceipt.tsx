@@ -102,43 +102,29 @@ export const WithdrawalReceipt: React.FC<WithdrawalReceiptProps> = ({ protocol }
                         </tr>
                     </thead>
                     <tbody>
-                        <tr className="border-b border-slate-100">
-                            <td className="p-4">
-                                <p className="text-base font-bold text-slate-900 leading-snug">{protocol.product_name}</p>
-                                {protocol.serial_number && (
-                                    <p className="text-xs font-bold text-slate-500 mt-1 bg-slate-100 px-2 py-0.5 rounded w-fit">S/N: {protocol.serial_number}</p>
-                                )}
-                            </td>
-                            <td className="p-4 text-center">
-                                <p className="text-xl font-black text-slate-900">{protocol.quantity}</p>
-                                <p className="text-[8px] font-bold text-slate-400 uppercase">UNIDADES</p>
-                            </td>
-                            <td className="p-4 text-center">
-                                <p className="text-sm font-bold text-slate-900">{protocol.branch}</p>
-                                <p className="text-[8px] font-bold text-slate-400 uppercase">FILIAL</p>
-                            </td>
-                        </tr>
+                        {protocol.items?.map((item, index) => (
+                            <tr key={item.id || index} className="border-b border-slate-100">
+                                <td className="p-4">
+                                    <p className="text-sm font-bold text-slate-900 leading-snug">{item.product_name}</p>
+                                    {item.serial_number && (
+                                        <p className="text-[10px] font-bold text-slate-500 mt-1 bg-slate-100 px-2 py-0.5 rounded w-fit">S/N: {item.serial_number}</p>
+                                    )}
+                                    {item.observations && (
+                                        <p className="text-[10px] text-slate-400 italic mt-1">Obs: {item.observations}</p>
+                                    )}
+                                </td>
+                                <td className="p-4 text-center">
+                                    <p className="text-lg font-black text-slate-900">{item.quantity}</p>
+                                    <p className="text-[8px] font-bold text-slate-400 uppercase">UN</p>
+                                </td>
+                                <td className="p-4 text-center">
+                                    <p className="text-sm font-bold text-slate-900">{protocol.branch}</p>
+                                    <p className="text-[8px] font-bold text-slate-400 uppercase">FILIAL</p>
+                                </td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
-
-                {protocol.observations && (
-                    <div className="p-4 bg-slate-50 border-t border-slate-200">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Observações do Protocolo</p>
-                                <p className="text-xs font-medium text-slate-700 italic leading-relaxed">
-                                    {protocol.observations}
-                                </p>
-                            </div>
-                            {protocol.invoice_number && (
-                                <div className="text-right">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">NF Faturamento</p>
-                                    <p className="text-sm font-black text-slate-900">#{protocol.invoice_number}</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
             </div>
 
             {/* Signature Area */}

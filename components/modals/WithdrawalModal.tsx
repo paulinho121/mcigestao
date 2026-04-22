@@ -18,14 +18,11 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<Product[]>([]);
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [selectedItems, setSelectedItems] = useState<Omit<WithdrawalItem, 'id' | 'protocol_id' | 'created_at'>[]>([]);
     const [formData, setFormData] = useState({
         customer_name: '',
         receiver_name: '',
         branch: 'CE' as 'CE' | 'SC' | 'SP',
-        quantity: 1,
-        serial_number: '',
-        observations: '',
         invoice_number: ''
     });
     const [photo, setPhoto] = useState<File | null>(null);
@@ -52,8 +49,27 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
     if (!isOpen) return null;
 
     const handleProductSelect = (product: Product) => {
-        setSelectedProduct(product);
-        setStep('details');
+        // Add product to items if not already there
+        if (!selectedItems.find(item => item.product_id === product.id)) {
+            setSelectedItems([...selectedItems, {
+                product_id: product.id,
+                product_name: product.name,
+                quantity: 1,
+                serial_number: '',
+                observations: ''
+            }]);
+        }
+        setSearchQuery('');
+    };
+
+    const removeSelectedItem = (productId: string) => {
+        setSelectedItems(selectedItems.filter(item => item.product_id !== productId));
+    };
+
+    const updateItemDetail = (productId: string, field: keyof Omit<WithdrawalItem, 'id' | 'protocol_id' | 'created_at'>, value: any) => {
+        setSelectedItems(selectedItems.map(item => 
+            item.product_id === productId ? { ...item, [field]: value } : item
+        ));
     };
 
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,28 +86,22 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
     };
 
     const handleSubmit = async () => {
-        if (!selectedProduct) return;
+        if (selectedItems.length === 0) return;
         
         setLoading(true);
         setError(null);
         
         try {
             const result = await inventoryService.registerWithdrawal({
-                product_id: selectedProduct.id,
-                product_name: selectedProduct.name,
                 customer_name: formData.customer_name,
                 receiver_name: formData.receiver_name,
                 branch: formData.branch,
-                quantity: formData.quantity,
-                serial_number: formData.serial_number,
-                observations: formData.observations,
                 invoice_number: formData.invoice_number || undefined,
                 user_email: userEmail
-            }, photo || undefined);
+            }, selectedItems, photo || undefined);
             
             if (result) setSavedProtocol(result);
             setStep('success');
-            // Remove the automatic close to allow printing
         } catch (err: any) {
             setError(err.message || 'Erro ao registrar retirada');
         } finally {
@@ -101,15 +111,12 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
 
     const resetForm = () => {
         setStep('product');
-        setSelectedProduct(null);
+        setSelectedItems([]);
         setSearchQuery('');
         setFormData({
             customer_name: '',
             receiver_name: '',
             branch: 'CE',
-            quantity: 1,
-            serial_number: '',
-            observations: '',
             invoice_number: ''
         });
         setPhoto(null);
@@ -191,26 +198,44 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                                                 <p className="text-xs text-slate-500">{product.brand}</p>
                                             </div>
                                         </div>
-                                        <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-brand-500 group-hover:translate-x-1 transition-all" />
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold text-slate-400">ADD</span>
+                                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-brand-500 group-hover:translate-x-1 transition-all" />
+                                        </div>
                                     </button>
                                 ))}
                             </div>
+
+                            {selectedItems.length > 0 && (
+                                <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Itens Selecionados ({selectedItems.length})</p>
+                                    <div className="space-y-2">
+                                        {selectedItems.map(item => (
+                                            <div key={item.product_id} className="flex items-center justify-between p-3 bg-brand-50/50 dark:bg-brand-900/10 rounded-xl border border-brand-100/50 dark:border-brand-900/30">
+                                                <div className="flex items-center gap-3">
+                                                    <CheckCircle2 className="w-4 h-4 text-brand-600" />
+                                                    <span className="text-sm font-bold dark:text-white truncate max-w-[200px]">{item.product_name}</span>
+                                                </div>
+                                                <button onClick={() => removeSelectedItem(item.product_id)} className="p-1 hover:bg-red-50 text-red-500 rounded-lg transition-colors">
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={() => setStep('details')}
+                                        className="w-full mt-6 py-4 bg-brand-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2"
+                                    >
+                                        Continuar para Detalhes <ChevronRight className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {step === 'details' && selectedProduct && (
+                    {step === 'details' && (
                         <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                            <div className="p-4 bg-brand-50 dark:bg-brand-900/20 rounded-2xl flex items-center gap-4 border border-brand-100 dark:border-brand-800">
-                                <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center font-bold text-brand-600 shadow-sm">
-                                    {selectedProduct.id.slice(0, 4)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-bold text-slate-900 dark:text-white truncate">{selectedProduct.name}</p>
-                                    <p className="text-xs text-slate-500">Estoque Total: {selectedProduct.total} unidades</p>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
+                            <div className="space-y-4">
                                 <div className="space-y-1">
                                     <label className="text-xs font-bold text-slate-400 uppercase ml-1 flex items-center gap-1">
                                         <User className="w-3 h-3" /> Cliente (Quem solicitou)
@@ -254,68 +279,71 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-400 uppercase ml-1 flex items-center gap-1">
-                                            <Hash className="w-3 h-3" /> Quantidade
+                                            <FileText className="w-3 h-3" /> Nota Fiscal (Opcional)
                                         </label>
                                         <input
-                                            type="number"
-                                            min="1"
-                                            max={selectedProduct[`stock_${formData.branch.toLowerCase()}` as keyof Product] as number}
+                                            type="text"
+                                            placeholder="Nº da NF..."
                                             className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-brand-500 transition-all dark:text-white"
-                                            value={formData.quantity}
-                                            onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value) || 1})}
+                                            value={formData.invoice_number}
+                                            onChange={(e) => setFormData({...formData, invoice_number: e.target.value})}
                                         />
                                     </div>
                                 </div>
+                            </div>
 
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-400 uppercase ml-1 flex items-center gap-1">
-                                        <Hash className="w-3 h-3" /> Número de Série (S/N)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        placeholder="Caso houver..."
-                                        className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-brand-500 transition-all dark:text-white"
-                                        value={formData.serial_number}
-                                        onChange={(e) => setFormData({...formData, serial_number: e.target.value})}
-                                    />
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-400 uppercase ml-1 flex items-center gap-1">
-                                        <FileText className="w-3 h-3" /> Observações
-                                    </label>
-                                    <textarea
-                                        rows={2}
-                                        placeholder="Observações adicionais..."
-                                        className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-brand-500 transition-all dark:text-white resize-none"
-                                        value={formData.observations}
-                                        onChange={(e) => setFormData({...formData, observations: e.target.value})}
-                                    />
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-400 uppercase ml-1 flex items-center gap-1">
-                                        <FileText className="w-3 h-3" /> Nota Fiscal (Opcional)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        placeholder="Número da NF se já houver..."
-                                        className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-brand-500 transition-all dark:text-white"
-                                        value={formData.invoice_number}
-                                        onChange={(e) => setFormData({...formData, invoice_number: e.target.value})}
-                                    />
-                                </div>
+                            <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Detalhes por Item</p>
+                                {selectedItems.map((item, index) => (
+                                    <div key={item.product_id} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700 space-y-3">
+                                        <div className="flex justify-between items-start">
+                                            <p className="font-bold text-sm dark:text-white">{item.product_name}</p>
+                                            <span className="text-[10px] font-black text-slate-400">ITEM {index + 1}</span>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase">Qtd</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-brand-500 text-sm dark:text-white"
+                                                    value={item.quantity}
+                                                    onChange={(e) => updateItemDetail(item.product_id, 'quantity', parseInt(e.target.value) || 1)}
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase">S/N</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Serial..."
+                                                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-brand-500 text-sm dark:text-white"
+                                                    value={item.serial_number}
+                                                    onChange={(e) => updateItemDetail(item.product_id, 'serial_number', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Observação deste item..."
+                                            className="w-full px-3 py-2 bg-white dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-brand-500 text-sm dark:text-white"
+                                            value={item.observations}
+                                            onChange={(e) => updateItemDetail(item.product_id, 'observations', e.target.value)}
+                                        />
+                                    </div>
+                                ))}
                             </div>
 
                             <button
                                 onClick={() => setStep('photo')}
-                                disabled={!formData.customer_name || !formData.receiver_name}
+                                disabled={!formData.customer_name || !formData.receiver_name || selectedItems.length === 0}
                                 className="w-full py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-2xl font-bold shadow-lg shadow-brand-500/20 transition-all flex items-center justify-center gap-2"
                             >
                                 Próximo Passo <ChevronRight className="w-5 h-5" />
                             </button>
                         </div>
                     )}
+
 
                     {step === 'photo' && (
                         <div className="space-y-8 animate-in slide-in-from-right-4 duration-300 py-4">
@@ -372,14 +400,10 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                                 </div>
                             )}
 
-                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 space-y-4">
+                             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 space-y-4">
                                 <div className="flex justify-between border-b border-slate-100 dark:border-slate-700 pb-2">
-                                    <span className="text-xs font-bold text-slate-400 uppercase">Produto</span>
-                                    <span className="text-sm font-bold dark:text-white">{selectedProduct.name}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-slate-100 dark:border-slate-700 pb-2">
-                                    <span className="text-xs font-bold text-slate-400 uppercase">Quantidade</span>
-                                    <span className="text-sm font-bold text-brand-600">{formData.quantity} un</span>
+                                    <span className="text-xs font-bold text-slate-400 uppercase">Cliente</span>
+                                    <span className="text-sm font-bold dark:text-white">{formData.customer_name}</span>
                                 </div>
                                 <div className="flex justify-between border-b border-slate-100 dark:border-slate-700 pb-2">
                                     <span className="text-xs font-bold text-slate-400 uppercase">Retirada por</span>
@@ -389,12 +413,17 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                                     <span className="text-xs font-bold text-slate-400 uppercase">Unidade</span>
                                     <span className="text-sm font-bold dark:text-white">{formData.branch}</span>
                                 </div>
-                                {formData.serial_number && (
-                                    <div className="flex justify-between border-b border-slate-100 dark:border-slate-700 pb-2">
-                                        <span className="text-xs font-bold text-slate-400 uppercase">S/N</span>
-                                        <span className="text-sm font-bold dark:text-white">{formData.serial_number}</span>
+                                <div className="pt-2">
+                                    <span className="text-xs font-bold text-slate-400 uppercase block mb-2">Itens ({selectedItems.length})</span>
+                                    <div className="space-y-1">
+                                        {selectedItems.map(item => (
+                                            <div key={item.product_id} className="flex justify-between text-xs">
+                                                <span className="dark:text-slate-300 truncate pr-4">{item.product_name}</span>
+                                                <span className="font-bold text-brand-600 flex-shrink-0">{item.quantity} un</span>
+                                            </div>
+                                        ))}
                                     </div>
-                                )}
+                                </div>
                             </div>
 
                             <button

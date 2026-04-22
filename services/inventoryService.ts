@@ -1547,9 +1547,13 @@ export const inventoryService = {
   },
 
   /**
-   * Register a new withdrawal protocol
+   * Register a new withdrawal protocol with multiple items
    */
-  async registerWithdrawal(protocol: Omit<WithdrawalProtocol, 'id' | 'created_at' | 'photo_url'>, photo?: File): Promise<WithdrawalProtocol | null> {
+  async registerWithdrawal(
+    protocolData: Omit<WithdrawalProtocol, 'id' | 'created_at' | 'photo_url' | 'items'>, 
+    items: Omit<WithdrawalItem, 'id' | 'protocol_id' | 'created_at'>[],
+    photo?: File
+  ): Promise<WithdrawalProtocol | null> {
     if (!supabase) throw new Error('Supabase not configured');
 
     let photo_url = '';
@@ -1559,38 +1563,55 @@ export const inventoryService = {
       photo_url = await this.uploadWithdrawalPhoto(photo);
     }
 
-    // 2. Insert protocol (the trigger in DB handles stock deduction)
-    const { data, error } = await supabase
+    // 2. Insert protocol header
+    const { data: header, error: headerError } = await supabase
       .from('withdrawal_protocols')
       .insert({
-        product_id: protocol.product_id,
-        product_name: protocol.product_name,
-        customer_name: protocol.customer_name,
-        receiver_name: protocol.receiver_name,
-        branch: protocol.branch,
-        quantity: protocol.quantity,
-        serial_number: protocol.serial_number,
-        observations: protocol.observations,
+        customer_name: protocolData.customer_name,
+        receiver_name: protocolData.receiver_name,
+        branch: protocolData.branch,
         photo_url,
-        user_email: protocol.user_email
+        user_email: protocolData.user_email,
+        invoice_number: (protocolData as any).invoice_number
       })
       .select()
       .single();
 
-    if (error) {
-      console.error('Error registering withdrawal:', error);
-      throw error;
+    if (headerError) {
+      console.error('Error registering withdrawal header:', headerError);
+      throw headerError;
     }
 
-    // 3. Log the activity
+    // 3. Insert protocol items
+    const dbItems = items.map(item => ({
+      protocol_id: header.id,
+      product_id: item.product_id,
+      product_name: item.product_name,
+      quantity: item.quantity,
+      serial_number: item.serial_number,
+      observations: item.observations
+    }));
+
+    const { data: savedItems, error: itemsError } = await supabase
+      .from('withdrawal_items')
+      .insert(dbItems)
+      .select();
+
+    if (itemsError) {
+      // In a real app, you might want to delete the header if items fail (or use a transaction)
+      console.error('Error registering withdrawal items:', itemsError);
+      throw itemsError;
+    }
+
+    // 4. Log the activity (simplified log for the whole protocol)
     await logService.logActivity({
       action_type: 'withdrawal',
-      entity_type: 'product',
-      entity_id: protocol.product_id,
-      details: { ...protocol, photo_url }
+      entity_type: 'protocol',
+      entity_id: header.id,
+      details: { ...protocolData, items_count: items.length, photo_url }
     });
 
-    return data;
+    return { ...header, items: savedItems };
   },
 
   /**
@@ -1623,14 +1644,14 @@ export const inventoryService = {
   },
 
   /**
-   * Get withdrawal protocols history
+   * Get withdrawal protocols history with items
    */
   async getWithdrawalProtocols(limit = 100): Promise<WithdrawalProtocol[]> {
     if (!supabase) return [];
 
     const { data, error } = await supabase
       .from('withdrawal_protocols')
-      .select('*')
+      .select('*, items:withdrawal_items(*)')
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -1648,24 +1669,25 @@ export const inventoryService = {
   async deleteWithdrawalProtocol(protocol: WithdrawalProtocol, userEmail: string): Promise<boolean> {
     if (!supabase) return false;
 
-    // 1. Fetch current product to restore stock safely via RPC if possible, 
-    // or just direct update if user is master. 
-    // Wait, since we are doing this from client, let's use the DB trigger for safety or direct update.
-    // If direct update fails due to RLS, it means only master can delete.
-    const { data: product } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', protocol.product_id)
-      .single();
+    // 1. Restore stock for each item in the protocol
+    if (protocol.items && protocol.items.length > 0) {
+      for (const item of protocol.items) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', item.product_id)
+          .single();
 
-    if (product) {
-      const branchStockKey = `stock_${protocol.branch.toLowerCase()}`;
-      await supabase.from('products').update({
-        [branchStockKey]: Number(product[branchStockKey]) + protocol.quantity
-      }).eq('id', protocol.product_id);
+        if (product) {
+          const branchStockKey = `stock_${protocol.branch.toLowerCase()}`;
+          await supabase.from('products').update({
+            [branchStockKey]: Number(product[branchStockKey]) + item.quantity
+          }).eq('id', item.product_id);
+        }
+      }
     }
 
-    // 2. Delete the protocol
+    // 2. Delete the protocol (items are deleted automatically due to CASCADE)
     const { error } = await supabase
       .from('withdrawal_protocols')
       .delete()
@@ -1679,8 +1701,8 @@ export const inventoryService = {
     // 3. Log the deletion
     await logService.logActivity({
       action_type: 'withdrawal_deleted',
-      entity_type: 'product',
-      entity_id: protocol.product_id,
+      entity_type: 'protocol',
+      entity_id: protocol.id,
       details: { ...protocol, deleted_by: userEmail }
     });
 

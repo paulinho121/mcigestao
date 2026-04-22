@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Trash2, Edit, AlertTriangle, Loader2, Info, FileText, CheckCircle2 } from 'lucide-react';
+import { X, Trash2, Edit, AlertTriangle, Loader2, Info, FileText, CheckCircle2, PackageCheck } from 'lucide-react';
 import { WithdrawalProtocol } from '../../types';
 import { format } from 'date-fns';
 import { inventoryService } from '../../services/inventoryService';
@@ -80,12 +80,31 @@ export const ProtocolDetailsModal: React.FC<ProtocolDetailsModalProps> = ({ prot
                 </div>
 
                 <div className="p-6 overflow-y-auto flex-1 space-y-6">
-                    <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-700">
-                        <h3 className="text-lg font-black text-slate-900 dark:text-white mb-1">{protocol.product_name}</h3>
-                        <div className="flex items-center gap-4 text-sm text-slate-500 font-medium">
-                            <span>Qtd: <strong className="text-brand-600">{protocol.quantity} un</strong></span>
-                            <span>•</span>
-                            <span>Unidade: <strong>{protocol.branch}</strong></span>
+                    <div className="space-y-4">
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <PackageCheck className="w-3 h-3" /> Itens Liberados ({protocol.items?.length || 0})
+                        </p>
+                        <div className="space-y-3">
+                            {protocol.items?.map((item, index) => (
+                                <div key={item.id || index} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight pr-4">{item.product_name}</h3>
+                                        <span className="text-lg font-black text-brand-600 flex-shrink-0">{item.quantity} un</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 text-xs font-medium">
+                                        {item.serial_number && (
+                                            <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded-md">
+                                                S/N: {item.serial_number}
+                                            </span>
+                                        )}
+                                        {item.observations && (
+                                            <span className="bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 px-2 py-1 rounded-md italic">
+                                                "{item.observations}"
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
@@ -99,14 +118,14 @@ export const ProtocolDetailsModal: React.FC<ProtocolDetailsModalProps> = ({ prot
                             <p className="font-bold text-slate-900 dark:text-white">{protocol.receiver_name}</p>
                         </div>
                         <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Unidade</p>
+                            <p className="font-bold text-slate-900 dark:text-white">{protocol.branch}</p>
+                        </div>
+                        <div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Data do Registro</p>
                             <p className="font-bold text-slate-900 dark:text-white">
                                 {format(new Date(protocol.created_at), "dd/MM/yyyy HH:mm")}
                             </p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Número de Série</p>
-                            <p className="font-bold text-slate-900 dark:text-white">{protocol.serial_number || 'N/A'}</p>
                         </div>
                         <div className="col-span-2 p-4 bg-brand-50 dark:bg-brand-900/10 rounded-2xl border border-brand-100 dark:border-brand-800">
                             <p className="text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase tracking-widest mb-2 flex items-center gap-1">
@@ -153,14 +172,7 @@ export const ProtocolDetailsModal: React.FC<ProtocolDetailsModalProps> = ({ prot
                         </div>
                     </div>
 
-                    {protocol.observations && (
-                        <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Observações</p>
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 italic p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl mt-1">
-                                {protocol.observations}
-                            </p>
-                        </div>
-                    )}
+
 
                     {protocol.photo_url && (
                         <div>
@@ -177,7 +189,7 @@ export const ProtocolDetailsModal: React.FC<ProtocolDetailsModalProps> = ({ prot
                                 <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                                 <div>
                                     <p className="text-sm font-bold">Confirma a exclusão deste protocolo?</p>
-                                    <p className="text-xs mt-1">A quantidade ({protocol.quantity} un) será devolvida ao estoque da unidade {protocol.branch}. Esta ação será registrada nos logs de auditoria.</p>
+                                    <p className="text-xs mt-1">Todos os itens ({protocol.items?.length || 0}) serão devolvidos ao estoque da unidade {protocol.branch}. Esta ação será registrada nos logs de auditoria.</p>
                                 </div>
                             </div>
                             <div className="flex gap-3">

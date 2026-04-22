@@ -151,16 +151,23 @@ export interface PurchaseOrderItem {
 
 export interface WithdrawalProtocol {
     id: string;
-    product_id: string;
-    product_name: string;
     customer_name: string;
     receiver_name: string;
     branch: 'CE' | 'SC' | 'SP';
-    quantity: number;
-    serial_number?: string;
-    observations?: string;
     photo_url?: string;
     user_email: string;
     invoice_number?: string;
+    created_at: string;
+    items?: WithdrawalItem[];
+}
+
+export interface WithdrawalItem {
+    id: string;
+    protocol_id: string;
+    product_id: string;
+    product_name: string;
+    quantity: number;
+    serial_number?: string;
+    observations?: string;
     created_at: string;
 }

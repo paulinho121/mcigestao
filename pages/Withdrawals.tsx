@@ -204,16 +204,21 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-[1fr,auto] gap-4 py-4 border-y border-slate-50 dark:border-slate-700/50 items-center">
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Produto</p>
-                                        <p className="text-sm font-medium text-slate-600 dark:text-slate-400 truncate">
-                                            {protocol.product_name}
-                                        </p>
+                                <div className="py-4 border-y border-slate-50 dark:border-slate-700/50 space-y-2">
+                                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                                        <span>Itens Liberados</span>
+                                        <span className="text-brand-600">Total: {protocol.items?.reduce((acc, item) => acc + item.quantity, 0) || 0} un</span>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Qtd</p>
-                                        <p className="text-sm font-black text-brand-600">{protocol.quantity} un</p>
+                                    <div className="space-y-1">
+                                        {protocol.items?.slice(0, 2).map(item => (
+                                            <div key={item.id} className="flex justify-between text-xs">
+                                                <span className="text-slate-600 dark:text-slate-400 truncate max-w-[180px]">{item.product_name}</span>
+                                                <span className="font-bold dark:text-white">{item.quantity} un</span>
+                                            </div>
+                                        ))}
+                                        {(protocol.items?.length || 0) > 2 && (
+                                            <p className="text-[10px] text-slate-400 font-bold italic">+ {(protocol.items?.length || 0) - 2} outros itens...</p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -286,7 +291,12 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
                                             <td className="p-4 min-w-[200px]">
                                                 <div className="font-bold text-slate-900 dark:text-white line-clamp-1">{protocol.customer_name}</div>
                                                 <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-xs text-slate-500 line-clamp-1">Produto: {protocol.product_name}</span>
+                                                    <span className="text-xs text-slate-500 line-clamp-1">
+                                                        {protocol.items && protocol.items.length > 0 
+                                                            ? `${protocol.items[0].product_name}${protocol.items.length > 1 ? ` + ${protocol.items.length - 1} itens` : ''}` 
+                                                            : 'Sem itens'
+                                                        }
+                                                    </span>
                                                     {protocol.invoice_number && (
                                                         <span className="text-[10px] font-black text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-md">
                                                             NF: {protocol.invoice_number}
@@ -303,7 +313,9 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
                                                 </span>
                                             </td>
                                             <td className="p-4 text-center">
-                                                <span className="font-black text-brand-600">{protocol.quantity}</span>
+                                                <span className="font-black text-brand-600">
+                                                    {protocol.items?.reduce((acc, item) => acc + item.quantity, 0) || 0}
+                                                </span>
                                             </td>
                                             <td className="p-4">
                                                 <div className="flex items-center gap-2">
