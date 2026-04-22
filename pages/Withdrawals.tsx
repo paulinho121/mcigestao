@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PackageCheck, Plus, Search, Calendar, MapPin, Image as ImageIcon, ClipboardList, Filter, Download, Printer, LayoutGrid, List, FileText } from 'lucide-react';
+import { PackageCheck, Plus, Search, Calendar, MapPin, Image as ImageIcon, ClipboardList, Filter, Download, Printer, LayoutGrid, List, FileText, AlertTriangle } from 'lucide-react';
 import { inventoryService } from '../services/inventoryService';
 import { WithdrawalProtocol } from '../types';
 import { WithdrawalModal } from '../components/modals/WithdrawalModal';
@@ -51,8 +51,40 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
         }, 100);
     };
 
+    const overdueProtocols = protocols.filter(p => 
+        !p.invoice_number && 
+        (new Date().getTime() - new Date(p.created_at).getTime()) / (1000 * 3600 * 24) >= 7
+    );
+
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-500">
+            {/* Alarm Banner for Super Users */}
+            {overdueProtocols.length > 0 && (
+                <div className="mb-8 p-6 bg-red-600 rounded-3xl text-white shadow-xl shadow-red-500/20 flex flex-col md:flex-row items-center justify-between gap-6 animate-in slide-in-from-top-4 duration-500">
+                    <div className="flex items-center gap-6">
+                        <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center animate-pulse">
+                            <AlertTriangle className="w-10 h-10" />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black uppercase tracking-tight">Alarme: Pendências de Faturamento</h3>
+                            <p className="text-white/80 text-sm font-medium">
+                                Existem <strong className="text-white">{overdueProtocols.length}</strong> protocolos sem Nota Fiscal há mais de 7 dias. 
+                                <span className="block md:inline md:ml-1 opacity-70">Acione o vendedor responsável imediatamente.</span>
+                            </p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => {
+                            const firstOverdue = overdueProtocols[0];
+                            setDetailsProtocol(firstOverdue);
+                        }}
+                        className="px-6 py-3 bg-white text-red-600 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-red-50 transition-all shadow-lg active:scale-95 whitespace-nowrap"
+                    >
+                        Verificar Pendências
+                    </button>
+                </div>
+            )}
+
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div className="flex items-center gap-4">

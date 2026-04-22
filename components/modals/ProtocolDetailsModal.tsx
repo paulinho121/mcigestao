@@ -17,12 +17,17 @@ export const ProtocolDetailsModal: React.FC<ProtocolDetailsModalProps> = ({ prot
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [invoiceNumber, setInvoiceNumber] = useState(protocol?.invoice_number || '');
+    const [masterMemo, setMasterMemo] = useState(protocol?.master_memo || '');
     const [isSaving, setIsSaving] = useState(false);
+    const [isSavingMemo, setIsSavingMemo] = useState(false);
+    const [isEditingMemo, setIsEditingMemo] = useState(false);
 
     React.useEffect(() => {
         if (protocol) {
             setInvoiceNumber(protocol.invoice_number || '');
+            setMasterMemo(protocol.master_memo || '');
             setIsEditing(false);
+            setIsEditingMemo(false);
         }
     }, [protocol]);
 
@@ -49,9 +54,9 @@ export const ProtocolDetailsModal: React.FC<ProtocolDetailsModalProps> = ({ prot
             await inventoryService.updateWithdrawalProtocol(protocol.id, {
                 invoice_number: invoiceNumber
             });
-            protocol.invoice_number = invoiceNumber; // Update local state for immediate feedback
+            protocol.invoice_number = invoiceNumber;
             setIsEditing(false);
-            onDelete(); // Trigger a refresh in the parent list
+            onDelete();
         } catch (error) {
             console.error('Error updating invoice:', error);
             alert('Erro ao atualizar a nota fiscal.');
@@ -59,6 +64,27 @@ export const ProtocolDetailsModal: React.FC<ProtocolDetailsModalProps> = ({ prot
             setIsSaving(false);
         }
     };
+
+    const handleSaveMemo = async () => {
+        if (!protocol) return;
+        setIsSavingMemo(true);
+        try {
+            await inventoryService.updateWithdrawalProtocol(protocol.id, {
+                master_memo: masterMemo
+            });
+            protocol.master_memo = masterMemo;
+            setIsEditingMemo(false);
+        } catch (error) {
+            console.error('Error updating memo:', error);
+            alert('Erro ao atualizar a observação do super usuário.');
+        } finally {
+            setIsSavingMemo(false);
+        }
+    };
+
+    const isOverdue = !protocol.invoice_number && 
+        (new Date().getTime() - new Date(protocol.created_at).getTime()) / (1000 * 3600 * 24) >= 7;
+
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
@@ -73,6 +99,11 @@ export const ProtocolDetailsModal: React.FC<ProtocolDetailsModalProps> = ({ prot
                         <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
                             ID: {protocol.id.slice(-8)}
                         </p>
+                        {isOverdue && (
+                            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse">
+                                <AlertTriangle className="w-3 h-3" /> Alarme: NF Pendente (+7 dias)
+                            </div>
+                        )}
                     </div>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                         <X className="w-5 h-5 text-slate-500" />
@@ -166,6 +197,56 @@ export const ProtocolDetailsModal: React.FC<ProtocolDetailsModalProps> = ({ prot
                                         className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1"
                                     >
                                         <Edit className="w-3 h-3" /> {protocol.invoice_number ? 'Editar NF' : 'Inserir NF'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Master Memo Section */}
+                        <div className="col-span-2 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3 text-red-500" /> Observação Super Usuário (Acompanhamento)
+                            </p>
+                            
+                            {isEditingMemo ? (
+                                <div className="space-y-3">
+                                    <textarea
+                                        rows={3}
+                                        placeholder="Adicione uma nota sobre o status deste protocolo (ex: Aguardando retorno do vendedor X)..."
+                                        className="w-full px-4 py-3 bg-white dark:bg-slate-900 border-none rounded-xl focus:ring-2 focus:ring-brand-500 transition-all dark:text-white text-sm resize-none"
+                                        value={masterMemo}
+                                        onChange={(e) => setMasterMemo(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleSaveMemo}
+                                            disabled={isSavingMemo}
+                                            className="flex-1 py-2 bg-brand-600 text-white rounded-xl font-bold text-sm hover:bg-brand-700 transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            {isSavingMemo ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                            Salvar Nota
+                                        </button>
+                                        <button
+                                            onClick={() => { setIsEditingMemo(false); setMasterMemo(protocol.master_memo || ''); }}
+                                            className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-300 transition-colors"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-2">
+                                    <div className="min-h-[40px] p-3 bg-white/50 dark:bg-slate-900/50 rounded-xl">
+                                        <p className={`text-sm ${masterMemo ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 italic'}`}>
+                                            {masterMemo || 'Nenhuma observação de acompanhamento registrada.'}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setIsEditingMemo(true)}
+                                        className="w-fit text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1 mt-1"
+                                    >
+                                        <Edit className="w-3 h-3" /> {masterMemo ? 'Editar Observação' : 'Adicionar Observação'}
                                     </button>
                                 </div>
                             )}

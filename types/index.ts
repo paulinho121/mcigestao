@@ -157,6 +157,7 @@ export interface WithdrawalProtocol {
     photo_url?: string;
     user_email: string;
     invoice_number?: string;
+    master_memo?: string;
     created_at: string;
     items?: WithdrawalItem[];
 }
