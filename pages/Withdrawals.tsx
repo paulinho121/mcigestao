@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PackageCheck, Plus, Search, Calendar, MapPin, Image as ImageIcon, ClipboardList, Filter, Download, Printer, LayoutGrid, List } from 'lucide-react';
+import { PackageCheck, Plus, Search, Calendar, MapPin, Image as ImageIcon, ClipboardList, Filter, Download, Printer, LayoutGrid, List, FileText } from 'lucide-react';
 import { inventoryService } from '../services/inventoryService';
 import { WithdrawalProtocol } from '../types';
 import { WithdrawalModal } from '../components/modals/WithdrawalModal';
@@ -158,7 +158,19 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
                 viewMode === 'grid' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredProtocols.map(protocol => (
-                        <div key={protocol.id} onClick={() => setDetailsProtocol(protocol)} className="bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-xl hover:border-brand-200 dark:hover:border-brand-900 transition-all group overflow-hidden relative cursor-pointer">
+                        <div 
+                            key={protocol.id} 
+                            onClick={() => setDetailsProtocol(protocol)} 
+                            className={`bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border transition-all group overflow-hidden relative cursor-pointer ${
+                                protocol.invoice_number 
+                                ? 'border-green-200 dark:border-green-900/50 hover:border-green-300 dark:hover:border-green-800 hover:shadow-green-500/10' 
+                                : 'border-slate-100 dark:border-slate-700 hover:shadow-xl hover:border-brand-200 dark:hover:border-brand-900'
+                            }`}
+                        >
+                            {/* Invoiced Status Overlay */}
+                            {protocol.invoice_number && (
+                                <div className="absolute -right-12 -top-12 w-24 h-24 bg-green-500/10 dark:bg-green-500/5 rounded-full blur-2xl group-hover:bg-green-500/20 transition-all"></div>
+                            )}
                             {/* Branch Badge */}
                             <div className="absolute top-0 right-0 p-4">
                                 <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
@@ -171,8 +183,12 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
 
                             <div className="space-y-4">
                                 <div className="flex items-start gap-4">
-                                    <div className="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                                        <PackageCheck className="w-6 h-6 text-brand-600" />
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform ${
+                                        protocol.invoice_number 
+                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-600' 
+                                        : 'bg-slate-100 dark:bg-slate-700 text-brand-600'
+                                    }`}>
+                                        <PackageCheck className="w-6 h-6" />
                                     </div>
                                     <div className="min-w-0">
                                         <h4 className="font-bold text-slate-900 dark:text-white truncate pr-12 text-lg">{protocol.customer_name}</h4>
@@ -180,6 +196,11 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
                                             <Calendar className="w-3 h-3" /> 
                                             {format(new Date(protocol.created_at), "dd 'de' MMM, HH:mm", { locale: ptBR })}
                                         </p>
+                                        {protocol.invoice_number && (
+                                            <div className="mt-1 flex items-center gap-1 text-[10px] font-black text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-md w-fit">
+                                                <FileText className="w-3 h-3" /> NF: {protocol.invoice_number}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -252,7 +273,11 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
                                         <tr 
                                             key={protocol.id} 
                                             onClick={() => setDetailsProtocol(protocol)}
-                                            className="hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors cursor-pointer group"
+                                            className={`transition-colors cursor-pointer group ${
+                                                protocol.invoice_number 
+                                                ? 'bg-green-50/30 dark:bg-green-900/10 hover:bg-green-50/60 dark:hover:bg-green-900/20' 
+                                                : 'hover:bg-slate-50 dark:hover:bg-slate-800/80'
+                                            }`}
                                         >
                                             <td className="p-4 whitespace-nowrap">
                                                 <div className="font-bold text-slate-900 dark:text-white">#{protocol.id.slice(-6).toUpperCase()}</div>
@@ -260,7 +285,14 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
                                             </td>
                                             <td className="p-4 min-w-[200px]">
                                                 <div className="font-bold text-slate-900 dark:text-white line-clamp-1">{protocol.customer_name}</div>
-                                                <div className="text-xs text-slate-500 mt-1 line-clamp-1">Produto: {protocol.product_name}</div>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-xs text-slate-500 line-clamp-1">Produto: {protocol.product_name}</span>
+                                                    {protocol.invoice_number && (
+                                                        <span className="text-[10px] font-black text-brand-600 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-md">
+                                                            NF: {protocol.invoice_number}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="p-4 text-center">
                                                 <span className={`inline-flex items-center justify-center px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${

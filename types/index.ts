@@ -161,5 +161,6 @@ export interface WithdrawalProtocol {
     observations?: string;
     photo_url?: string;
     user_email: string;
+    invoice_number?: string;
     created_at: string;
 }

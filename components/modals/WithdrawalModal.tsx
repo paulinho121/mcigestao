@@ -25,7 +25,8 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
         branch: 'CE' as 'CE' | 'SC' | 'SP',
         quantity: 1,
         serial_number: '',
-        observations: ''
+        observations: '',
+        invoice_number: ''
     });
     const [photo, setPhoto] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -84,6 +85,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                 quantity: formData.quantity,
                 serial_number: formData.serial_number,
                 observations: formData.observations,
+                invoice_number: formData.invoice_number || undefined,
                 user_email: userEmail
             }, photo || undefined);
             
@@ -107,7 +109,8 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
             branch: 'CE',
             quantity: 1,
             serial_number: '',
-            observations: ''
+            observations: '',
+            invoice_number: ''
         });
         setPhoto(null);
         setPhotoPreview(null);
@@ -287,6 +290,19 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                                         className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-brand-500 transition-all dark:text-white resize-none"
                                         value={formData.observations}
                                         onChange={(e) => setFormData({...formData, observations: e.target.value})}
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-400 uppercase ml-1 flex items-center gap-1">
+                                        <FileText className="w-3 h-3" /> Nota Fiscal (Opcional)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="Número da NF se já houver..."
+                                        className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-brand-500 transition-all dark:text-white"
+                                        value={formData.invoice_number}
+                                        onChange={(e) => setFormData({...formData, invoice_number: e.target.value})}
                                     />
                                 </div>
                             </div>

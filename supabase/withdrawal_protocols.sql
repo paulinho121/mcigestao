@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_protocols (
     observations TEXT,
     photo_url TEXT,
     user_email TEXT NOT NULL,
+    invoice_number TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

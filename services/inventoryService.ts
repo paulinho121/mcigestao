@@ -1685,5 +1685,24 @@ export const inventoryService = {
     });
 
     return true;
+  },
+
+  /**
+   * Update a withdrawal protocol (e.g., add invoice number)
+   */
+  async updateWithdrawalProtocol(id: string, updates: Partial<WithdrawalProtocol>): Promise<boolean> {
+    if (!supabase) return false;
+
+    const { error } = await supabase
+      .from('withdrawal_protocols')
+      .update(updates)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating protocol:', error);
+      throw error;
+    }
+
+    return true;
   }
 };

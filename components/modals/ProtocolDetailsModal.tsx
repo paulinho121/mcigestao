@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Trash2, Edit, AlertTriangle, Loader2, Info } from 'lucide-react';
+import { X, Trash2, Edit, AlertTriangle, Loader2, Info, FileText, CheckCircle2 } from 'lucide-react';
 import { WithdrawalProtocol } from '../../types';
 import { format } from 'date-fns';
 import { inventoryService } from '../../services/inventoryService';
@@ -15,6 +15,16 @@ interface ProtocolDetailsModalProps {
 export const ProtocolDetailsModal: React.FC<ProtocolDetailsModalProps> = ({ protocol, isOpen, onClose, onDelete, userEmail }) => {
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [invoiceNumber, setInvoiceNumber] = useState(protocol?.invoice_number || '');
+    const [isSaving, setIsSaving] = useState(false);
+
+    React.useEffect(() => {
+        if (protocol) {
+            setInvoiceNumber(protocol.invoice_number || '');
+            setIsEditing(false);
+        }
+    }, [protocol]);
 
     if (!isOpen || !protocol) return null;
 
@@ -29,6 +39,24 @@ export const ProtocolDetailsModal: React.FC<ProtocolDetailsModalProps> = ({ prot
             alert('Erro ao excluir o protocolo. Verifique suas permissões.');
         } finally {
             setIsDeleting(false);
+        }
+    };
+
+    const handleSaveInvoice = async () => {
+        if (!protocol) return;
+        setIsSaving(true);
+        try {
+            await inventoryService.updateWithdrawalProtocol(protocol.id, {
+                invoice_number: invoiceNumber
+            });
+            protocol.invoice_number = invoiceNumber; // Update local state for immediate feedback
+            setIsEditing(false);
+            onDelete(); // Trigger a refresh in the parent list
+        } catch (error) {
+            console.error('Error updating invoice:', error);
+            alert('Erro ao atualizar a nota fiscal.');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -79,6 +107,49 @@ export const ProtocolDetailsModal: React.FC<ProtocolDetailsModalProps> = ({ prot
                         <div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Número de Série</p>
                             <p className="font-bold text-slate-900 dark:text-white">{protocol.serial_number || 'N/A'}</p>
+                        </div>
+                        <div className="col-span-2 p-4 bg-brand-50 dark:bg-brand-900/10 rounded-2xl border border-brand-100 dark:border-brand-800">
+                            <p className="text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                                <FileText className="w-3 h-3" /> Nota Fiscal (Faturamento)
+                            </p>
+                            {isEditing ? (
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder="Digite o número da NF..."
+                                        className="flex-1 px-4 py-2 bg-white dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-brand-500 transition-all dark:text-white text-sm"
+                                        value={invoiceNumber}
+                                        onChange={(e) => setInvoiceNumber(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <button
+                                        onClick={handleSaveInvoice}
+                                        disabled={isSaving}
+                                        className="px-4 py-2 bg-brand-600 text-white rounded-xl font-bold text-sm hover:bg-brand-700 transition-colors flex items-center gap-2"
+                                    >
+                                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                        Salvar
+                                    </button>
+                                    <button
+                                        onClick={() => { setIsEditing(false); setInvoiceNumber(protocol.invoice_number || ''); }}
+                                        className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-300 transition-colors"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-between">
+                                    <p className={`font-black text-lg ${protocol.invoice_number ? 'text-slate-900 dark:text-white' : 'text-slate-400 italic font-normal text-sm'}`}>
+                                        {protocol.invoice_number || 'Não faturada'}
+                                    </p>
+                                    <button
+                                        onClick={() => setIsEditing(true)}
+                                        className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1"
+                                    >
+                                        <Edit className="w-3 h-3" /> {protocol.invoice_number ? 'Editar NF' : 'Inserir NF'}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
 
