@@ -1355,6 +1355,48 @@ export const inventoryService = {
   },
 
   /**
+   * Update Import Project
+   */
+  async updateImportProject(id: string, manufacturer: string, importNumber: string): Promise<boolean> {
+    if (!supabase) return false;
+
+    const { error } = await supabase
+      .from('import_projects')
+      .update({ manufacturer, import_number: importNumber })
+      .eq('id', id);
+
+    if (error) {
+      console.error(error);
+      return false;
+    }
+
+    return true;
+  },
+
+  /**
+   * Update Import Item
+   */
+  async updateImportItem(itemId: string, quantity: number, expectedDate?: string, observation?: string): Promise<boolean> {
+    if (!supabase) return false;
+
+    const { error } = await supabase
+      .from('import_items')
+      .update({
+        quantity,
+        expected_date: expectedDate,
+        observation: observation
+      })
+      .eq('id', itemId);
+
+    if (error) {
+      console.error(error);
+      return false;
+    }
+
+    return true;
+  },
+
+  /**
    * Delete Import Project
    */
   async deleteImportProject(projectId: string): Promise<boolean> {
