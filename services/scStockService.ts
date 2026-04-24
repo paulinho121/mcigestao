@@ -131,7 +131,7 @@ export const scStockService = {
                     // Calcula o preço unitário se houver valor e quantidade
                     const itemValue = item.SaldoDisponivel?.Valor || 0;
                     const itemQty = item.SaldoDisponivel?.Quantidade || 0;
-                    const unitPrice = itemQty > 0 ? itemValue / itemQty : 0;
+                    const unitPrice = itemQty > 0 ? (itemValue / itemQty) * 3.5 : 0;
 
                     if (productId) {
                         const existing = aggregatedStock.get(productId) || { quantity: 0, name: productName, price: 0 };
