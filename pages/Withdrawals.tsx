@@ -56,6 +56,14 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
         (new Date().getTime() - new Date(p.created_at).getTime()) / (1000 * 3600 * 24) >= 7
     );
 
+    const getStatusColor = (createdAt: string, hasInvoice: boolean) => {
+        if (hasInvoice) return 'bg-emerald-500';
+        const diffDays = (new Date().getTime() - new Date(createdAt).getTime()) / (1000 * 3600 * 24);
+        if (diffDays < 3) return 'bg-emerald-500';
+        if (diffDays < 7) return 'bg-amber-500';
+        return 'bg-red-500';
+    };
+
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-500">
             {/* Alarm Banner for Super Users */}
@@ -196,9 +204,15 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
                             className={`bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border transition-all group overflow-hidden relative cursor-pointer ${
                                 protocol.invoice_number 
                                 ? 'border-green-200 dark:border-green-900/50 hover:border-green-300 dark:hover:border-green-800 hover:shadow-green-500/10' 
-                                : 'border-slate-100 dark:border-slate-700 hover:shadow-xl hover:border-brand-200 dark:hover:border-brand-900'
+                                : getStatusColor(protocol.created_at, !!protocol.invoice_number) === 'bg-red-500' 
+                                    ? 'border-red-200 dark:border-red-900/50 hover:border-red-300' 
+                                    : getStatusColor(protocol.created_at, !!protocol.invoice_number) === 'bg-amber-500'
+                                        ? 'border-amber-200 dark:border-amber-900/50 hover:border-amber-300'
+                                        : 'border-slate-100 dark:border-slate-700 hover:border-brand-200'
                             }`}
                         >
+                            {/* Status Indicator Stripe */}
+                            <div className={`absolute top-0 left-0 w-1.5 h-full ${getStatusColor(protocol.created_at, !!protocol.invoice_number)}`} />
                             {/* Invoiced Status Overlay */}
                             {protocol.invoice_number && (
                                 <div className="absolute -right-12 -top-12 w-24 h-24 bg-green-500/10 dark:bg-green-500/5 rounded-full blur-2xl group-hover:bg-green-500/20 transition-all"></div>
@@ -317,8 +331,13 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
                                             }`}
                                         >
                                             <td className="p-4 whitespace-nowrap">
-                                                <div className="font-bold text-slate-900 dark:text-white">#{protocol.id.slice(-6).toUpperCase()}</div>
-                                                <div className="text-xs text-slate-500 mt-1">{format(new Date(protocol.created_at), "dd/MM/yy HH:mm")}</div>
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-2 h-2 rounded-full ${getStatusColor(protocol.created_at, !!protocol.invoice_number)} animate-pulse`} />
+                                                    <div>
+                                                        <div className="font-bold text-slate-900 dark:text-white">#{protocol.id.slice(-6).toUpperCase()}</div>
+                                                        <div className="text-xs text-slate-500 mt-1">{format(new Date(protocol.created_at), "dd/MM/yy HH:mm")}</div>
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td className="p-4 min-w-[200px]">
                                                 <div className="font-bold text-slate-900 dark:text-white line-clamp-1">{protocol.customer_name}</div>
