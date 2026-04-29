@@ -169,6 +169,7 @@ export interface WithdrawalItem {
     product_name: string;
     quantity: number;
     serial_number?: string;
+    no_serial?: boolean;
     observations?: string;
     created_at: string;
 }

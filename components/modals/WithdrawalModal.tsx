@@ -56,6 +56,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                 product_name: product.name,
                 quantity: 1,
                 serial_number: '',
+                no_serial: false,
                 observations: ''
             }]);
         }
@@ -66,9 +67,9 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
         setSelectedItems(selectedItems.filter(item => item.product_id !== productId));
     };
 
-    const updateItemDetail = (productId: string, field: keyof Omit<WithdrawalItem, 'id' | 'protocol_id' | 'created_at'>, value: any) => {
+    const updateItemDetail = (productId: string, updates: Partial<Omit<WithdrawalItem, 'id' | 'protocol_id' | 'created_at'>>) => {
         setSelectedItems(selectedItems.map(item => 
-            item.product_id === productId ? { ...item, [field]: value } : item
+            item.product_id === productId ? { ...item, ...updates } : item
         ));
     };
 
@@ -309,18 +310,40 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                                                     min="1"
                                                     className="w-full px-3 py-2 bg-white dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-brand-500 text-sm dark:text-white"
                                                     value={item.quantity}
-                                                    onChange={(e) => updateItemDetail(item.product_id, 'quantity', parseInt(e.target.value) || 1)}
+                                                    onChange={(e) => updateItemDetail(item.product_id, { quantity: parseInt(e.target.value) || 1 })}
                                                 />
                                             </div>
                                             <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase">S/N</label>
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase">S/N</label>
+                                                    <label className="flex items-center gap-1 cursor-pointer group">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            className="w-3 h-3 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                                            checked={item.no_serial}
+                                                            onChange={(e) => {
+                                                                const checked = e.target.checked;
+                                                                updateItemDetail(item.product_id, { 
+                                                                    no_serial: checked,
+                                                                    serial_number: checked ? 'SEM NS' : ''
+                                                                });
+                                                            }}
+                                                        />
+                                                        <span className="text-[9px] font-bold text-slate-400 group-hover:text-slate-600">SEM NS</span>
+                                                    </label>
+                                                </div>
                                                 <input
                                                     type="text"
-                                                    placeholder="Serial..."
-                                                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-brand-500 text-sm dark:text-white"
-                                                    value={item.serial_number}
-                                                    onChange={(e) => updateItemDetail(item.product_id, 'serial_number', e.target.value)}
+                                                    placeholder={item.no_serial ? "Item sem serial" : "Serial..."}
+                                                    disabled={item.no_serial}
+                                                    className={`w-full px-3 py-2 bg-white dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-brand-500 text-sm dark:text-white ${!item.serial_number && !item.no_serial ? 'ring-1 ring-red-500/50' : ''}`}
+                                                    value={item.no_serial ? '' : item.serial_number}
+                                                    onChange={(e) => updateItemDetail(item.product_id, { serial_number: e.target.value })}
+                                                    required={!item.no_serial}
                                                 />
+                                                {!item.serial_number && !item.no_serial && (
+                                                    <p className="text-[8px] text-red-500 font-bold animate-pulse">OBRIGATÓRIO</p>
+                                                )}
                                             </div>
                                         </div>
                                         <input
@@ -328,7 +351,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
                                             placeholder="Observação deste item..."
                                             className="w-full px-3 py-2 bg-white dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-brand-500 text-sm dark:text-white"
                                             value={item.observations}
-                                            onChange={(e) => updateItemDetail(item.product_id, 'observations', e.target.value)}
+                                            onChange={(e) => updateItemDetail(item.product_id, { observations: e.target.value })}
                                         />
                                     </div>
                                 ))}
@@ -336,7 +359,12 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({ isOpen, onClos
 
                             <button
                                 onClick={() => setStep('photo')}
-                                disabled={!formData.customer_name || !formData.receiver_name || selectedItems.length === 0}
+                                disabled={
+                                    !formData.customer_name || 
+                                    !formData.receiver_name || 
+                                    selectedItems.length === 0 ||
+                                    selectedItems.some(item => !item.no_serial && !item.serial_number)
+                                }
                                 className="w-full py-4 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-2xl font-bold shadow-lg shadow-brand-500/20 transition-all flex items-center justify-center gap-2"
                             >
                                 Próximo Passo <ChevronRight className="w-5 h-5" />

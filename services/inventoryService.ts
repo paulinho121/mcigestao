@@ -1631,6 +1631,7 @@ export const inventoryService = {
       product_name: item.product_name,
       quantity: item.quantity,
       serial_number: item.serial_number,
+      no_serial: (item as any).no_serial || false,
       observations: item.observations
     }));
 
