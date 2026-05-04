@@ -5,7 +5,6 @@ import { clsx } from 'clsx';
 import { inventoryService } from '../services/inventoryService';
 import { generateStoryImage } from '../utils/storyGenerator';
 
-import { GlowingShadow } from './ui/glowing-shadow';
 
 interface ProductCardProps {
     product: Product;
