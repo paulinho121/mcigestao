@@ -1085,7 +1085,7 @@ export const inventoryService = {
   /**
    * Update the image URL of a product
    */
-  async updateProductImage(productId: string, imageUrl: string): Promise<void> {
+  async updateProductImage(productId: string, imageUrl: string): Promise<boolean> {
     await new Promise(resolve => setTimeout(resolve, 300));
 
     if (!supabase) {
@@ -1094,8 +1094,9 @@ export const inventoryService = {
       const product = MOCK_INVENTORY.find(p => p.id === productId);
       if (product) {
         product.image_url = imageUrl;
+        return true;
       }
-      return;
+      return false;
     }
 
     try {
@@ -1107,9 +1108,10 @@ export const inventoryService = {
       if (error) {
         throw new Error(`Erro ao atualizar imagem do produto ${productId}: ${error.message}`);
       }
+      return true;
     } catch (error: any) {
       console.error('Image update error:', error);
-      throw error;
+      return false;
     }
   },
 
@@ -1771,20 +1773,4 @@ export const inventoryService = {
     return true;
   },
 
-  /**
-   * Update product image URL
-   */
-  async updateProductImage(productId: string, imageUrl: string): Promise<boolean> {
-    if (!supabase) return false;
-    const { error } = await supabase
-      .from('products')
-      .update({ image_url: imageUrl })
-      .eq('id', productId);
-      
-    if (error) {
-      console.error('Error updating product image:', error);
-      return false;
-    }
-    return true;
-  }
 };
