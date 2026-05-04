@@ -131,7 +131,7 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
                     { label: 'Unidades SC', value: protocols.filter(p => p.branch === 'SC').length, icon: MapPin, color: 'blue' },
                     { label: 'Unidades CE/SP', value: protocols.filter(p => p.branch !== 'SC').length, icon: MapPin, color: 'emerald' },
                 ].map((stat, i) => (
-                    <div key={i} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-4">
+                    <div key={i} className="skeuo-card p-4 flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-xl bg-${stat.color}-50 dark:bg-${stat.color}-900/20 flex items-center justify-center text-${stat.color}-600 dark:text-${stat.color}-400`}>
                             <stat.icon className="w-6 h-6" />
                         </div>
@@ -144,7 +144,7 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
             </div>
 
             {/* Filter & Search */}
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 mb-6 flex flex-col md:flex-row gap-4 items-center">
+            <div className="skeuo-flat p-4 rounded-2xl shadow-sm border border-white/5 mb-6 flex flex-col md:flex-row gap-4 items-center">
                 <div className="relative flex-1 w-full">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input 
@@ -201,14 +201,14 @@ export const Withdrawals: React.FC<WithdrawalsProps> = ({ userEmail }) => {
                         <div 
                             key={protocol.id} 
                             onClick={() => setDetailsProtocol(protocol)} 
-                            className={`bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border transition-all group overflow-hidden relative cursor-pointer ${
+                            className={`skeuo-card p-6 shadow-sm border transition-all group overflow-hidden relative cursor-pointer ${
                                 protocol.invoice_number 
-                                ? 'border-green-200 dark:border-green-900/50 hover:border-green-300 dark:hover:border-green-800 hover:shadow-green-500/10' 
+                                ? 'border-green-400/20 dark:border-green-900/30' 
                                 : getStatusColor(protocol.created_at, !!protocol.invoice_number) === 'bg-red-500' 
-                                    ? 'border-red-200 dark:border-red-900/50 hover:border-red-300' 
+                                    ? 'border-red-400/20 dark:border-red-900/30' 
                                     : getStatusColor(protocol.created_at, !!protocol.invoice_number) === 'bg-amber-500'
-                                        ? 'border-amber-200 dark:border-amber-900/50 hover:border-amber-300'
-                                        : 'border-slate-100 dark:border-slate-700 hover:border-brand-200'
+                                        ? 'border-amber-400/20 dark:border-amber-900/30'
+                                        : 'border-white/10 dark:border-slate-700/30'
                             }`}
                         >
                             {/* Status Indicator Stripe */}

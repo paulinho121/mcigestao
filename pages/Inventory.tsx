@@ -464,10 +464,9 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors flex flex-col font-sans">
-
+    <div className="min-h-screen bg-[var(--skeuo-bg)] transition-colors flex flex-col font-sans relative">
       {/* Search Hero Section */}
-      <div className="bg-gradient-to-b from-white to-slate-50 shadow-sm border-b border-slate-200 pt-6 pb-8 sm:pt-10 sm:pb-12 px-4 sm:px-6 lg:px-8 dark:from-slate-800 dark:to-slate-900 dark:border-slate-700 transition-colors">
+      <div className="skeuo-flat border-b border-white/5 pt-6 pb-8 sm:pt-10 sm:pb-12 px-4 sm:px-6 lg:px-8 transition-colors">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-3 tracking-tight dark:text-slate-100">O que você está procurando?</h2>
           <p className="text-slate-500 mb-6 sm:mb-8 text-base sm:text-lg dark:text-slate-400">Consulte disponibilidade por código, nome do produto ou filtre por filial.</p>

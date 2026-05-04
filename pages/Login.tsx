@@ -127,23 +127,16 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleSubmit = mode === 'login' ? handleLogin : handleRegister;
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background gradients */}
-      <div className="absolute inset-0 bg-gradient-to-br from-brand-600/20 via-slate-900 to-slate-900"></div>
-
-      {/* Background decorative circles - managed z-index/opacity */}
-      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-brand-500/10 rounded-full blur-3xl opacity-30"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-accent-500/10 rounded-full blur-3xl opacity-30"></div>
-
-      <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-xl z-10 overflow-hidden border border-slate-200 dark:border-slate-700 mx-auto">
+    <div className="min-h-screen bg-[var(--skeuo-bg)] flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="w-full max-w-md skeuo-flat rounded-3xl shadow-2xl z-10 overflow-hidden border border-white/10 mx-auto">
 
         {/* Header Section */}
-        <div className="pt-10 pb-6 px-8 text-center bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+        <div className="pt-10 pb-6 px-8 text-center border-b border-black/5 dark:border-white/5">
           <div className="flex justify-center mb-6">
             <img
               src="/logo.png"
               alt="MC Logo"
-              className="h-20 object-contain"
+              className="h-20 object-contain drop-shadow-md"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
                 const parent = e.currentTarget.parentElement;
@@ -152,8 +145,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   fallback.className = "flex items-end leading-none select-none";
                   fallback.innerHTML = `
                      <div class="relative">
-                        <span class="text-6xl font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-tr from-brand-600 to-accent-DEFAULT italic pr-2" style="font-family: sans-serif;">MC</span>
-                        <div class="w-3 h-3 bg-accent-DEFAULT rounded-full absolute -top-1 -right-1 shadow-sm"></div>
+                        <span class="text-6xl font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-tr from-brand-600 to-brand-400 italic pr-2" style="font-family: sans-serif;">MC</span>
+                        <div class="w-3 h-3 bg-brand-500 rounded-full absolute -top-1 -right-1 shadow-sm"></div>
                      </div>
                    `;
                   parent.appendChild(fallback);
@@ -347,7 +340,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
+        <div className="px-8 py-6 border-t border-black/5 dark:border-white/5">
           <p className="text-xs text-center text-slate-500 dark:text-slate-400">
             MC Sistemas &copy; {new Date().getFullYear()} • Todos os direitos reservados
           </p>

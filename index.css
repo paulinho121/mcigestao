@@ -7,6 +7,61 @@
     --brand-main: 0 166 153;
     /* #00a699 - Typical Jamef/MCI Teal */
     --brand-rgb: 0, 166, 153;
+    --skeuo-bg: #e0e5ec;
+    --skeuo-shadow-light: #ffffff;
+    --skeuo-shadow-dark: #a3b1c6;
+  }
+
+  .dark {
+    --skeuo-bg: #232936;
+    --skeuo-shadow-light: #2c3444;
+    --skeuo-shadow-dark: #1a1f29;
+  }
+
+  body {
+    @apply antialiased text-slate-800 dark:text-slate-100;
+    background-color: var(--skeuo-bg);
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .skeuo-flat {
+    background: var(--skeuo-bg);
+    box-shadow: 6px 6px 12px var(--skeuo-shadow-dark),
+                -6px -6px 12px var(--skeuo-shadow-light);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .skeuo-pressed {
+    background: var(--skeuo-bg);
+    box-shadow: inset 6px 6px 12px var(--skeuo-shadow-dark),
+                inset -6px -6px 12px var(--skeuo-shadow-light);
+  }
+
+  .skeuo-card {
+    @apply skeuo-flat rounded-2xl transition-all duration-300;
+  }
+
+  .skeuo-card:hover {
+    box-shadow: 10px 10px 20px var(--skeuo-shadow-dark),
+                -10px -10px 20px var(--skeuo-shadow-light);
+    transform: translateY(-2px);
+  }
+
+  .skeuo-button {
+    @apply skeuo-flat px-4 py-2 rounded-xl font-bold transition-all active:shadow-none active:translate-y-0.5;
+    box-shadow: 4px 4px 8px var(--skeuo-shadow-dark),
+                -4px -4px 8px var(--skeuo-shadow-light);
+  }
+
+  .skeuo-button:active {
+    box-shadow: inset 2px 2px 5px var(--skeuo-shadow-dark),
+                inset -2px -2px 5px var(--skeuo-shadow-light);
+  }
+
+  .bg-mesh {
+    display: none;
   }
 }
 

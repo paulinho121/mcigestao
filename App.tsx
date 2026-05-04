@@ -29,6 +29,10 @@ import { useTheme } from './context/ThemeContext';
 type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration';
 
 // Helper Components for the New Navigation
+function BackgroundMesh() {
+  return null;
+}
+
 function NavGroup({ title, icon, children, isExpanded, onToggle, id }: {
   title: string,
   icon: React.ReactNode,
@@ -226,9 +230,10 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
+    <div className="min-h-screen bg-[var(--skeuo-bg)] transition-colors duration-200 relative">
+      <BackgroundMesh />
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm dark:bg-slate-800 dark:border-slate-700 transition-colors duration-200">
+      <header className="skeuo-flat sticky top-0 z-40 dark:border-none transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center gap-2 sm:gap-4">
@@ -325,9 +330,9 @@ function App() {
             onClick={() => setIsMenuOpen(false)}
           />
 
-          <div className="absolute inset-y-0 left-0 max-w-xs w-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out">
+          <div className="absolute inset-y-0 left-0 max-w-xs w-full skeuo-flat shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out">
             {/* Drawer Header */}
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+            <div className="p-4 border-b border-white/5 dark:border-black/20 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center text-white font-bold">M</div>
                 <span className="font-bold text-slate-800 dark:text-white">Menu Principal</span>

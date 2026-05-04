@@ -90,11 +90,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }, [isSpotlightOpen, product.id, product.reserved]);
 
     return (
-        <GlowingShadow className={`h-full relative ${isSpotlightOpen ? 'z-[9999]' : 'z-10'}`}>
-            <div
-                onClick={() => setIsSpotlightOpen(true)}
-                className={`w-full bg-white rounded-xl overflow-hidden transition-all duration-200 flex flex-col h-full group cursor-pointer relative ${isSpotlightOpen ? 'ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-slate-900' : ''} dark:bg-slate-800`}
-            >
+        <div className={`h-full relative ${isSpotlightOpen ? 'z-[9999]' : 'z-10'}`}>
+            <>
+                <div
+                    onClick={() => setIsSpotlightOpen(true)}
+                    className={`w-full skeuo-card overflow-hidden flex flex-col h-full group cursor-pointer relative ${isSpotlightOpen ? 'ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-slate-900 shadow-2xl scale-[1.02]' : ''}`}
+                >
                 {product.brand_logo && (
                     <div
                         className="absolute right-[0%] bottom-[5%] w-40 h-40 opacity-[0.12] pointer-events-none grayscale dark:opacity-[0.2] dark:invert transition-opacity duration-300"
@@ -241,7 +242,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     </div>
                 </div>
 
-                <div className="bg-slate-50 px-4 sm:px-5 py-3 border-t border-slate-100 flex justify-between items-center gap-3 dark:bg-slate-900/50 dark:border-slate-700">
+                <div className="bg-black/5 px-4 sm:px-5 py-3 border-t border-white/5 flex justify-between items-center gap-3 dark:bg-black/20 dark:border-white/5">
                     <div className="flex flex-col">
                         <span className="text-xs text-slate-500 uppercase font-semibold dark:text-slate-400">Estoque Total</span>
                         <div className="flex items-center">
@@ -280,8 +281,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                         )}
                     </div>
                 </div>
+            </div>
 
-                {/* Spotlight Modal */}
+            {/* Spotlight Modal */}
                 {isSpotlightOpen && (
                     <div
                         className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/90 backdrop-blur-sm animate-in fade-in duration-300"
@@ -291,7 +293,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                         }}
                     >
                         <div
-                            className="bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row animate-in zoom-in-95 duration-300 border border-white/10"
+                            className="skeuo-flat w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row animate-in zoom-in-95 duration-300 border border-white/10"
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Left Side: Product Image (Large) */}
@@ -355,45 +357,45 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                                     </button>
                                 </div>
 
-                                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white leading-tight mb-2">
+                                <h2 className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white leading-tight mb-2">
                                     {product.name}
                                 </h2>
 
-                                <div className="h-6" />
+                                <div className="h-4" />
 
                                 {/* Quantities Section - Highlighted */}
                                 <div className="grid grid-cols-1 gap-4 mb-8">
-                                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700/50">
+                                    <div className="skeuo-pressed rounded-2xl p-4 border border-white/5">
                                         <div className="flex items-center justify-between mb-4">
                                             <div className="flex items-center gap-2">
-                                                <div className="p-2 bg-brand-500 rounded-lg">
+                                                <div className="p-2 bg-brand-600 rounded-lg shadow-lg">
                                                     <Box className="w-5 h-5 text-white" />
                                                 </div>
-                                                <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight">Estoque Total</span>
+                                                <span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Estoque Total</span>
                                             </div>
-                                            <span className="text-4xl font-black text-slate-900 dark:text-white">{product.total}</span>
+                                            <span className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white">{product.total}</span>
                                         </div>
 
                                         <div className="grid grid-cols-3 gap-2">
-                                            <div className="flex flex-col items-center p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Ceará</span>
-                                                <span className="text-lg font-bold text-slate-900 dark:text-white">{product.stock_ce}</span>
+                                            <div className="flex flex-col items-center p-2 rounded-xl bg-black/5 dark:bg-white/5 border border-white/5">
+                                                <span className="text-[8px] sm:text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Ceará</span>
+                                                <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">{product.stock_ce}</span>
                                                 {product.location_ce && (
-                                                    <span className="text-[10px] font-black text-emerald-600/60 uppercase truncate w-full text-center mt-0.5 tracking-tighter" title={product.location_ce}>{product.location_ce}</span>
+                                                    <span className="text-[7px] sm:text-[9px] font-black text-emerald-600/60 uppercase truncate w-full text-center mt-0.5 tracking-tighter" title={product.location_ce}>{product.location_ce}</span>
                                                 )}
                                             </div>
-                                            <div className="flex flex-col items-center p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                                                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">S. Catarina</span>
-                                                <span className="text-lg font-bold text-slate-900 dark:text-white">{product.stock_sc}</span>
+                                            <div className="flex flex-col items-center p-2 rounded-xl bg-black/5 dark:bg-white/5 border border-white/5">
+                                                <span className="text-[8px] sm:text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase">S. Catarina</span>
+                                                <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">{product.stock_sc}</span>
                                                 {product.location_sc && (
-                                                    <span className="text-[10px] font-black text-blue-600/60 uppercase truncate w-full text-center mt-0.5 tracking-tighter" title={product.location_sc}>{product.location_sc}</span>
+                                                    <span className="text-[7px] sm:text-[9px] font-black text-blue-600/60 uppercase truncate w-full text-center mt-0.5 tracking-tighter" title={product.location_sc}>{product.location_sc}</span>
                                                 )}
                                             </div>
-                                            <div className="flex flex-col items-center p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
-                                                <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase">S. Paulo</span>
-                                                <span className="text-lg font-bold text-slate-900 dark:text-white">{product.stock_sp}</span>
+                                            <div className="flex flex-col items-center p-2 rounded-xl bg-black/5 dark:bg-white/5 border border-white/5">
+                                                <span className="text-[8px] sm:text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase">S. Paulo</span>
+                                                <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">{product.stock_sp}</span>
                                                 {product.location_sp && (
-                                                    <span className="text-[10px] font-black text-rose-600/60 uppercase truncate w-full text-center mt-0.5 tracking-tighter" title={product.location_sp}>{product.location_sp}</span>
+                                                    <span className="text-[7px] sm:text-[9px] font-black text-rose-600/60 uppercase truncate w-full text-center mt-0.5 tracking-tighter" title={product.location_sp}>{product.location_sp}</span>
                                                 )}
                                             </div>
                                         </div>
@@ -497,7 +499,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                         </div>
                     </div>
                 )}
-            </div>
-        </GlowingShadow>
+            </>
+        </div>
     );
 };
