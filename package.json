@@ -9,13 +9,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@browserbasehq/sdk": "^2.10.0",
     "@supabase/supabase-js": "^2.39.0",
     "@types/papaparse": "^5.5.0",
     "@vercel/analytics": "^1.6.0",
+    "axios": "^1.16.0",
     "clsx": "^2.1.0",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.344.0",
     "papaparse": "^5.5.3",
+    "puppeteer-core": "^24.42.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^3.7.0",

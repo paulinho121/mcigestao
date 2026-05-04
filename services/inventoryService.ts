@@ -1769,5 +1769,22 @@ export const inventoryService = {
     }
 
     return true;
+  },
+
+  /**
+   * Update product image URL
+   */
+  async updateProductImage(productId: string, imageUrl: string): Promise<boolean> {
+    if (!supabase) return false;
+    const { error } = await supabase
+      .from('products')
+      .update({ image_url: imageUrl })
+      .eq('id', productId);
+      
+    if (error) {
+      console.error('Error updating product image:', error);
+      return false;
+    }
+    return true;
   }
 };

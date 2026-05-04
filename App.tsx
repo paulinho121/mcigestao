@@ -18,6 +18,7 @@ import { StockManagement } from './pages/StockManagement';
 import { NfeAutomation } from './pages/NfeAutomation';
 import { ProductRegistration } from './pages/ProductRegistration';
 import { Withdrawals } from './pages/Withdrawals';
+import EnrichmentReview from './pages/EnrichmentReview';
 // import { nfeService } from './services/nfeService';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
@@ -26,7 +27,7 @@ import { supabase } from './lib/supabase';
 import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 
-type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration';
+type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review';
 
 // Helper Components for the New Navigation
 function BackgroundMesh() {
@@ -489,12 +490,20 @@ function App() {
                   />
                 )}
                 {isMaster && (
-                  <NavButton
-                    active={activeTab === 'upload'}
-                    onClick={() => { setActiveTab('upload'); setIsMenuOpen(false); }}
-                    icon={<UploadIcon className="w-4 h-4" />}
-                    label="Importar Dados (Excel)"
-                  />
+                  <>
+                    <NavButton
+                      active={activeTab === 'upload'}
+                      onClick={() => { setActiveTab('upload'); setIsMenuOpen(false); }}
+                      icon={<UploadIcon className="w-4 h-4" />}
+                      label="Importar Dados (Excel)"
+                    />
+                    <NavButton
+                      active={activeTab === 'image_review'}
+                      onClick={() => { setActiveTab('image_review'); setIsMenuOpen(false); }}
+                      icon={<PackageCheck className="w-4 h-4" />}
+                      label="Conferência de Imagens"
+                    />
+                  </>
                 )}
               </NavGroup>
 
@@ -565,6 +574,7 @@ function App() {
       {activeTab === 'stock_management' && isMaster && <StockManagement userEmail={user.email} />}
       {activeTab === 'nfe_automation' && isMaster && <NfeAutomation />}
       {activeTab === 'product_registration' && isMaster && <ProductRegistration />}
+      {activeTab === 'image_review' && isMaster && <EnrichmentReview />}
       <Analytics />
     </div>
   );
