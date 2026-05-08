@@ -862,7 +862,7 @@ export const inventoryService = {
           stock_sp: newStockSp,
           total: newTotal
         })
-        .eq('id', productId);
+        .in('id', [productId, `${productId}.0`]);
 
       if (updateError) {
         throw new Error(`Erro ao ajustar estoque do produto ${productId}: ${updateError.message}`);
@@ -1069,7 +1069,7 @@ export const inventoryService = {
       const { error } = await supabase
         .from('products')
         .update({ name })
-        .eq('id', productId);
+        .in('id', [productId, `${productId}.0`]);
 
       if (error) {
         throw new Error(`Erro ao atualizar nome do produto ${productId}: ${error.message}`);
@@ -1103,7 +1103,7 @@ export const inventoryService = {
       const { error } = await supabase
         .from('products')
         .update({ image_url: imageUrl })
-        .eq('id', productId);
+        .in('id', [productId, `${productId}.0`]);
 
       if (error) {
         throw new Error(`Erro ao atualizar imagem do produto ${productId}: ${error.message}`);
@@ -1139,7 +1139,7 @@ export const inventoryService = {
       const { error } = await supabase
         .from('products')
         .update({ observations })
-        .eq('id', productId);
+        .in('id', [productId, `${productId}.0`]);
 
       if (error) {
         throw new Error(`Erro ao atualizar observações do produto ${productId}: ${error.message}`);
@@ -1165,7 +1165,7 @@ export const inventoryService = {
     const { error } = await supabase
       .from('products')
       .update({ brand_logo: brandLogo })
-      .eq('id', productId);
+      .in('id', [productId, `${productId}.0`]);
 
     if (error) throw new Error(error.message);
   },
@@ -1485,7 +1485,7 @@ export const inventoryService = {
     const { error } = await supabase
       .from('products')
       .update(updateData)
-      .eq('id', productId);
+      .in('id', [productId, `${productId}.0`]);
 
     if (error) {
       console.error('Error updating location:', error);

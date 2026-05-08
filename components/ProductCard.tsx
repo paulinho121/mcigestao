@@ -93,7 +93,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <>
                 <div
                     onClick={() => setIsSpotlightOpen(true)}
-                    className={`w-full skeuo-card overflow-hidden flex flex-col h-full group cursor-pointer relative ${isSpotlightOpen ? 'ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-slate-900 shadow-2xl scale-[1.02]' : ''}`}
+                    className={`w-full skeuo-card overflow-hidden flex flex-col h-full group cursor-pointer relative transition-all duration-300 hover:scale-[1.01] hover:shadow-xl ${isSpotlightOpen ? 'ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-slate-900 shadow-2xl scale-[1.02]' : ''}`}
                 >
                 {product.brand_logo && (
                     <div
@@ -176,67 +176,70 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     </div>
 
                     <div className="mb-4">
-                        <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug group-hover:text-brand-600 transition-colors break-words line-clamp-2 dark:text-slate-100 dark:group-hover:text-brand-400">
+                        <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug group-hover:text-brand-600 transition-colors break-words line-clamp-2 dark:text-white dark:group-hover:text-brand-400">
                             {product.name}
                         </h3>
                         {product.location && (
                             <div className="flex items-center gap-1.5 mt-2">
                                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                    Loc. Geral: <span className="text-brand-600">{product.location}</span>
+                                <span className="text-[10px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest">
+                                    Loc. Geral: <span className="text-brand-600 dark:text-brand-500">{product.location}</span>
                                 </span>
                             </div>
                         )}
                     </div>
 
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center text-emerald-600 dark:text-emerald-500">
-                                <MapPin className="w-4 h-4 mr-2 text-emerald-500" />
-                                <div className="flex flex-col">
-                                    <span className="leading-none font-bold">Ceará</span>
-                                    {product.location_ce && (
-                                        <span className="text-[10px] font-black uppercase text-brand-600/60 dark:text-brand-400/60 tracking-tight mt-1 leading-none bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
-                                            RUA/BOX: {product.location_ce}
-                                        </span>
-                                    )}
+                    {/* Interactive Branch List - Revealed on Hover */}
+                    <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] opacity-0 group-hover:opacity-100 transition-all duration-500 ease-in-out overflow-hidden">
+                        <div className="min-h-0 space-y-3 pb-4">
+                            <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center text-emerald-600 dark:text-emerald-500">
+                                    <MapPin className="w-4 h-4 mr-2 text-emerald-500" />
+                                    <div className="flex flex-col">
+                                        <span className="leading-none font-bold">Ceará</span>
+                                        {product.location_ce && (
+                                            <span className="text-[10px] font-black uppercase text-brand-600/60 dark:text-brand-400/60 tracking-tight mt-1 leading-none bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
+                                                RUA/BOX: {product.location_ce}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
+                                <span className={clsx("font-mono font-medium", product.stock_ce > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
+                                    {product.stock_ce}
+                                </span>
                             </div>
-                            <span className={clsx("font-mono font-medium", product.stock_ce > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
-                                {product.stock_ce}
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center text-blue-700 dark:text-blue-500">
-                                <MapPin className="w-4 h-4 mr-2 text-blue-500" />
-                                <div className="flex flex-col">
-                                    <span className="leading-none font-bold">Santa Catarina</span>
-                                    {product.location_sc && (
-                                        <span className="text-[10px] font-black uppercase text-brand-600/60 dark:text-brand-400/60 tracking-tight mt-1 leading-none bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
-                                            RUA/BOX: {product.location_sc}
-                                        </span>
-                                    )}
+                            <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center text-blue-700 dark:text-blue-500">
+                                    <MapPin className="w-4 h-4 mr-2 text-blue-500" />
+                                    <div className="flex flex-col">
+                                        <span className="leading-none font-bold">Santa Catarina</span>
+                                        {product.location_sc && (
+                                            <span className="text-[10px] font-black uppercase text-brand-600/60 dark:text-brand-400/60 tracking-tight mt-1 leading-none bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
+                                                RUA/BOX: {product.location_sc}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
+                                <span className={clsx("font-mono font-medium", product.stock_sc > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
+                                    {product.stock_sc}
+                                </span>
                             </div>
-                            <span className={clsx("font-mono font-medium", product.stock_sc > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
-                                {product.stock_sc}
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center text-rose-600 dark:text-rose-500">
-                                <MapPin className="w-4 h-4 mr-2 text-rose-500" />
-                                <div className="flex flex-col">
-                                    <span className="leading-none font-bold">São Paulo</span>
-                                    {product.location_sp && (
-                                        <span className="text-[10px] font-black uppercase text-brand-600/60 dark:text-brand-400/60 tracking-tight mt-1 leading-none bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
-                                            RUA/BOX: {product.location_sp}
-                                        </span>
-                                    )}
+                            <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center text-rose-600 dark:text-rose-500">
+                                    <MapPin className="w-4 h-4 mr-2 text-rose-500" />
+                                    <div className="flex flex-col">
+                                        <span className="leading-none font-bold">São Paulo</span>
+                                        {product.location_sp && (
+                                            <span className="text-[10px] font-black uppercase text-brand-600/60 dark:text-brand-400/60 tracking-tight mt-1 leading-none bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
+                                                RUA/BOX: {product.location_sp}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
+                                <span className={clsx("font-mono font-medium", product.stock_sp > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
+                                    {product.stock_sp}
+                                </span>
                             </div>
-                            <span className={clsx("font-mono font-medium", product.stock_sp > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
-                                {product.stock_sp}
-                            </span>
                         </div>
                     </div>
                 </div>

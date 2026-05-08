@@ -250,6 +250,60 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
             edit.observations !== (edit.product.observations || '');
     };
 
+    const handleQuickSave = async (productId: string) => {
+        const edit = editedProducts.get(productId);
+        if (!edit) return;
+
+        setSaving(true);
+        setError('');
+        setSuccess('');
+
+        try {
+            let changesCount = 0;
+
+            // Apply name adjustment
+            if (edit.name !== edit.product.name) {
+                await inventoryService.updateProductName(edit.product.id, edit.name);
+                changesCount++;
+            }
+
+            // Apply image adjustment
+            if (edit.image_url !== (edit.product.image_url || '')) {
+                await inventoryService.updateProductImage(edit.product.id, edit.image_url);
+                changesCount++;
+            }
+
+            // Apply stock adjustments
+            if (edit.adjustments.ce !== 0 || edit.adjustments.sc !== 0 || edit.adjustments.sp !== 0) {
+                await inventoryService.adjustStock(edit.product.id, edit.adjustments);
+                changesCount++;
+            }
+
+            // Update observations
+            if (edit.observations !== (edit.product.observations || '')) {
+                await inventoryService.updateObservations(edit.product.id, edit.observations);
+                changesCount++;
+            }
+
+            if (changesCount > 0) {
+                setSuccess(`Produto ${productId} atualizado com sucesso!`);
+                setEditedProducts(prev => {
+                    const newMap = new Map(prev);
+                    newMap.delete(productId);
+                    return newMap;
+                });
+                await loadProducts();
+            } else {
+                setSuccess('Nenhuma alteração detectada para este produto.');
+            }
+        } catch (err: any) {
+            setError(err.message || 'Erro ao salvar alterações');
+        } finally {
+            setSaving(false);
+            setTimeout(() => setSuccess(''), 3000);
+        }
+    };
+
     const handleBackup = async () => {
         setLoading(true);
         try {
@@ -1353,25 +1407,35 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                                                                 type="text"
                                                                                 value={edit.image_url}
                                                                                 onChange={(e) => handleImageChange(product.id, e.target.value)}
-                                                                                className={`flex-1 px-2 py-1 text-[10px] border rounded focus:outline-none focus:ring-1 focus:ring-brand-500 dark:bg-slate-700 dark:text-white ${edit.image_url !== (product.image_url || '')
+                                                                                className={`flex-1 px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-brand-500 dark:bg-slate-700 dark:text-white ${edit.image_url !== (product.image_url || '')
                                                                                     ? 'border-brand-500 bg-brand-50/50'
                                                                                     : 'border-slate-200 dark:border-slate-600'
                                                                                     }`}
-                                                                                placeholder="URL da Imagem..."
+                                                                                placeholder="Cole a URL da imagem aqui..."
                                                                             />
                                                                             <button
                                                                                 onClick={() => handleMagicSearch(product.id)}
-                                                                                className="p-1 px-2 bg-brand-50 text-brand-600 rounded hover:bg-brand-100 transition-colors title='Abrir busca inteligente'"
+                                                                                className="p-1 px-2 bg-brand-50 text-brand-600 rounded hover:bg-brand-100 transition-colors"
+                                                                                title="Abrir busca inteligente"
                                                                             >
                                                                                 <Wand2 className="w-3.5 h-3.5" />
                                                                             </button>
+                                                                            {edited && (
+                                                                                <button
+                                                                                    onClick={() => handleQuickSave(product.id)}
+                                                                                    className="p-1 px-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors shadow-sm"
+                                                                                    title="Salvar alterações deste produto"
+                                                                                >
+                                                                                    <Save className="w-3.5 h-3.5" />
+                                                                                </button>
+                                                                            )}
                                                                         </div>
-                                                                        <div className="text-[9px] text-slate-500 flex justify-between">
-                                                                            <span>{product.brand}</span>
+                                                                        <div className="text-[10px] text-slate-500 flex justify-between items-center mt-1">
+                                                                            <span className="font-medium">{product.brand}</span>
                                                                             {edit.image_url && (
                                                                                 <button
                                                                                     onClick={() => handleImageChange(product.id, '')}
-                                                                                    className="text-red-500 hover:text-red-700"
+                                                                                    className="text-red-500 hover:text-red-700 text-[9px] uppercase font-bold"
                                                                                 >
                                                                                     Remover
                                                                                 </button>
