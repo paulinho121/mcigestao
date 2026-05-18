@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Search, Save, Wrench, AlertCircle, Package as PackageIcon, FileText, Download, Printer, Mail, CheckSquare, Square, List, LayoutGrid, Tag, ImageIcon, Wand2, ClipboardList, RotateCcw } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, Save, Wrench, AlertCircle, Package as PackageIcon, FileText, Download, Printer, Mail, CheckSquare, Square, List, LayoutGrid, Tag, ImageIcon, Wand2, ClipboardList, RotateCcw, Layers } from 'lucide-react';
 import { Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
 import { backupService } from '../services/backupService';
@@ -49,6 +49,30 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
     const [allBrands, setAllBrands] = useState<string[]>([]);
     const [selectedReportBrands, setSelectedReportBrands] = useState<string[]>([]);
     const [selectingByBrand, setSelectingByBrand] = useState(false);
+    const [stockFilter, setStockFilter] = useState<'all' | 'zero' | 'non-zero'>('all');
+
+    const displayedProducts = useMemo(() => {
+        if (activeTab === 'inventory') return [];
+        return products.filter(product => {
+            if (activeTab === 'report') {
+                const totalStock = (product.stock_ce || 0) + (product.stock_sc || 0) + (product.stock_sp || 0);
+                if (stockFilter === 'zero' && totalStock !== 0) return false;
+                if (stockFilter === 'non-zero' && totalStock === 0) return false;
+            }
+            return true;
+        });
+    }, [products, activeTab, stockFilter]);
+
+    const visibleSelectedCount = useMemo(() => {
+        return Array.from(selectedProducts).filter(id => {
+            const p = productCache.get(id);
+            if (!p) return false;
+            const totalStock = (p.stock_ce || 0) + (p.stock_sc || 0) + (p.stock_sp || 0);
+            if (stockFilter === 'zero' && totalStock !== 0) return false;
+            if (stockFilter === 'non-zero' && totalStock === 0) return false;
+            return true;
+        }).length;
+    }, [selectedProducts, productCache, stockFilter]);
 
     useEffect(() => {
         loadProducts();
@@ -422,14 +446,14 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
         setSelectedProducts(newSelected);
     };
 
-    const isAllVisibleSelected = products.length > 0 && products.every(p => selectedProducts.has(p.id));
+    const isAllVisibleSelected = displayedProducts.length > 0 && displayedProducts.every(p => selectedProducts.has(p.id));
 
     const toggleSelectAll = () => {
         const newSelected = new Set(selectedProducts);
         if (isAllVisibleSelected) {
-            products.forEach(p => newSelected.delete(p.id));
+            displayedProducts.forEach(p => newSelected.delete(p.id));
         } else {
-            products.forEach(p => newSelected.add(p.id));
+            displayedProducts.forEach(p => newSelected.add(p.id));
         }
         setSelectedProducts(newSelected);
     };
@@ -443,6 +467,12 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
         const productsToExport = Array.from(selectedProducts)
             .map(id => productCache.get(id))
             .filter((p): p is Product => p !== undefined)
+            .filter(p => {
+                const totalStock = (p.stock_ce || 0) + (p.stock_sc || 0) + (p.stock_sp || 0);
+                if (stockFilter === 'zero' && totalStock !== 0) return false;
+                if (stockFilter === 'non-zero' && totalStock === 0) return false;
+                return true;
+            })
             .filter(p => {
                 if (!branch) return true;
                 return (p[`stock_${branch}` as keyof Product] as number) > 0;
@@ -511,7 +541,13 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
         // Use cache to get all selected products, even if not currently visible
         const productsToPrint = Array.from(selectedProducts)
             .map(id => productCache.get(id))
-            .filter((p): p is Product => p !== undefined);
+            .filter((p): p is Product => p !== undefined)
+            .filter(p => {
+                const totalStock = (p.stock_ce || 0) + (p.stock_sc || 0) + (p.stock_sp || 0);
+                if (stockFilter === 'zero' && totalStock !== 0) return false;
+                if (stockFilter === 'non-zero' && totalStock === 0) return false;
+                return true;
+            });
 
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
@@ -756,7 +792,13 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
         // Use cache to get all selected products, even if not currently visible
         const productsToSend = Array.from(selectedProducts)
             .map(id => productCache.get(id))
-            .filter((p): p is Product => p !== undefined);
+            .filter((p): p is Product => p !== undefined)
+            .filter(p => {
+                const totalStock = (p.stock_ce || 0) + (p.stock_sc || 0) + (p.stock_sp || 0);
+                if (stockFilter === 'zero' && totalStock !== 0) return false;
+                if (stockFilter === 'non-zero' && totalStock === 0) return false;
+                return true;
+            });
 
         const date = new Date().toLocaleDateString('pt-BR');
 
@@ -1072,9 +1114,9 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                             )}
                         </div>
                     ) : activeTab === 'report' ? (
-                        <div className="flex gap-4 w-full flex-wrap items-center">
+                        <div className="flex gap-4 w-full flex-wrap items-stretch">
                             {/* Brand Selection Tool */}
-                            <div className="flex flex-col gap-2 bg-slate-100 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm mr-auto min-w-[300px]">
+                            <div className="flex flex-col gap-2 bg-slate-100 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm min-w-[300px] flex-1 max-w-sm">
                                 <div className="flex items-center gap-2 mb-2">
                                     <Tag className="w-4 h-4 text-brand-600" />
                                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Selecionar por Marcas</span>
@@ -1096,18 +1138,60 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                 <button
                                     onClick={handleSelectByBrand}
                                     disabled={selectedReportBrands.length === 0 || selectingByBrand}
-                                    className="w-full mt-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-bold hover:bg-brand-700 transition-colors disabled:opacity-50 shadow-sm"
+                                    className="w-full mt-auto px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-bold hover:bg-brand-700 transition-colors disabled:opacity-50 shadow-sm"
                                 >
                                     {selectingByBrand ? 'Selecionando...' : `Marcar itens de ${selectedReportBrands.length} marcas`}
                                 </button>
                             </div>
 
-                            <div className="flex items-center text-slate-600 dark:text-slate-400">
-                                <span className="font-semibold">{selectedProducts.size}</span>
+                            {/* Stock Filter Tool */}
+                            <div className="flex flex-col gap-2 bg-slate-100 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm min-w-[280px] flex-1 max-w-sm justify-between">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Layers className="w-4 h-4 text-brand-600" />
+                                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Filtrar por Disponibilidade</span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                                        Filtre a tabela e as ações de exportação (imprimir, CSV, e-mail) com base no saldo.
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <button
+                                        onClick={() => setStockFilter('all')}
+                                        className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${stockFilter === 'all'
+                                            ? 'bg-slate-800 text-white shadow-sm dark:bg-slate-700'
+                                            : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                                            }`}
+                                    >
+                                        Todos
+                                    </button>
+                                    <button
+                                        onClick={() => setStockFilter('non-zero')}
+                                        className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${stockFilter === 'non-zero'
+                                            ? 'bg-emerald-600 text-white shadow-sm'
+                                            : 'bg-white text-slate-600 border border-slate-200 hover:border-emerald-300 hover:text-emerald-600 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                                            }`}
+                                    >
+                                        Com Estoque
+                                    </button>
+                                    <button
+                                        onClick={() => setStockFilter('zero')}
+                                        className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${stockFilter === 'zero'
+                                            ? 'bg-rose-600 text-white shadow-sm'
+                                            : 'bg-white text-slate-600 border border-slate-200 hover:border-rose-300 hover:text-rose-600 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                                            }`}
+                                    >
+                                        Zerados
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center text-slate-600 dark:text-slate-400 mr-auto lg:mr-0">
+                                <span className="font-semibold">{visibleSelectedCount}</span>
                                 <span className="ml-1">produto(s) selecionado(s)</span>
-                                {selectedProducts.size > 0 && products.length !== selectedProducts.size && (
-                                    <span className="ml-2 text-xs text-slate-500">
-                                        (Alguns itens podem não estar visíveis)
+                                {selectedProducts.size !== visibleSelectedCount && (
+                                    <span className="ml-2 text-xs text-slate-500" title={`Há ${selectedProducts.size - visibleSelectedCount} itens selecionados em outros filtros`}>
+                                        ({selectedProducts.size} no total)
                                     </span>
                                 )}
                             </div>
@@ -1207,10 +1291,14 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                             <div className="w-12 h-12 border-4 border-brand-200 dark:border-brand-900 border-t-brand-600 dark:border-t-brand-500 rounded-full animate-spin mx-auto mb-4"></div>
                             <p className="text-slate-600 dark:text-slate-400">Carregando produtos...</p>
                         </div>
-                    ) : products.length === 0 ? (
+                    ) : (activeTab === 'report' ? displayedProducts.length === 0 : products.length === 0) ? (
                         <div className="p-12 text-center">
                             <PackageIcon className="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-                            <p className="text-slate-600 dark:text-slate-400">Nenhum produto encontrado</p>
+                            <p className="text-slate-600 dark:text-slate-400">
+                                {activeTab === 'report' && stockFilter !== 'all'
+                                    ? 'Nenhum produto atende aos filtros de estoque ativos.'
+                                    : 'Nenhum produto encontrado'}
+                            </p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
@@ -1348,7 +1436,7 @@ export const Maintenance: React.FC<MaintenanceProps> = () => {
                                             ))
                                         )
                                     ) : (
-                                        products.map((product) => {
+                                        displayedProducts.map((product) => {
                                             const edit = getProductEdit(product);
                                             const edited = isEdited(product.id);
                                             const isSelected = selectedProducts.has(product.id);
