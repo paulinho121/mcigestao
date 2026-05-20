@@ -1,9 +1,9 @@
-import { AnimatePresence, motion, useAnimationControls } from 'framer-motion';
+import { motion, useAnimationControls, AnimatePresence } from 'framer-motion';
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
 const ITEM_SIZE = 54;
-const RADIUS = 120;
+const RADIUS = 135;
 const OPEN_STAGGER = 0.04;
 const CLOSE_STAGGER = 0.03;
 
@@ -26,7 +26,6 @@ const CircleMenuItem = ({
   icon, label, onClick, index, totalItems, isOpen, colorClass
 }: CircleMenuItemProps) => {
   const { x, y } = pointOnCircle(index, totalItems, RADIUS);
-  const [hovered, setHovered] = useState(false);
 
   return (
     <motion.button
@@ -44,29 +43,24 @@ const CircleMenuItem = ({
         stiffness: 300,
         damping: 26,
       }}
-      whileHover={{ scale: 1.18 }}
+      whileHover={{ scale: 1.15 }}
       whileTap={{ scale: 0.92 }}
       style={{ width: ITEM_SIZE, height: ITEM_SIZE, position: 'absolute' }}
       className={`rounded-full flex items-center justify-center shadow-lg text-white cursor-pointer ${colorClass}`}
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       aria-label={label}
     >
       {icon}
-      <AnimatePresence>
-        {hovered && (
-          <motion.span
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.12 }}
-            className="absolute top-full mt-2 text-[11px] font-semibold text-white bg-slate-800/95 px-2.5 py-1 rounded-full whitespace-nowrap pointer-events-none shadow"
-          >
-            {label}
-          </motion.span>
-        )}
-      </AnimatePresence>
+      <span
+        className="absolute top-full mt-1.5 whitespace-nowrap pointer-events-none text-[10px] font-semibold tracking-wide text-white"
+        style={{
+          left: '50%',
+          transform: 'translateX(-50%)',
+          textShadow: '0 1px 6px rgba(0,0,0,0.85)',
+        }}
+      >
+        {label}
+      </span>
     </motion.button>
   );
 };
@@ -101,15 +95,18 @@ export const CircleMenu = ({ items, onClose }: CircleMenuProps) => {
     onClose();
   };
 
+  const size = (RADIUS + ITEM_SIZE + 36) * 2;
+
   return (
     <div
       className="relative flex items-center justify-center"
-      style={{ width: (RADIUS + ITEM_SIZE) * 2, height: (RADIUS + ITEM_SIZE) * 2 }}
+      style={{ width: size, height: size }}
     >
       {/* Items ring */}
       <motion.div
         animate={ringControls}
         className="absolute inset-0 flex items-center justify-center"
+        style={{ overflow: 'visible' }}
       >
         {items.map((item, index) => (
           <CircleMenuItem
