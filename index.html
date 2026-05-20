@@ -48,23 +48,42 @@
             sans: ['Inter', 'sans-serif', 'system-ui'],
           },
           colors: {
+            /* Cor primária da marca — teal MCI */
             brand: {
-              50: '#f0fdfa',
+              50:  '#f0fdfa',
               100: '#ccfbf1',
               200: '#99f6e4',
               300: '#5eead4',
               400: '#2dd4bf',
               500: '#00bfa5',
-              600: '#00a699', // Professional Teal
+              600: '#00a699',
               700: '#0f766e',
               800: '#115e59',
               900: '#134e4a',
             },
+            /* Cor de destaque — complemento ao brand */
+            accent: {
+              DEFAULT: '#00d4aa',
+              light:   '#e6fff8',
+              dark:    '#00897b',
+            },
+            /* Filiais — tokens semânticos (use branch-ce-*, branch-sp-*, branch-sc-*) */
+            branch: {
+              ce: { DEFAULT: '#059669', light: '#d1fae5', dark: '#065f46' },
+              sp: { DEFAULT: '#e11d48', light: '#ffe4e6', dark: '#9f1239' },
+              sc: { DEFAULT: '#2563eb', light: '#dbeafe', dark: '#1e40af' },
+            },
+          },
+          borderRadius: {
+            /* Escala padronizada — use esses tokens ao invés de valores ad hoc */
+            card:  '1rem',
+            modal: '1.5rem',
+            badge: '9999px',
           },
           animation: {
-            'pulse-slow': 'pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'pulse-slow':  'pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             'bounce-slow': 'bounce 3s cubic-bezier(0, 0, 0.2, 1) infinite',
-          }
+          },
         }
       }
     }

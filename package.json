@@ -11,18 +11,22 @@
   "dependencies": {
     "@browserbasehq/sdk": "^2.10.0",
     "@supabase/supabase-js": "^2.39.0",
+    "@tanstack/react-query": "^5.100.11",
+    "@tanstack/react-virtual": "^3.13.24",
     "@types/papaparse": "^5.5.0",
     "@vercel/analytics": "^1.6.0",
     "axios": "^1.16.0",
     "clsx": "^2.1.0",
     "date-fns": "^4.1.0",
+    "framer-motion": "^12.39.0",
     "lucide-react": "^0.344.0",
     "papaparse": "^5.5.3",
     "puppeteer-core": "^24.42.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^3.7.0",
-    "tailwind-merge": "^2.2.1"
+    "tailwind-merge": "^2.2.1",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

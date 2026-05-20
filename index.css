@@ -2,67 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================
+   DESIGN TOKENS — Estoque MCI
+   Paleta, sombras e filiais definidos aqui como CSS variables.
+   Tailwind custom colors estão em index.html > tailwind.config
+   ========================================================== */
+
 @layer base {
   :root {
-    --brand-main: 0 166 153;
-    /* #00a699 - Typical Jamef/MCI Teal */
+    /* Cor primária em canais RGB — para uso em rgba() */
     --brand-rgb: 0, 166, 153;
-    --skeuo-bg: #e0e5ec;
-    --skeuo-shadow-light: #ffffff;
-    --skeuo-shadow-dark: #a3b1c6;
+
+    /* Fundo do app — visual neumórfico flat */
+    --app-bg:           #e0e5ec;
+    --app-shadow-light: #ffffff;
+    --app-shadow-dark:  #a3b1c6;
+
+    /* Aliases para não quebrar classes existentes */
+    --skeuo-bg:           var(--app-bg);
+    --skeuo-shadow-light: var(--app-shadow-light);
+    --skeuo-shadow-dark:  var(--app-shadow-dark);
+
+    /* Filiais — para uso direto em CSS quando Tailwind não alcança */
+    --branch-ce:       #059669;
+    --branch-ce-light: #d1fae5;
+    --branch-sp:       #e11d48;
+    --branch-sp-light: #ffe4e6;
+    --branch-sc:       #2563eb;
+    --branch-sc-light: #dbeafe;
+
+    /* Raios de borda padronizados */
+    --radius-card:  1rem;
+    --radius-modal: 1.5rem;
+    --radius-badge: 9999px;
   }
 
   .dark {
-    --skeuo-bg: #232936;
-    --skeuo-shadow-light: #2c3444;
-    --skeuo-shadow-dark: #1a1f29;
+    --app-bg:           #232936;
+    --app-shadow-light: #2c3444;
+    --app-shadow-dark:  #1a1f29;
+
+    --branch-ce-light: #064e3b;
+    --branch-sp-light: #4c0519;
+    --branch-sc-light: #1e3a8a;
   }
 
   body {
     @apply antialiased text-slate-800 dark:text-slate-100;
-    background-color: var(--skeuo-bg);
+    background-color: var(--app-bg);
     min-height: 100vh;
   }
 }
 
 @layer components {
+  /* --- Superfície elevada (header, sidebar, cards) --- */
   .skeuo-flat {
-    background: var(--skeuo-bg);
-    box-shadow: 6px 6px 12px var(--skeuo-shadow-dark),
-                -6px -6px 12px var(--skeuo-shadow-light);
+    background: var(--app-bg);
+    box-shadow: 6px 6px 12px var(--app-shadow-dark),
+                -6px -6px 12px var(--app-shadow-light);
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
+  /* --- Superfície inset / pressionada --- */
   .skeuo-pressed {
-    background: var(--skeuo-bg);
-    box-shadow: inset 6px 6px 12px var(--skeuo-shadow-dark),
-                inset -6px -6px 12px var(--skeuo-shadow-light);
+    background: var(--app-bg);
+    box-shadow: inset 6px 6px 12px var(--app-shadow-dark),
+                inset -6px -6px 12px var(--app-shadow-light);
   }
 
-  .skeuo-card {
-    @apply skeuo-flat rounded-2xl transition-all duration-300;
+  /* --- Card padrão com hover elevado --- */
+  .app-card {
+    @apply skeuo-flat transition-all duration-300;
+    border-radius: var(--radius-card);
   }
-
-  .skeuo-card:hover {
-    box-shadow: 10px 10px 20px var(--skeuo-shadow-dark),
-                -10px -10px 20px var(--skeuo-shadow-light);
+  .app-card:hover {
+    box-shadow: 10px 10px 20px var(--app-shadow-dark),
+                -10px -10px 20px var(--app-shadow-light);
     transform: translateY(-2px);
   }
 
-  .skeuo-button {
-    @apply skeuo-flat px-4 py-2 rounded-xl font-bold transition-all active:shadow-none active:translate-y-0.5;
-    box-shadow: 4px 4px 8px var(--skeuo-shadow-dark),
-                -4px -4px 8px var(--skeuo-shadow-light);
+  /* Alias legado */
+  .skeuo-card { @apply app-card; }
+
+  /* --- Botão neumórfico --- */
+  .app-button {
+    @apply skeuo-flat px-4 py-2 font-bold transition-all active:translate-y-0.5;
+    border-radius: var(--radius-card);
+    box-shadow: 4px 4px 8px var(--app-shadow-dark),
+                -4px -4px 8px var(--app-shadow-light);
+  }
+  .app-button:active {
+    box-shadow: inset 2px 2px 5px var(--app-shadow-dark),
+                inset -2px -2px 5px var(--app-shadow-light);
   }
 
-  .skeuo-button:active {
-    box-shadow: inset 2px 2px 5px var(--skeuo-shadow-dark),
-                inset -2px -2px 5px var(--skeuo-shadow-light);
-  }
+  /* Alias legado */
+  .skeuo-button { @apply app-button; }
 
-  .bg-mesh {
-    display: none;
-  }
+  /* --- Badges de filial prontos para uso --- */
+  .badge-ce { background: var(--branch-ce-light); color: #065f46; border-radius: var(--radius-badge); @apply text-xs font-bold px-2 py-0.5; }
+  .badge-sp { background: var(--branch-sp-light); color: #9f1239; border-radius: var(--radius-badge); @apply text-xs font-bold px-2 py-0.5; }
+  .badge-sc { background: var(--branch-sc-light); color: #1e40af; border-radius: var(--radius-badge); @apply text-xs font-bold px-2 py-0.5; }
+
+  .bg-mesh { display: none; }
 }
 
 /* Custom utility classes */
