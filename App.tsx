@@ -22,7 +22,7 @@ import EnrichmentReview from './pages/EnrichmentReview';
 // import { nfeService } from './services/nfeService';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
-import { Package, ClipboardList, Wrench, LogOut, Ship, ShoppingBag, FileText, Sun, Moon, Users, Truck, BookOpen, Menu } from 'lucide-react';
+import { Package, ClipboardList, Wrench, LogOut, Ship, ShoppingBag, FileText, Sun, Moon, Users, Truck, BookOpen, Menu, BarChart3, PackagePlus, Image as ImageIcon, Upload as UploadIcon, Layers, ArrowDownUp, CalendarClock, Tag, FileCode2, Activity } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
@@ -173,16 +173,89 @@ function App() {
   const navigate = (tab: Tab) => { setActiveTab(tab); setIsMenuOpen(false); };
 
   const circleMenuItems: CircleMenuItem[] = [
-    { label: 'Estoque', icon: <Package size={20} />, onClick: () => navigate('inventory'), colorClass: 'bg-brand-600 hover:bg-brand-700' },
-    { label: 'Catálogos', icon: <BookOpen size={20} />, onClick: () => navigate('catalogs'), colorClass: 'bg-teal-600 hover:bg-teal-700' },
-    { label: 'Reservas', icon: <ClipboardList size={20} />, onClick: () => navigate('reservations'), colorClass: 'bg-indigo-600 hover:bg-indigo-700' },
-    { label: 'Importação', icon: <Ship size={20} />, onClick: () => navigate('in_import'), colorClass: 'bg-sky-600 hover:bg-sky-700' },
-    { label: 'Rastreamento', icon: <Truck size={20} />, onClick: () => navigate('tracking'), colorClass: 'bg-violet-600 hover:bg-violet-700' },
-    { label: 'Diretoria', icon: <FileText size={20} />, onClick: () => navigate('diretoria'), colorClass: 'bg-slate-600 hover:bg-slate-700' },
+    {
+      label: 'Estoque',
+      icon: <Package size={20} />,
+      onClick: () => navigate('inventory'),
+      colorClass: 'bg-brand-600 hover:bg-brand-700',
+      subItems: isMaster ? [
+        { label: 'Estoque', icon: <Package size={20} />, onClick: () => navigate('inventory'), colorClass: 'bg-brand-600 hover:bg-brand-700' },
+        { label: 'Gestão', icon: <BarChart3 size={20} />, onClick: () => navigate('stock_management'), colorClass: 'bg-brand-500 hover:bg-brand-600' },
+        { label: 'Cadastro', icon: <PackagePlus size={20} />, onClick: () => navigate('product_registration'), colorClass: 'bg-brand-700 hover:bg-brand-800' },
+        { label: 'Imagens', icon: <ImageIcon size={20} />, onClick: () => navigate('image_review'), colorClass: 'bg-cyan-600 hover:bg-cyan-700' },
+      ] : undefined,
+    },
+    {
+      label: 'Catálogos',
+      icon: <BookOpen size={20} />,
+      onClick: () => navigate('catalogs'),
+      colorClass: 'bg-teal-600 hover:bg-teal-700',
+    },
+    {
+      label: 'Reservas',
+      icon: <ClipboardList size={20} />,
+      onClick: () => navigate('reservations'),
+      colorClass: 'bg-indigo-600 hover:bg-indigo-700',
+      subItems: isMaster ? [
+        { label: 'Reservas', icon: <ClipboardList size={20} />, onClick: () => navigate('reservations'), colorClass: 'bg-indigo-600 hover:bg-indigo-700' },
+        { label: 'Retiradas', icon: <ArrowDownUp size={20} />, onClick: () => navigate('withdrawals'), colorClass: 'bg-indigo-500 hover:bg-indigo-600' },
+      ] : undefined,
+    },
+    {
+      label: 'Importação',
+      icon: <Ship size={20} />,
+      onClick: () => navigate('in_import'),
+      colorClass: 'bg-sky-600 hover:bg-sky-700',
+      subItems: [
+        { label: 'Importação', icon: <Ship size={20} />, onClick: () => navigate('in_import'), colorClass: 'bg-sky-600 hover:bg-sky-700' },
+        { label: 'Upload', icon: <UploadIcon size={20} />, onClick: () => navigate('upload'), colorClass: 'bg-sky-500 hover:bg-sky-600' },
+        { label: 'Gestão', icon: <Layers size={20} />, onClick: () => navigate('import_management'), colorClass: 'bg-sky-700 hover:bg-sky-800' },
+      ],
+    },
+    {
+      label: 'Rastreamento',
+      icon: <Truck size={20} />,
+      onClick: () => navigate('tracking'),
+      colorClass: 'bg-violet-600 hover:bg-violet-700',
+      subItems: [
+        { label: 'Rastreamento', icon: <Truck size={20} />, onClick: () => navigate('tracking'), colorClass: 'bg-violet-600 hover:bg-violet-700' },
+        { label: 'Locações', icon: <CalendarClock size={20} />, onClick: () => navigate('rental_management'), colorClass: 'bg-violet-500 hover:bg-violet-600' },
+      ],
+    },
+    {
+      label: 'Diretoria',
+      icon: <FileText size={20} />,
+      onClick: () => navigate('diretoria'),
+      colorClass: 'bg-slate-600 hover:bg-slate-700',
+    },
     ...(isMaster ? [
-      { label: 'Manutenção', icon: <Wrench size={20} />, onClick: () => navigate('maintenance'), colorClass: 'bg-amber-600 hover:bg-amber-700' },
-      { label: 'Compras', icon: <ShoppingBag size={20} />, onClick: () => navigate('shopping'), colorClass: 'bg-rose-600 hover:bg-rose-700' },
-      { label: 'Fornecedores', icon: <Users size={20} />, onClick: () => navigate('suppliers'), colorClass: 'bg-emerald-600 hover:bg-emerald-700' },
+      {
+        label: 'Manutenção',
+        icon: <Wrench size={20} />,
+        onClick: () => navigate('maintenance'),
+        colorClass: 'bg-amber-600 hover:bg-amber-700',
+        subItems: [
+          { label: 'Manutenção', icon: <Wrench size={20} />, onClick: () => navigate('maintenance'), colorClass: 'bg-amber-600 hover:bg-amber-700' },
+          { label: 'NF-e', icon: <FileCode2 size={20} />, onClick: () => navigate('nfe_automation'), colorClass: 'bg-amber-500 hover:bg-amber-600' },
+          { label: 'Logs', icon: <Activity size={20} />, onClick: () => navigate('logs'), colorClass: 'bg-amber-700 hover:bg-amber-800' },
+        ],
+      },
+      {
+        label: 'Compras',
+        icon: <ShoppingBag size={20} />,
+        onClick: () => navigate('shopping'),
+        colorClass: 'bg-rose-600 hover:bg-rose-700',
+      },
+      {
+        label: 'Fornecedores',
+        icon: <Users size={20} />,
+        onClick: () => navigate('suppliers'),
+        colorClass: 'bg-emerald-600 hover:bg-emerald-700',
+        subItems: [
+          { label: 'Fornecedores', icon: <Users size={20} />, onClick: () => navigate('suppliers'), colorClass: 'bg-emerald-600 hover:bg-emerald-700' },
+          { label: 'Marcas', icon: <Tag size={20} />, onClick: () => navigate('brands'), colorClass: 'bg-emerald-500 hover:bg-emerald-600' },
+        ],
+      },
     ] : []),
   ];
 

@@ -1,6 +1,6 @@
 import { motion, useAnimationControls, AnimatePresence } from 'framer-motion';
 import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, ArrowLeft } from 'lucide-react';
 
 const ITEM_SIZE = 54;
 const RADIUS = 135;
@@ -22,7 +22,7 @@ interface CircleMenuItemProps {
   colorClass: string;
 }
 
-const CircleMenuItem = ({
+const CircleMenuItemComponent = ({
   icon, label, onClick, index, totalItems, isOpen, colorClass
 }: CircleMenuItemProps) => {
   const { x, y } = pointOnCircle(index, totalItems, RADIUS);
@@ -70,6 +70,7 @@ export interface CircleMenuItem {
   icon: React.ReactNode;
   onClick: () => void;
   colorClass: string;
+  subItems?: CircleMenuItem[];
 }
 
 interface CircleMenuProps {
@@ -79,6 +80,8 @@ interface CircleMenuProps {
 
 export const CircleMenu = ({ items, onClose }: CircleMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [displayItems, setDisplayItems] = useState<CircleMenuItem[]>(items);
+  const [inSubMenu, setInSubMenu] = useState(false);
   const ringControls = useAnimationControls();
 
   useEffect(() => {
@@ -90,9 +93,33 @@ export const CircleMenu = ({ items, onClose }: CircleMenuProps) => {
     setIsOpen(false);
     await ringControls.start({
       rotate: -360,
-      transition: { duration: CLOSE_STAGGER * (items.length + 3), ease: 'linear' },
+      transition: { duration: CLOSE_STAGGER * (displayItems.length + 3), ease: 'linear' },
     });
     onClose();
+  };
+
+  const drillInto = (item: CircleMenuItem) => {
+    if (item.subItems && item.subItems.length > 1) {
+      const currentCount = displayItems.length;
+      setIsOpen(false);
+      setTimeout(() => {
+        setDisplayItems(item.subItems!);
+        setInSubMenu(true);
+        setIsOpen(true);
+      }, (currentCount * CLOSE_STAGGER + 0.15) * 1000);
+    } else {
+      item.onClick();
+    }
+  };
+
+  const handleBack = () => {
+    const currentCount = displayItems.length;
+    setIsOpen(false);
+    setTimeout(() => {
+      setDisplayItems(items);
+      setInSubMenu(false);
+      setIsOpen(true);
+    }, (currentCount * CLOSE_STAGGER + 0.15) * 1000);
   };
 
   const size = (RADIUS + ITEM_SIZE + 36) * 2;
@@ -108,38 +135,38 @@ export const CircleMenu = ({ items, onClose }: CircleMenuProps) => {
         className="absolute inset-0 flex items-center justify-center"
         style={{ overflow: 'visible' }}
       >
-        {items.map((item, index) => (
-          <CircleMenuItem
-            key={index}
+        {displayItems.map((item, index) => (
+          <CircleMenuItemComponent
+            key={`${inSubMenu ? 'sub' : 'main'}-${index}`}
             icon={item.icon}
             label={item.label}
-            onClick={item.onClick}
+            onClick={() => drillInto(item)}
             index={index}
-            totalItems={items.length}
+            totalItems={displayItems.length}
             isOpen={isOpen}
             colorClass={item.colorClass}
           />
         ))}
       </motion.div>
 
-      {/* Center close button */}
+      {/* Center button — back when in sub-menu, close otherwise */}
       <motion.button
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.93 }}
         style={{ width: 60, height: 60, zIndex: 10, position: 'relative' }}
         className="rounded-full bg-brand-600 hover:bg-brand-700 flex items-center justify-center shadow-2xl shadow-brand-900/40 text-white transition-colors"
-        onClick={handleClose}
-        aria-label="Fechar menu"
+        onClick={inSubMenu ? handleBack : handleClose}
+        aria-label={inSubMenu ? 'Voltar' : 'Fechar menu'}
       >
         <AnimatePresence mode="wait">
           <motion.span
-            key={isOpen ? 'close' : 'open'}
+            key={inSubMenu ? 'back' : 'close'}
             initial={{ opacity: 0, rotate: -90, scale: 0.5 }}
             animate={{ opacity: 1, rotate: 0, scale: 1 }}
             exit={{ opacity: 0, rotate: 90, scale: 0.5 }}
             transition={{ duration: 0.18 }}
           >
-            <X size={22} />
+            {inSubMenu ? <ArrowLeft size={22} /> : <X size={22} />}
           </motion.span>
         </AnimatePresence>
       </motion.button>
