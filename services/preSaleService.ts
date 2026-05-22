@@ -14,12 +14,35 @@ export const preSaleService = {
 
     async create(payload: Omit<PreSale, 'id' | 'created_at' | 'updated_at' | 'fulfilled_at'>): Promise<PreSale> {
         if (!supabase) throw new Error('Supabase não configurado');
+
+        // Verifica se o produto já tem estoque no momento da criação
+        const { data: product } = await supabase
+            .from('products')
+            .select('total, name')
+            .eq('id', payload.product_id)
+            .single();
+
+        const hasStock = (product?.total ?? 0) > 0;
+        const initialStatus = hasStock ? 'stock_arrived' : 'pending';
+
         const { data, error } = await supabase
             .from('pre_sales')
-            .insert([{ ...payload, status: 'pending' }])
+            .insert([{ ...payload, status: initialStatus }])
             .select()
             .single();
         if (error) throw error;
+
+        // Se já tem estoque, cria o alerta imediatamente
+        if (hasStock) {
+            await supabase.from('pre_sale_alerts').insert([{
+                pre_sale_id: data.id,
+                product_id: payload.product_id,
+                product_name: product?.name ?? payload.product_name,
+                stock_delta: product?.total ?? 0,
+                is_read: false,
+            }]);
+        }
+
         return data;
     },
 

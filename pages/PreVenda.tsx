@@ -485,6 +485,8 @@ export function PreVenda() {
         setLoading(true);
         setError(null);
         try {
+            // Sincroniza status: marca como 'stock_arrived' qualquer pendente que já tenha estoque
+            await preSaleService.checkAfterBatchSync();
             const data = await preSaleService.getAll();
             setAllItems(data);
         } catch (e: any) {
