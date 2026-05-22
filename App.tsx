@@ -19,6 +19,8 @@ import { NfeAutomation } from './pages/NfeAutomation';
 import { ProductRegistration } from './pages/ProductRegistration';
 import { Withdrawals } from './pages/Withdrawals';
 import EnrichmentReview from './pages/EnrichmentReview';
+import { PreVenda } from './pages/PreVenda';
+import { PreSaleAlertBanner } from './components/PreSaleAlertBanner';
 // import { nfeService } from './services/nfeService';
 import { User } from './types';
 import { isMasterUser } from './config/masterUsers';
@@ -28,7 +30,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 import { CircleMenu, CircleMenuItem } from './components/ui/circle-menu';
 
-type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review';
+type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda';
 
 function BackgroundMesh() {
   return null;
@@ -41,6 +43,7 @@ function App() {
   const [isMaster, setIsMaster] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'mock' | 'error'>('checking');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [preSaleAlertTrigger] = useState(0);
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -247,6 +250,12 @@ function App() {
         colorClass: 'bg-rose-600 hover:bg-rose-700',
       },
       {
+        label: 'Pré-Venda',
+        icon: <Tag size={20} />,
+        onClick: () => navigate('pre_venda'),
+        colorClass: 'bg-red-700 hover:bg-red-800',
+      },
+      {
         label: 'Fornecedores',
         icon: <Users size={20} />,
         onClick: () => navigate('suppliers'),
@@ -283,6 +292,14 @@ function App() {
 
       {/* Main area */}
       <div className="flex flex-col min-h-screen">
+        {/* Banner de alerta de pré-venda (somente master) */}
+        {isMaster && (
+          <PreSaleAlertBanner
+            refreshTrigger={preSaleAlertTrigger}
+            onNavigateToPreVenda={() => navigate('pre_venda')}
+          />
+        )}
+
         {/* Header */}
         <header className="skeuo-flat sticky top-0 z-40 dark:border-none transition-colors duration-200">
           <div className="px-4 sm:px-6 lg:px-8">
@@ -393,6 +410,7 @@ function App() {
           {activeTab === 'nfe_automation' && isMaster && <NfeAutomation />}
           {activeTab === 'product_registration' && isMaster && <ProductRegistration />}
           {activeTab === 'image_review' && isMaster && <EnrichmentReview />}
+          {activeTab === 'pre_venda' && isMaster && <PreVenda />}
         </main>
       </div>
 

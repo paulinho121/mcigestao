@@ -173,3 +173,34 @@ export interface WithdrawalItem {
     observations?: string;
     created_at: string;
 }
+
+export interface PreSale {
+    id: string;
+    product_id: string;
+    product_name: string;
+    product_brand?: string;
+    quantity: number;
+    unit_price?: number;
+    vendedor_name: string;
+    cliente_name: string;
+    cliente_contact?: string;
+    branch?: 'CE' | 'SC' | 'SP';
+    status: 'pending' | 'stock_arrived' | 'fulfilled' | 'cancelled';
+    expected_restock_date?: string;
+    notes?: string;
+    priority: 'low' | 'normal' | 'high' | 'urgent';
+    created_at: string;
+    updated_at: string;
+    fulfilled_at?: string;
+}
+
+export interface PreSaleAlert {
+    id: string;
+    pre_sale_id: string;
+    product_id?: string;
+    product_name?: string;
+    stock_delta?: number;
+    is_read: boolean;
+    created_at: string;
+    pre_sale?: PreSale;
+}
