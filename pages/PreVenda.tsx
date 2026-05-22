@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
     ShoppingBag, Plus, Search, CheckCircle2, XCircle, Clock,
     AlertTriangle, Edit2, ChevronDown, ChevronUp, User, Users, Package,
-    PhoneCall, MapPin, CalendarDays, StickyNote, Star, X, Loader2
+    PhoneCall, MapPin, CalendarDays, StickyNote, Star, X, Loader2, History, Timer
 } from 'lucide-react';
 import { preSaleService } from '../services/preSaleService';
 import { PreSale } from '../types';
@@ -11,8 +11,45 @@ import { Product } from '../types';
 
 // ─── tipos auxiliares ────────────────────────────────────────────────────────
 
-type StatusFilter = 'all' | 'pending' | 'stock_arrived' | 'fulfilled' | 'cancelled';
+type PageView = 'active' | 'history';
 type GroupBy = 'none' | 'vendedor' | 'cliente';
+
+// ─── utilitário de tempo ─────────────────────────────────────────────────────
+
+function calcDays(from: string, to?: string | null): number {
+    const start = new Date(from).getTime();
+    const end = to ? new Date(to).getTime() : Date.now();
+    return Math.floor((end - start) / (1000 * 60 * 60 * 24));
+}
+
+function formatDuration(days: number): string {
+    if (days === 0) return 'Hoje';
+    if (days === 1) return '1 dia';
+    return `${days} dias`;
+}
+
+function TimerBadge({ createdAt, fulfilledAt, status }: {
+    createdAt: string;
+    fulfilledAt?: string | null;
+    status: PreSale['status'];
+}) {
+    const isDone = status === 'fulfilled' || status === 'cancelled';
+    const days = calcDays(createdAt, isDone ? fulfilledAt : null);
+
+    let colorClass = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+    if (!isDone) {
+        if (days >= 14) colorClass = 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+        else if (days >= 7) colorClass = 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
+        else if (days >= 3) colorClass = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
+    }
+
+    return (
+        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${colorClass}`}>
+            <Timer className="w-3 h-3" />
+            {isDone ? `Atendido em ${formatDuration(days)}` : formatDuration(days)}
+        </span>
+    );
+}
 
 const STATUS_LABELS: Record<PreSale['status'], string> = {
     pending: 'Pendente',
@@ -368,6 +405,7 @@ function PreSaleCard({ item, onFulfill, onCancel, onEdit }: CardProps) {
                     <div className="flex items-center gap-2 flex-wrap">
                         <StatusBadge status={item.status} />
                         <PriorityBadge priority={item.priority} />
+                        <TimerBadge createdAt={item.created_at} fulfilledAt={item.fulfilled_at} status={item.status} />
                         {item.branch && (
                             <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full flex items-center gap-1">
                                 <MapPin className="w-3 h-3" />{item.branch}
@@ -449,11 +487,15 @@ function PreSaleCard({ item, onFulfill, onCancel, onEdit }: CardProps) {
                     </button>
                 </div>
             )}
-            {item.status === 'fulfilled' && item.fulfilled_at && (
-                <p className="text-xs text-green-600 dark:text-green-400 pt-2 border-t border-slate-100 dark:border-slate-700">
-                    ✓ Atendido em {new Date(item.fulfilled_at).toLocaleDateString('pt-BR')}
-                </p>
-            )}
+            <p className="text-[10px] text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-700 flex items-center gap-1">
+                <CalendarDays className="w-3 h-3" />
+                Criado em {new Date(item.created_at).toLocaleDateString('pt-BR')}
+                {item.fulfilled_at && (
+                    <span className="ml-2 text-green-600 dark:text-green-400">
+                        · Atendido em {new Date(item.fulfilled_at).toLocaleDateString('pt-BR')}
+                    </span>
+                )}
+            </p>
         </div>
     );
 }
@@ -471,8 +513,8 @@ export function PreVenda() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const [view, setView] = useState<PageView>('active');
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
     const [vendedorFilter, setVendedorFilter] = useState('');
     const [clienteFilter, setClienteFilter] = useState('');
     const [groupBy, setGroupBy] = useState<GroupBy>('none');
@@ -498,8 +540,7 @@ export function PreVenda() {
 
     useEffect(() => { loadData(); }, [loadData]);
 
-    const filtered = allItems.filter((item) => {
-        if (statusFilter !== 'all' && item.status !== statusFilter) return false;
+    const applyFilters = (items: PreSale[]) => items.filter((item) => {
         if (vendedorFilter && !item.vendedor_name.toLowerCase().includes(vendedorFilter.toLowerCase())) return false;
         if (clienteFilter && !item.cliente_name.toLowerCase().includes(clienteFilter.toLowerCase())) return false;
         if (search) {
@@ -514,9 +555,11 @@ export function PreVenda() {
         return true;
     });
 
-    const stockArrivedItems = filtered.filter((i) => i.status === 'stock_arrived');
-    const pendingItems = filtered.filter((i) => i.status === 'pending');
-    const doneItems = filtered.filter((i) => i.status === 'fulfilled' || i.status === 'cancelled');
+    const activeItems = applyFilters(allItems.filter((i) => i.status === 'pending' || i.status === 'stock_arrived'));
+    const historyItems = applyFilters(allItems.filter((i) => i.status === 'fulfilled' || i.status === 'cancelled'));
+
+    const stockArrivedItems = activeItems.filter((i) => i.status === 'stock_arrived');
+    const pendingItems = activeItems.filter((i) => i.status === 'pending');
 
     const uniqueVendedores = [...new Set(allItems.map((i) => i.vendedor_name))].sort();
     const uniqueClientes = [...new Set(allItems.map((i) => i.cliente_name))].sort();
@@ -608,10 +651,23 @@ export function PreVenda() {
         );
     };
 
+    const activeCount = allItems.filter(i => i.status === 'pending' || i.status === 'stock_arrived').length;
+    const arrivedCount = allItems.filter(i => i.status === 'stock_arrived').length;
+    const historyCount = allItems.filter(i => i.status === 'fulfilled' || i.status === 'cancelled').length;
+
+    // tempo médio de atendimento (apenas fulfilled)
+    const fulfilledItems = allItems.filter(i => i.status === 'fulfilled' && i.fulfilled_at);
+    const avgDays = fulfilledItems.length
+        ? Math.round(fulfilledItems.reduce((acc, i) => acc + calcDays(i.created_at, i.fulfilled_at), 0) / fulfilledItems.length)
+        : null;
+
+    const selectCls = 'px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400';
+
     return (
         <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-screen-xl mx-auto">
-            {/* título */}
-            <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
+
+            {/* ── cabeçalho ── */}
+            <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/30">
                         <ShoppingBag className="w-6 h-6 text-red-600 dark:text-red-400" />
@@ -629,26 +685,66 @@ export function PreVenda() {
                 </button>
             </div>
 
-            {/* cards de resumo */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                {[
-                    { label: 'Estoque Chegou', value: allItems.filter(i => i.status === 'stock_arrived').length, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900' },
-                    { label: 'Pendentes', value: allItems.filter(i => i.status === 'pending').length, color: 'text-yellow-600', bg: 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900' },
-                    { label: 'Atendidos', value: allItems.filter(i => i.status === 'fulfilled').length, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900' },
-                    { label: 'Cancelados', value: allItems.filter(i => i.status === 'cancelled').length, color: 'text-slate-500', bg: 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700' },
-                ].map((s) => (
-                    <div key={s.label} className={`rounded-xl border p-3 ${s.bg}`}>
-                        <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{s.label}</p>
-                    </div>
-                ))}
+            {/* ── cards de resumo ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                <div className="rounded-xl border bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900 p-3">
+                    <p className="text-2xl font-bold text-red-600">{arrivedCount}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Estoque Chegou</p>
+                </div>
+                <div className="rounded-xl border bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900 p-3">
+                    <p className="text-2xl font-bold text-yellow-600">{allItems.filter(i => i.status === 'pending').length}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Pendentes</p>
+                </div>
+                <div className="rounded-xl border bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900 p-3">
+                    <p className="text-2xl font-bold text-green-600">{allItems.filter(i => i.status === 'fulfilled').length}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Atendidos</p>
+                </div>
+                <div className="rounded-xl border bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900 p-3">
+                    <p className="text-2xl font-bold text-blue-600">{avgDays !== null ? `${avgDays}d` : '—'}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Tempo médio de atendimento</p>
+                </div>
             </div>
 
-            {/* filtros */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 mb-6 space-y-3">
+            {/* ── tabs ── */}
+            <div className="flex items-center gap-1 mb-5 border-b border-slate-200 dark:border-slate-700">
+                <button
+                    onClick={() => setView('active')}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
+                        view === 'active'
+                            ? 'border-red-500 text-red-600 dark:text-red-400'
+                            : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                    }`}
+                >
+                    <Clock className="w-4 h-4" />
+                    Em Aberto
+                    {activeCount > 0 && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                            arrivedCount > 0 ? 'bg-red-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                        }`}>{activeCount}</span>
+                    )}
+                </button>
+                <button
+                    onClick={() => setView('history')}
+                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${
+                        view === 'history'
+                            ? 'border-red-500 text-red-600 dark:text-red-400'
+                            : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                    }`}
+                >
+                    <History className="w-4 h-4" />
+                    Histórico
+                    {historyCount > 0 && (
+                        <span className="text-xs px-1.5 py-0.5 rounded-full font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                            {historyCount}
+                        </span>
+                    )}
+                </button>
+            </div>
+
+            {/* ── filtros ── */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-3 mb-5">
                 <div className="flex flex-wrap gap-3">
-                    {/* busca */}
-                    <div className="relative flex-1 min-w-[200px]">
+                    <div className="relative flex-1 min-w-[180px]">
                         <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                         <input
                             className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400"
@@ -657,50 +753,19 @@ export function PreVenda() {
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-
-                    {/* status */}
-                    <select
-                        className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400"
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-                    >
-                        <option value="all">Todos os status</option>
-                        <option value="stock_arrived">Estoque Chegou</option>
-                        <option value="pending">Pendente</option>
-                        <option value="fulfilled">Atendido</option>
-                        <option value="cancelled">Cancelado</option>
-                    </select>
-
-                    {/* vendedor */}
-                    <select
-                        className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400"
-                        value={vendedorFilter}
-                        onChange={(e) => setVendedorFilter(e.target.value)}
-                    >
+                    <select className={selectCls} value={vendedorFilter} onChange={(e) => setVendedorFilter(e.target.value)}>
                         <option value="">Todos os vendedores</option>
                         {uniqueVendedores.map((v) => <option key={v} value={v}>{v}</option>)}
                     </select>
-
-                    {/* cliente */}
-                    <select
-                        className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400"
-                        value={clienteFilter}
-                        onChange={(e) => setClienteFilter(e.target.value)}
-                    >
+                    <select className={selectCls} value={clienteFilter} onChange={(e) => setClienteFilter(e.target.value)}>
                         <option value="">Todos os clientes</option>
                         {uniqueClientes.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
-
-                    {/* agrupamento */}
-                    <div className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden">
+                    <div className="flex items-center gap-0 rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden">
                         {(['none', 'vendedor', 'cliente'] as GroupBy[]).map((g) => (
-                            <button
-                                key={g}
-                                onClick={() => setGroupBy(g)}
+                            <button key={g} onClick={() => setGroupBy(g)}
                                 className={`px-3 py-2 text-xs font-semibold transition-colors ${
-                                    groupBy === g
-                                        ? 'bg-red-600 text-white'
-                                        : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                    groupBy === g ? 'bg-red-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'
                                 }`}
                             >
                                 {g === 'none' ? 'Todos' : g === 'vendedor' ? 'Por Vendedor' : 'Por Cliente'}
@@ -710,63 +775,69 @@ export function PreVenda() {
                 </div>
             </div>
 
-            {/* conteúdo */}
+            {/* ── conteúdo ── */}
             {loading ? (
                 <div className="flex items-center justify-center py-20">
                     <Loader2 className="w-8 h-8 animate-spin text-red-500" />
                 </div>
             ) : error ? (
                 <div className="text-center py-20 text-red-500">{error}</div>
-            ) : filtered.length === 0 ? (
-                <div className="text-center py-20 text-slate-400">
-                    <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p className="font-medium">Nenhuma pré-venda encontrada</p>
-                    <p className="text-sm">Ajuste os filtros ou crie uma nova pré-venda.</p>
-                </div>
+            ) : view === 'active' ? (
+                activeItems.length === 0 ? (
+                    <div className="text-center py-20 text-slate-400">
+                        <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                        <p className="font-medium">Nenhuma pré-venda em aberto</p>
+                        <p className="text-sm">Crie uma nova pré-venda para começar.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-8">
+                        {stockArrivedItems.length > 0 && (
+                            <section>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
+                                    <h2 className="font-bold text-red-600 dark:text-red-400 text-lg">
+                                        Estoque Chegou ({stockArrivedItems.length})
+                                    </h2>
+                                    <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full">
+                                        Ação necessária
+                                    </span>
+                                </div>
+                                {renderList(stockArrivedItems)}
+                            </section>
+                        )}
+                        {pendingItems.length > 0 && (
+                            <section>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Clock className="w-5 h-5 text-yellow-500" />
+                                    <h2 className="font-bold text-slate-700 dark:text-slate-200 text-lg">
+                                        Pendentes ({pendingItems.length})
+                                    </h2>
+                                </div>
+                                {renderList(pendingItems)}
+                            </section>
+                        )}
+                    </div>
+                )
             ) : (
-                <div className="space-y-8">
-                    {/* seção estoque chegou */}
-                    {stockArrivedItems.length > 0 && (
-                        <section>
-                            <div className="flex items-center gap-2 mb-3">
-                                <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
-                                <h2 className="font-bold text-red-600 dark:text-red-400 text-lg">
-                                    Estoque Chegou ({stockArrivedItems.length})
-                                </h2>
-                                <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full">
-                                    Ação necessária
-                                </span>
+                historyItems.length === 0 ? (
+                    <div className="text-center py-20 text-slate-400">
+                        <History className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                        <p className="font-medium">Nenhum registro no histórico ainda</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {avgDays !== null && (
+                            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-xl px-4 py-3 flex items-center gap-3">
+                                <Timer className="w-5 h-5 text-blue-500" />
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    Tempo médio de atendimento: <strong>{avgDays} {avgDays === 1 ? 'dia' : 'dias'}</strong>
+                                    {' '}({fulfilledItems.length} {fulfilledItems.length === 1 ? 'pré-venda' : 'pré-vendas'} atendidas)
+                                </p>
                             </div>
-                            {renderList(stockArrivedItems)}
-                        </section>
-                    )}
-
-                    {/* pendentes */}
-                    {pendingItems.length > 0 && (
-                        <section>
-                            <div className="flex items-center gap-2 mb-3">
-                                <Clock className="w-5 h-5 text-yellow-500" />
-                                <h2 className="font-bold text-slate-700 dark:text-slate-200 text-lg">
-                                    Pendentes ({pendingItems.length})
-                                </h2>
-                            </div>
-                            {renderList(pendingItems)}
-                        </section>
-                    )}
-
-                    {/* atendidos / cancelados */}
-                    {doneItems.length > 0 && statusFilter !== 'pending' && statusFilter !== 'stock_arrived' && (
-                        <section>
-                            <div className="flex items-center gap-2 mb-3">
-                                <CheckCircle2 className="w-5 h-5 text-slate-400" />
-                                <h2 className="font-bold text-slate-400 text-lg">
-                                    Concluídos / Cancelados ({doneItems.length})
-                                </h2>
-                            </div>
-                            {renderList(doneItems)}
-                        </section>
-                    )}
-                </div>
+                        )}
+                        {renderList(historyItems)}
+                    </div>
+                )
             )}
 
             {/* modal */}
