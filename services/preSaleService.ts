@@ -59,9 +59,9 @@ export const preSaleService = {
             .eq('pre_sale_id', id);
     },
 
-    // Chamado quando um produto entra em estoque — verifica pré-vendas pendentes
+    // Chamado quando um produto específico entra em estoque
     async checkAndCreateAlerts(productId: string, productName: string, stockDelta: number): Promise<number> {
-        if (!supabase) return 0;
+        if (!supabase || stockDelta <= 0) return 0;
         const { data: pending, error } = await supabase
             .from('pre_sales')
             .select('id')
@@ -69,7 +69,6 @@ export const preSaleService = {
             .eq('status', 'pending');
         if (error || !pending?.length) return 0;
 
-        // Cria alertas e atualiza status para 'stock_arrived'
         const alerts = pending.map((ps) => ({
             pre_sale_id: ps.id,
             product_id: productId,
@@ -83,6 +82,52 @@ export const preSaleService = {
             .update({ status: 'stock_arrived' })
             .in('id', pending.map((ps) => ps.id));
         return pending.length;
+    },
+
+    // Chamado após sync em lote (CSV upload, EscalaSoft) — verifica todas as pré-vendas pendentes
+    // cujos produtos agora têm estoque disponível
+    async checkAfterBatchSync(): Promise<number> {
+        if (!supabase) return 0;
+
+        // Busca todas as pré-vendas pendentes
+        const { data: pending, error: psError } = await supabase
+            .from('pre_sales')
+            .select('id, product_id, product_name')
+            .eq('status', 'pending');
+        if (psError || !pending?.length) return 0;
+
+        // IDs únicos de produtos em pré-venda
+        const uniqueIds = [...new Set(pending.map((p) => p.product_id))];
+
+        // Verifica quais desses produtos têm estoque > 0 agora
+        const { data: products, error: pError } = await supabase
+            .from('products')
+            .select('id, name, total')
+            .in('id', uniqueIds)
+            .gt('total', 0);
+        if (pError || !products?.length) return 0;
+
+        const inStockIds = new Set(products.map((p) => p.id));
+        const productMap = new Map(products.map((p) => [p.id, p]));
+
+        const toAlert = pending.filter((ps) => inStockIds.has(ps.product_id));
+        if (!toAlert.length) return 0;
+
+        const alerts = toAlert.map((ps) => ({
+            pre_sale_id: ps.id,
+            product_id: ps.product_id,
+            product_name: productMap.get(ps.product_id)?.name ?? ps.product_name,
+            stock_delta: productMap.get(ps.product_id)?.total ?? 0,
+            is_read: false,
+        }));
+
+        await supabase.from('pre_sale_alerts').insert(alerts);
+        await supabase
+            .from('pre_sales')
+            .update({ status: 'stock_arrived' })
+            .in('id', toAlert.map((ps) => ps.id));
+
+        return toAlert.length;
     },
 
     async getUnreadAlerts(): Promise<PreSaleAlert[]> {

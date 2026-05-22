@@ -1,6 +1,7 @@
 
 import { supabase } from '../lib/supabase';
 import { SCAPIResponse, SCStockItem } from '../types/scApi';
+import { preSaleService } from './preSaleService';
 
 /**
  * Service to handle integration with the external SC Stock API
@@ -183,6 +184,11 @@ export const scStockService = {
                         allNewItems = [...allNewItems, ...result.inserted_names];
                     }
                 }
+            }
+
+            // Verifica pré-vendas pendentes cujos produtos agora têm estoque após sync
+            if (totalUpdated > 0) {
+                preSaleService.checkAfterBatchSync().catch(() => {});
             }
 
             return {

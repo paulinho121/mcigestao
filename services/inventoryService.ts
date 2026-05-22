@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { Product, Reservation, ImportProject, ImportItem, WithdrawalProtocol, WithdrawalItem } from '../types';
 import { MOCK_INVENTORY } from './mockData';
 import { logService } from './logService';
+import { preSaleService } from './preSaleService';
 
 // In-memory reservation storage
 let reservations: Reservation[] = [];
@@ -761,6 +762,9 @@ export const inventoryService = {
       }
 
       console.log(`Successfully uploaded/updated ${cleanProducts.length} products to Supabase`);
+
+      // Verifica pré-vendas pendentes cujos produtos agora têm estoque
+      preSaleService.checkAfterBatchSync().catch(() => {});
     } catch (error: any) {
       console.error('Upload error:', error);
       throw error;
@@ -879,6 +883,12 @@ export const inventoryService = {
       }
       if (adjustments.sp !== 0) {
         await logService.logStockAdjustment(productId, currentProduct.name || 'Produto', 'SP', currentProduct.stock_sp, newStockSp, 'Ajuste Manual/Upload');
+      }
+
+      // Verifica pré-vendas pendentes para esse produto se o estoque aumentou
+      const totalDelta = adjustments.ce + adjustments.sc + adjustments.sp;
+      if (totalDelta > 0) {
+        preSaleService.checkAndCreateAlerts(productId, currentProduct.name || 'Produto', totalDelta).catch(() => {});
       }
     } catch (error: any) {
       console.error('Stock adjustment error:', error);
