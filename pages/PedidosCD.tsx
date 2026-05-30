@@ -1,12 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     PackageSearch, Plus, Send, RefreshCw, ChevronDown, ChevronUp,
     CheckCircle2, Truck, Package, Clock, XCircle, AlertCircle,
     Loader2, Trash2, ClipboardList, X, Search, RefreshCcw, History,
-    Hourglass, Weight, Box, Printer
+    Hourglass, Weight, Box, Printer, UserPlus, Users, ShoppingCart,
+    Info, ShieldAlert
 } from 'lucide-react';
 import { escalasoftOrderService, CDOrder, OrderProduct, OrderStatus, PedidoPendenteCD } from '../services/escalasoftOrderService';
 import { scStockService } from '../services/scStockService';
+import { clienteService, Cliente } from '../services/clienteService';
 import { SCStockItem } from '../types/scApi';
 
 // ─── impressão ────────────────────────────────────────────────────────────────
@@ -129,6 +131,229 @@ function imprimirPedido(params: {
     win.document.close();
     win.focus();
     setTimeout(() => win.print(), 400);
+}
+
+// ─── Modal de detalhe do produto ─────────────────────────────────────────────
+
+function ProductModal({ item, onClose, onAdd }: {
+    item: SCStockItem;
+    onClose: () => void;
+    onAdd: (item: SCStockItem, qty: number) => void;
+}) {
+    const [qty, setQty] = useState(1);
+    const parts = item.Item.includes(' - ') ? item.Item.split(' - ') : [item.Item, item.Item];
+    const code = parts[0].trim();
+    const name = parts.slice(1).join(' - ').trim() || code;
+    const dispQty = item.SaldoDisponivel?.Quantidade ?? 0;
+    const reservQty = item.SaldoReservado?.Quantidade ?? 0;
+    const bloqQty = item.SaldoBloqueado?.Quantidade ?? 0;
+    const valor = item.SaldoDisponivel?.Valor ?? 0;
+    const unitario = dispQty > 0 ? valor / dispQty : 0;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative z-10 w-full max-w-lg bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-orange-600 to-orange-500 p-6">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-orange-200 text-xs font-bold uppercase tracking-widest mb-1">Ref: {code}</p>
+                            <h3 className="text-white font-black text-lg leading-snug">{name}</h3>
+                            {item.Deposito && <p className="text-orange-200 text-xs mt-1">Depósito: {item.Deposito}</p>}
+                        </div>
+                        <button onClick={onClose} className="text-white/70 hover:text-white transition-colors shrink-0 mt-1">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Métricas de estoque */}
+                <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-slate-800 border-b border-slate-100 dark:border-slate-800">
+                    {[
+                        { label: 'Disponível', value: dispQty, icon: <CheckCircle2 className="w-4 h-4 text-green-500" />, color: 'text-green-600 dark:text-green-400' },
+                        { label: 'Reservado',  value: reservQty, icon: <Clock className="w-4 h-4 text-amber-500" />,   color: 'text-amber-600 dark:text-amber-400' },
+                        { label: 'Bloqueado',  value: bloqQty,   icon: <XCircle className="w-4 h-4 text-red-400" />,   color: 'text-red-600 dark:text-red-400' },
+                    ].map(({ label, value, icon, color }) => (
+                        <div key={label} className="flex flex-col items-center py-4 px-2 gap-1">
+                            {icon}
+                            <span className={`text-xl font-black ${color}`}>{value}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Detalhes */}
+                <div className="p-6 space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                        {[
+                            { label: 'Unid. Medida', value: item.UnidadeMedida || '—' },
+                            { label: 'Lote', value: item.Lote || '—' },
+                            { label: 'Vl. Total Estoque', value: valor > 0 ? valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—' },
+                            { label: 'Vl. Unitário (est.)', value: unitario > 0 ? unitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—' },
+                        ].map(({ label, value }) => (
+                            <div key={label} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{value}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Seletor de quantidade e botão adicionar */}
+                    <div className="flex items-center gap-3 pt-2">
+                        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+                            <button onClick={() => setQty(q => Math.max(1, q - 1))} className="w-8 h-8 rounded-lg bg-white dark:bg-slate-700 shadow text-slate-700 dark:text-slate-300 font-bold text-lg flex items-center justify-center hover:bg-slate-50 transition-colors">−</button>
+                            <input type="number" min={1} max={dispQty} value={qty} onChange={e => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+                                className="w-14 text-center font-bold text-slate-800 dark:text-slate-200 bg-transparent outline-none text-sm" />
+                            <button onClick={() => setQty(q => Math.min(dispQty || 9999, q + 1))} className="w-8 h-8 rounded-lg bg-white dark:bg-slate-700 shadow text-slate-700 dark:text-slate-300 font-bold text-lg flex items-center justify-center hover:bg-slate-50 transition-colors">+</button>
+                        </div>
+                        <button
+                            onClick={() => { onAdd(item, qty); onClose(); }}
+                            disabled={dispQty === 0}
+                            className="flex-1 flex items-center justify-center gap-2 py-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white font-bold rounded-xl transition-colors shadow-lg shadow-orange-500/20"
+                        >
+                            <ShoppingCart className="w-4 h-4" /> Adicionar ao Pedido
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Modal quick-add cliente ──────────────────────────────────────────────────
+
+function QuickAddClienteModal({ onClose, onSaved }: {
+    onClose: () => void;
+    onSaved: (c: Cliente) => void;
+}) {
+    const [form, setForm] = useState({ cnpj_cpf: '', nome: '', email: '', telefone: '', cidade: '', uf: '', categoria: 'Clientes' });
+    const [saving, setSaving] = useState(false);
+    const [err, setErr] = useState('');
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!form.cnpj_cpf || !form.nome) { setErr('CPF/CNPJ e Nome são obrigatórios.'); return; }
+        setSaving(true);
+        await clienteService.salvar({ ...form, bairro: '', logradouro: '', numero: '', complemento: '', cep: '' });
+        const lista = await clienteService.listar(form.nome);
+        const saved = lista.find(c => c.cnpj_cpf === form.cnpj_cpf) || { ...form, id: '', bairro: '', logradouro: '', numero: '', complemento: '', cep: '', created_at: new Date().toISOString() };
+        onSaved(saved as Cliente);
+        setSaving(false);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative z-10 w-full max-w-md bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+                <div className="bg-gradient-to-r from-brand-600 to-brand-500 p-6 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <UserPlus className="w-5 h-5 text-white" />
+                        <h3 className="text-white font-black text-base">Cadastrar Cliente</h3>
+                    </div>
+                    <button onClick={onClose} className="text-white/70 hover:text-white"><X className="w-5 h-5" /></button>
+                </div>
+                <form onSubmit={handleSave} className="p-6 space-y-4">
+                    {err && <p className="text-xs text-red-500 font-semibold">{err}</p>}
+                    {[
+                        { label: 'CPF / CNPJ *', key: 'cnpj_cpf', placeholder: '000.000.000-00' },
+                        { label: 'Nome / Razão Social *', key: 'nome', placeholder: 'Nome completo' },
+                        { label: 'E-mail', key: 'email', placeholder: 'email@empresa.com.br' },
+                        { label: 'Telefone', key: 'telefone', placeholder: '(47) 99999-9999' },
+                        { label: 'Cidade', key: 'cidade', placeholder: 'São Paulo-SP' },
+                    ].map(({ label, key, placeholder }) => (
+                        <div key={key}>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</label>
+                            <input value={(form as any)[key]} onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                                placeholder={placeholder}
+                                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold dark:text-white outline-none focus:ring-2 focus:ring-brand-500/40" />
+                        </div>
+                    ))}
+                    <button type="submit" disabled={saving} className="w-full py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                        Salvar e Selecionar
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+// ─── Campo de busca de cliente com autocomplete ───────────────────────────────
+
+function ClienteSelector({ value, cpf, onChange, onAddNew }: {
+    value: string; cpf: string;
+    onChange: (nome: string, cnpj: string) => void;
+    onAddNew: () => void;
+}) {
+    const [search, setSearch] = useState(value);
+    const [results, setResults] = useState<Cliente[]>([]);
+    const [open, setOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    useEffect(() => {
+        setSearch(value);
+    }, [value]);
+
+    const handleInput = async (v: string) => {
+        setSearch(v);
+        onChange(v, cpf);
+        if (v.length < 2) { setResults([]); setOpen(false); return; }
+        setLoading(true);
+        const list = await clienteService.listar(v);
+        setResults(list.slice(0, 8));
+        setOpen(true);
+        setLoading(false);
+    };
+
+    const select = (c: Cliente) => {
+        setSearch(c.nome);
+        setResults([]);
+        setOpen(false);
+        onChange(c.nome, c.cnpj_cpf);
+    };
+
+    return (
+        <div ref={ref} className="relative">
+            <div className="flex gap-2">
+                <div className="relative flex-1">
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                        value={search}
+                        onChange={e => handleInput(e.target.value)}
+                        onFocus={() => search.length >= 2 && setOpen(true)}
+                        placeholder="Nome completo ou empresa"
+                        className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+                    />
+                    {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-slate-400" />}
+                </div>
+                <button type="button" onClick={onAddNew} title="Cadastrar novo cliente"
+                    className="flex items-center justify-center w-10 h-10 rounded-xl bg-brand-600 hover:bg-brand-700 text-white transition-colors shrink-0">
+                    <UserPlus className="w-4 h-4" />
+                </button>
+            </div>
+
+            {open && results.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl z-30 overflow-hidden">
+                    {results.map(c => (
+                        <button key={c.id} type="button" onClick={() => select(c)}
+                            className="w-full text-left px-4 py-3 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors border-b border-slate-100 dark:border-slate-700/50 last:border-0">
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{c.nome}</p>
+                            <p className="text-xs text-slate-400">{c.cnpj_cpf}{c.cidade ? ` · ${c.cidade}` : ''}</p>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 }
 
 // ─── config de status ─────────────────────────────────────────────────────────
@@ -444,7 +669,7 @@ function OrderCard({ order, onStatusChange }: {
 
 type PageTab = 'novo' | 'pedidos' | 'finalizados' | 'pendentes_cd';
 
-export function PedidosCD() {
+export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
     const [tab, setTab] = useState<PageTab>('pedidos');
     const [orders, setOrders] = useState<CDOrder[]>([]);
     const [loadingOrders, setLoadingOrders] = useState(true);
@@ -458,6 +683,8 @@ export function PedidosCD() {
     const [observacao, setObservacao] = useState('');
     const [sending, setSending] = useState(false);
     const [sendResult, setSendResult] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<SCStockItem | null>(null);
+    const [showQuickCliente, setShowQuickCliente] = useState(false);
     const [syncingAll, setSyncingAll] = useState(false);
     const [lastSync, setLastSync] = useState<string | null>(null);
     const [pendentesCD, setPendentesCD] = useState<PedidoPendenteCD[]>([]);
@@ -525,22 +752,23 @@ export function PedidosCD() {
         return item.Item.toLowerCase().includes(search.toLowerCase());
     }).slice(0, 50);
 
-    const addToCart = (item: SCStockItem) => {
+    const addToCart = (item: SCStockItem, addQty = 1) => {
         const parts = item.Item.includes(' - ') ? item.Item.split(' - ') : [item.Item, item.Item];
         const codigo = parts[0].trim();
         const nome = parts.slice(1).join(' - ').trim() || codigo;
-        const qty = item.SaldoDisponivel?.Quantidade || 1;
-        const valor = qty > 0 ? (item.SaldoDisponivel?.Valor || 0) / qty : 0;
+        const stockQty = item.SaldoDisponivel?.Quantidade || 1;
+        const valor = stockQty > 0 ? (item.SaldoDisponivel?.Valor || 0) / stockQty : 0;
 
         setCart(prev => {
             const existing = prev.findIndex(p => p.codigo_referencia === codigo);
             if (existing !== -1) {
+                const novaQty = prev[existing].quantidade + addQty;
                 return prev.map((p, i) => i === existing
-                    ? { ...p, quantidade: p.quantidade + 1, valor_total: (p.quantidade + 1) * p.valor_unitario }
+                    ? { ...p, quantidade: novaQty, valor_total: novaQty * p.valor_unitario }
                     : p
                 );
             }
-            return [...prev, { codigo_referencia: codigo, nome, quantidade: 1, valor_unitario: valor, valor_desconto: 0, valor_total: valor, bonificacao: 'N' }];
+            return [...prev, { codigo_referencia: codigo, nome, quantidade: addQty, valor_unitario: valor, valor_desconto: 0, valor_total: addQty * valor, bonificacao: 'N' }];
         });
     };
 
@@ -591,6 +819,7 @@ export function PedidosCD() {
     ];
 
     return (
+        <>
         <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
             {/* Header */}
             <div className="flex items-center gap-3">
@@ -626,7 +855,13 @@ export function PedidosCD() {
             </div>
 
             {/* ── NOVO PEDIDO ── */}
-            {tab === 'novo' && (
+            {tab === 'novo' && !isMaster && (
+                <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400">
+                    <ShieldAlert className="w-16 h-16 opacity-30" />
+                    <p className="text-sm font-semibold">Acesso restrito ao super usuário.</p>
+                </div>
+            )}
+            {tab === 'novo' && isMaster && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
@@ -666,20 +901,24 @@ export function PedidosCD() {
                                 const inCart = cart.some(p => p.codigo_referencia === code.trim());
                                 return (
                                     <button
-                                        key={i} onClick={() => addToCart(item)}
-                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all ${
+                                        key={i} onClick={() => setSelectedProduct(item)}
+                                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-all group ${
                                             inCart
-                                                ? 'border-brand-300 bg-brand-50 dark:bg-brand-900/20 dark:border-brand-700'
-                                                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-brand-300 hover:bg-brand-50 dark:hover:bg-brand-900/10'
+                                                ? 'border-orange-300 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-700'
+                                                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-orange-300 hover:bg-orange-50/40 dark:hover:bg-orange-900/10'
                                         }`}
                                     >
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{nameParts.join(' - ') || code}</p>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{nameParts.join(' - ') || code}</p>
                                             <p className="text-xs text-slate-400">Ref: {code.trim()}</p>
                                         </div>
-                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ml-2 ${qty > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-100 text-slate-500'}`}>
-                                            {qty} un
-                                        </span>
+                                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                                            {inCart && <CheckCircle2 className="w-3.5 h-3.5 text-orange-500" />}
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${qty > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-100 text-slate-500'}`}>
+                                                {qty} un
+                                            </span>
+                                            <Info className="w-3.5 h-3.5 text-slate-300 group-hover:text-orange-400 transition-colors" />
+                                        </div>
                                     </button>
                                 );
                             })}
@@ -691,13 +930,17 @@ export function PedidosCD() {
                         <div className="space-y-3">
                             <div>
                                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Destinatário *</label>
-                                <input value={clienteNome} onChange={e => setClienteNome(e.target.value)} placeholder="Nome completo ou empresa"
-                                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                                <ClienteSelector
+                                    value={clienteNome}
+                                    cpf={clienteCpf}
+                                    onChange={(nome, cnpj) => { setClienteNome(nome); setClienteCpf(cnpj); }}
+                                    onAddNew={() => setShowQuickCliente(true)}
+                                />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">CPF / CNPJ</label>
-                                <input value={clienteCpf} onChange={e => setClienteCpf(e.target.value)} placeholder="000.000.000-00"
-                                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                                <input value={clienteCpf} onChange={e => setClienteCpf(e.target.value)} placeholder="Preenchido ao selecionar cliente"
+                                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40" />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Observação</label>
@@ -906,5 +1149,21 @@ export function PedidosCD() {
                 </div>
             )}
         </div>
+
+        {/* ── Modais ── */}
+        {selectedProduct && (
+            <ProductModal
+                item={selectedProduct}
+                onClose={() => setSelectedProduct(null)}
+                onAdd={(item, qty) => addToCart(item, qty)}
+            />
+        )}
+        {showQuickCliente && (
+            <QuickAddClienteModal
+                onClose={() => setShowQuickCliente(false)}
+                onSaved={c => { setClienteNome(c.nome); setClienteCpf(c.cnpj_cpf); }}
+            />
+        )}
+        </>
     );
 }

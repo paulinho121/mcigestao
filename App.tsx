@@ -420,7 +420,7 @@ function App() {
           {activeTab === 'product_registration' && isMaster && <ProductRegistration />}
           {activeTab === 'image_review' && isMaster && <EnrichmentReview />}
           {activeTab === 'pre_venda' && isMaster && <PreVenda />}
-          {activeTab === 'pedidos_cd' && isMaster && <PedidosCD />}
+          {activeTab === 'pedidos_cd' && isMaster && <PedidosCD isMaster={isMaster} />}
           {activeTab === 'cotacao_frete' && <CotacaoFrete />}
         </main>
       </div>
