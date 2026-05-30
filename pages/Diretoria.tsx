@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Lock, Search, ShieldAlert,
     TrendingUp, AlertTriangle, DollarSign, ArrowUpRight,
     LayoutDashboard, History,
     RefreshCw, Layers, Download, PieChart as PieIcon,
-    Upload, CheckCircle2, Edit
+    Upload, CheckCircle2, Edit, Users, UserPlus, Trash2,
+    Phone, Mail, MapPin, X
 } from 'lucide-react';
+import { clienteService, Cliente } from '../services/clienteService';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, Cell,
@@ -21,7 +23,7 @@ export const Diretoria = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [activeAnalysis, setActiveAnalysis] = useState<'dashboard' | 'aging' | 'consultar' | 'precos'>('dashboard');
+    const [activeAnalysis, setActiveAnalysis] = useState<'dashboard' | 'aging' | 'consultar' | 'precos' | 'clientes'>('dashboard');
 
     // Real Data States
     const [stats, setStats] = useState<ExecutiveStats | null>(null);
@@ -37,6 +39,53 @@ export const Diretoria = () => {
     const [productData, setProductData] = useState<any>(null);
     const [searchError, setSearchError] = useState('');
 
+    // Clientes State
+    const [clientes, setClientes] = useState<Cliente[]>([]);
+    const [clienteSearch, setClienteSearch] = useState('');
+    const [loadingClientes, setLoadingClientes] = useState(false);
+    const [clienteImporting, setClienteImporting] = useState(false);
+    const [clienteImportResult, setClienteImportResult] = useState<{ total: number; importados: number; duplicados: number; erros: number } | null>(null);
+    const [showNovoCliente, setShowNovoCliente] = useState(false);
+    const [novoCliente, setNovoCliente] = useState({ cnpj_cpf: '', nome: '', email: '', telefone: '', cidade: '', uf: '', categoria: 'Clientes' });
+    const [savingCliente, setSavingCliente] = useState(false);
+    const clienteFileRef = useRef<HTMLInputElement>(null);
+
+    const loadClientes = async (s = clienteSearch) => {
+        setLoadingClientes(true);
+        const data = await clienteService.listar(s);
+        setClientes(data);
+        setLoadingClientes(false);
+    };
+
+    const handleImportClientes = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setClienteImporting(true);
+        setClienteImportResult(null);
+        const text = await file.text();
+        const result = await clienteService.importarCSV(text);
+        setClienteImportResult(result);
+        await loadClientes('');
+        setClienteImporting(false);
+        if (clienteFileRef.current) clienteFileRef.current.value = '';
+    };
+
+    const handleSalvarCliente = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!novoCliente.cnpj_cpf || !novoCliente.nome) return;
+        setSavingCliente(true);
+        await clienteService.salvar({ ...novoCliente, bairro: '', logradouro: '', numero: '', complemento: '', cep: '' });
+        setNovoCliente({ cnpj_cpf: '', nome: '', email: '', telefone: '', cidade: '', uf: '', categoria: 'Clientes' });
+        setShowNovoCliente(false);
+        await loadClientes('');
+        setSavingCliente(false);
+    };
+
+    const handleExcluirCliente = async (id: string) => {
+        await clienteService.excluir(id);
+        setClientes(prev => prev.filter(c => c.id !== id));
+    };
+
     // Preços Import State
     const [csvFile, setCsvFile] = useState<File | null>(null);
     const [importResult, setImportResult] = useState<{ success: number, error: number } | null>(null);
@@ -48,6 +97,12 @@ export const Diretoria = () => {
     const [updateStatus, setUpdateStatus] = useState<{id: string, status: 'idle'|'saving'|'success'|'error'}>({id: '', status: 'idle'});
 
     // Fetch real-time data when authenticated and tab changes
+    useEffect(() => {
+        if (isAuthenticated && activeAnalysis === 'clientes') {
+            loadClientes('');
+        }
+    }, [isAuthenticated, activeAnalysis]); // eslint-disable-line react-hooks/exhaustive-deps
+
     useEffect(() => {
         if (isAuthenticated) {
             loadStrategicData();
@@ -319,6 +374,14 @@ export const Diretoria = () => {
                         <DollarSign className="w-5 h-5" />
                         Importar Preços
                     </button>
+
+                    <button
+                        onClick={() => setActiveAnalysis('clientes')}
+                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all font-bold text-sm ${activeAnalysis === 'clientes' ? 'bg-brand-600 text-white shadow-2xl shadow-brand-500/40' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                    >
+                        <Users className="w-5 h-5" />
+                        Clientes
+                    </button>
                 </div>
 
                 <div className="mt-auto p-6 bg-slate-50 dark:bg-slate-950/50 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
@@ -343,6 +406,7 @@ export const Diretoria = () => {
                             {activeAnalysis === 'aging' && "Estoque Aging"}
                             {activeAnalysis === 'consultar' && "WMS Core Terminal"}
                             {activeAnalysis === 'precos' && "Gestão de Pricing"}
+                            {activeAnalysis === 'clientes' && "Base de Clientes"}
                             <span className="text-brand-600 text-[10px] font-black bg-brand-50 dark:bg-brand-900/20 px-3 py-1 rounded-full border border-brand-100 dark:border-brand-800 tracking-[0.2em] uppercase">Online</span>
                         </h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-2 font-semibold italic text-sm">
@@ -878,6 +942,171 @@ export const Diretoria = () => {
                                 </div>
                             )}
                         </div>
+                    </div>
+                )}
+                {activeAnalysis === 'clientes' && (
+                    <div className="max-w-6xl animate-in fade-in slide-in-from-bottom-8 duration-500 space-y-8">
+
+                        {/* Toolbar */}
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            {/* Busca */}
+                            <div className="relative flex-1 min-w-[260px] group">
+                                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-brand-500 transition-colors" />
+                                <input
+                                    value={clienteSearch}
+                                    onChange={e => setClienteSearch(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && loadClientes(clienteSearch)}
+                                    placeholder="Buscar por nome, CNPJ, e-mail ou cidade..."
+                                    className="w-full pl-14 pr-5 py-4 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-2xl focus:ring-8 focus:ring-brand-500/10 focus:border-brand-500 dark:text-white outline-none font-bold text-sm transition-all shadow-sm"
+                                />
+                            </div>
+
+                            <div className="flex gap-3">
+                                {/* Importar CSV */}
+                                <label className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest cursor-pointer transition-all shadow-lg shadow-emerald-500/20 active:scale-95">
+                                    {clienteImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                    {clienteImporting ? 'Importando...' : 'Importar CSV'}
+                                    <input ref={clienteFileRef} type="file" accept=".csv" className="hidden" onChange={handleImportClientes} disabled={clienteImporting} />
+                                </label>
+
+                                {/* Novo cliente */}
+                                <button
+                                    onClick={() => setShowNovoCliente(v => !v)}
+                                    className="flex items-center gap-2 px-5 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-brand-500/20 active:scale-95"
+                                >
+                                    {showNovoCliente ? <X className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                                    {showNovoCliente ? 'Cancelar' : 'Novo Cliente'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Resultado importação */}
+                        {clienteImportResult && (
+                            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 flex flex-wrap gap-6 items-center shadow-sm">
+                                <CheckCircle2 className="w-8 h-8 text-emerald-500 shrink-0" />
+                                <div className="flex flex-wrap gap-8">
+                                    <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total lido</p><p className="text-2xl font-black text-slate-900 dark:text-white">{clienteImportResult.total}</p></div>
+                                    <div><p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Importados</p><p className="text-2xl font-black text-emerald-600">{clienteImportResult.importados}</p></div>
+                                    <div><p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Duplicados</p><p className="text-2xl font-black text-amber-600">{clienteImportResult.duplicados}</p></div>
+                                    <div><p className="text-[10px] font-black text-red-500 uppercase tracking-widest">Erros</p><p className="text-2xl font-black text-red-600">{clienteImportResult.erros}</p></div>
+                                </div>
+                                <button onClick={() => setClienteImportResult(null)} className="ml-auto text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+                            </div>
+                        )}
+
+                        {/* Formulário novo cliente */}
+                        {showNovoCliente && (
+                            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border-2 border-brand-100 dark:border-brand-900/30 p-8 shadow-2xl shadow-brand-500/10 animate-in fade-in slide-in-from-top-4 duration-300">
+                                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 flex items-center gap-3">
+                                    <UserPlus className="w-5 h-5 text-brand-500" /> Cadastrar Novo Cliente
+                                </h3>
+                                <form onSubmit={handleSalvarCliente} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {[
+                                        { label: 'CPF / CNPJ *', key: 'cnpj_cpf', placeholder: '000.000.000-00' },
+                                        { label: 'Nome / Razão Social *', key: 'nome', placeholder: 'Nome completo' },
+                                        { label: 'E-mail', key: 'email', placeholder: 'email@empresa.com.br' },
+                                        { label: 'Telefone', key: 'telefone', placeholder: '(47) 99999-9999' },
+                                        { label: 'Cidade', key: 'cidade', placeholder: 'São Paulo-SP' },
+                                        { label: 'UF', key: 'uf', placeholder: 'SP' },
+                                    ].map(({ label, key, placeholder }) => (
+                                        <div key={key}>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{label}</label>
+                                            <input
+                                                value={(novoCliente as any)[key]}
+                                                onChange={e => setNovoCliente(p => ({ ...p, [key]: e.target.value }))}
+                                                placeholder={placeholder}
+                                                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border-2 border-transparent rounded-2xl focus:border-brand-500/50 dark:text-white outline-none font-bold text-sm transition-all"
+                                            />
+                                        </div>
+                                    ))}
+                                    <div className="sm:col-span-2 lg:col-span-3 flex justify-end pt-2">
+                                        <button
+                                            type="submit" disabled={savingCliente || !novoCliente.cnpj_cpf || !novoCliente.nome}
+                                            className="flex items-center gap-2 px-8 py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                                        >
+                                            {savingCliente ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                            Salvar Cliente
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
+
+                        {/* Contador */}
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm font-bold text-slate-500 dark:text-slate-400">
+                                {loadingClientes ? 'Carregando...' : `${clientes.length} cliente(s) encontrado(s)`}
+                            </p>
+                            <button onClick={() => loadClientes(clienteSearch)} disabled={loadingClientes} className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-bold disabled:opacity-40">
+                                <RefreshCw className={`w-3.5 h-3.5 ${loadingClientes ? 'animate-spin' : ''}`} /> Atualizar
+                            </button>
+                        </div>
+
+                        {/* Tabela de clientes */}
+                        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 overflow-hidden shadow-2xl">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="bg-slate-950 border-b border-slate-800">
+                                            {['CPF/CNPJ', 'Nome', 'Categoria', 'Contato', 'Localização', 'Ações'].map(h => (
+                                                <th key={h} className="px-6 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {loadingClientes ? (
+                                            <tr><td colSpan={6} className="px-6 py-20 text-center">
+                                                <RefreshCw className="w-8 h-8 animate-spin text-brand-500 mx-auto" />
+                                            </td></tr>
+                                        ) : clientes.length === 0 ? (
+                                            <tr><td colSpan={6} className="px-6 py-24 text-center">
+                                                <div className="flex flex-col items-center gap-4">
+                                                    <Users className="w-16 h-16 text-slate-200 dark:text-slate-800" />
+                                                    <p className="text-slate-400 font-bold italic">Nenhum cliente cadastrado ainda.</p>
+                                                    <p className="text-slate-300 dark:text-slate-600 text-xs">Importe um CSV ou cadastre manualmente.</p>
+                                                </div>
+                                            </td></tr>
+                                        ) : clientes.map((c, i) => (
+                                            <tr key={c.id} className={`border-b border-slate-50 dark:border-slate-800/60 last:border-0 hover:bg-brand-50/30 dark:hover:bg-brand-900/10 transition-colors ${i % 2 === 0 ? '' : 'bg-slate-50/30 dark:bg-slate-800/20'}`}>
+                                                <td className="px-6 py-4">
+                                                    <span className="font-mono text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">{c.cnpj_cpf}</span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <p className="font-bold text-slate-900 dark:text-white truncate max-w-[220px]">{c.nome}</p>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                                                        c.categoria.includes('PJ') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                                        : c.categoria.includes('PF') ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+                                                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                                    }`}>{c.categoria || 'Cliente'}</span>
+                                                </td>
+                                                <td className="px-6 py-4 space-y-0.5">
+                                                    {c.email && <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"><Mail className="w-3 h-3 shrink-0 text-brand-400" /><span className="truncate max-w-[160px]">{c.email}</span></p>}
+                                                    {c.telefone && <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"><Phone className="w-3 h-3 shrink-0 text-emerald-400" />{c.telefone}</p>}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {(c.cidade || c.uf) && (
+                                                        <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                                            <MapPin className="w-3 h-3 shrink-0 text-red-400" />{c.cidade}{c.uf && c.cidade ? '' : c.uf}
+                                                        </p>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <button onClick={() => handleExcluirCliente(c.id)} className="p-2 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <p className="text-[10px] text-slate-400 dark:text-slate-600 text-center font-medium">
+                            CSV esperado: separado por ponto-e-vírgula (;) · Colunas: CNPJ/CPF, Nome, Categoria, ..., UF, País, CEP, Cidade, Bairro, Tipo, Logradouro, Número, Complemento, ..., Telefone, ..., E-mail
+                        </p>
                     </div>
                 )}
             </main>
