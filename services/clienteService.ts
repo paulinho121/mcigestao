@@ -50,8 +50,14 @@ export function parseCSVLine(cols: string[]): Omit<Cliente, 'id' | 'created_at'>
 }
 
 export const clienteService = {
+    async tabelaExiste(): Promise<boolean> {
+        if (!supabase) return false;
+        const { error } = await supabase.from('clientes').select('id').limit(1);
+        return !error;
+    },
+
     async listar(search = ''): Promise<Cliente[]> {
-        if (supabase) {
+        if (supabase && await this.tabelaExiste()) {
             let q = supabase.from('clientes').select('*').order('nome');
             if (search) q = q.or(`nome.ilike.%${search}%,cnpj_cpf.ilike.%${search}%,email.ilike.%${search}%,cidade.ilike.%${search}%`);
             const { data, error } = await q;
@@ -63,8 +69,8 @@ export const clienteService = {
         return all.filter(c =>
             c.nome.toLowerCase().includes(s) ||
             c.cnpj_cpf.includes(s) ||
-            c.email.toLowerCase().includes(s) ||
-            c.cidade.toLowerCase().includes(s)
+            (c.email || '').toLowerCase().includes(s) ||
+            (c.cidade || '').toLowerCase().includes(s)
         );
     },
 
@@ -72,7 +78,7 @@ export const clienteService = {
         const now = new Date().toISOString();
         const id = crypto.randomUUID();
 
-        if (supabase) {
+        if (supabase && await this.tabelaExiste()) {
             const { error } = await supabase.from('clientes').upsert(
                 [{ ...cliente, id, created_at: now }],
                 { onConflict: 'cnpj_cpf' }
@@ -101,27 +107,33 @@ export const clienteService = {
         }
 
         if (supabase && registros.length > 0) {
-            const BATCH = 200;
-            for (let i = 0; i < registros.length; i += BATCH) {
-                const batch = registros.slice(i, i + BATCH).map(r => ({
-                    ...r,
-                    id: crypto.randomUUID(),
-                    created_at: new Date().toISOString(),
-                }));
-                const { error } = await supabase.from('clientes').upsert(batch, { onConflict: 'cnpj_cpf' });
-                if (!error) importados += batch.length;
-                else erros += batch.length;
+            // Testa se a tabela existe com uma consulta simples antes de tentar inserir
+            const { error: testError } = await supabase.from('clientes').select('id').limit(1);
+            const tabelaExiste = !testError;
+
+            if (tabelaExiste) {
+                const BATCH = 200;
+                for (let i = 0; i < registros.length; i += BATCH) {
+                    const batch = registros.slice(i, i + BATCH).map(r => ({
+                        ...r, id: crypto.randomUUID(), created_at: new Date().toISOString(),
+                    }));
+                    const { error } = await supabase.from('clientes').upsert(batch, { onConflict: 'cnpj_cpf' });
+                    if (!error) importados += batch.length;
+                    else erros += batch.length;
+                }
+                return { total: linhas.length, importados, duplicados, erros };
             }
-        } else {
-            const local = loadLocal();
-            for (const r of registros) {
-                const exists = local.findIndex(c => c.cnpj_cpf === r.cnpj_cpf);
-                if (exists !== -1) { duplicados++; local[exists] = { ...local[exists], ...r }; }
-                else local.unshift({ ...r, id: crypto.randomUUID(), created_at: new Date().toISOString() });
-                importados++;
-            }
-            saveLocal(local);
+            // Tabela não existe — cai no localStorage
         }
+
+        // Fallback localStorage
+        const local = loadLocal();
+        for (const r of registros) {
+            const exists = local.findIndex(c => c.cnpj_cpf === r.cnpj_cpf);
+            if (exists !== -1) { duplicados++; local[exists] = { ...local[exists], ...r }; }
+            else { local.unshift({ ...r, id: crypto.randomUUID(), created_at: new Date().toISOString() }); importados++; }
+        }
+        saveLocal(local);
 
         return { total: linhas.length, importados, duplicados, erros };
     },
