@@ -3,11 +3,133 @@ import {
     PackageSearch, Plus, Send, RefreshCw, ChevronDown, ChevronUp,
     CheckCircle2, Truck, Package, Clock, XCircle, AlertCircle,
     Loader2, Trash2, ClipboardList, X, Search, RefreshCcw, History,
-    Hourglass, Weight, Box
+    Hourglass, Weight, Box, Printer
 } from 'lucide-react';
 import { escalasoftOrderService, CDOrder, OrderProduct, OrderStatus, PedidoPendenteCD } from '../services/escalasoftOrderService';
 import { scStockService } from '../services/scStockService';
 import { SCStockItem } from '../types/scApi';
+
+// ─── impressão ────────────────────────────────────────────────────────────────
+
+function imprimirPedido(params: {
+    numeroPedido: string;
+    pedidoIdApi?: number | null;
+    clienteNome: string;
+    clienteCpf?: string;
+    observacao?: string;
+    produtos: OrderProduct[];
+    valorTotal: number;
+    status?: string;
+    createdAt?: string;
+}) {
+    const now = params.createdAt ? new Date(params.createdAt) : new Date();
+    const dataFormatada = now.toLocaleString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+    });
+    const linhasProdutos = params.produtos.map((p, i) => `
+        <tr style="background:${i % 2 === 0 ? '#f8fafc' : '#fff'}">
+            <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#1e293b">${p.codigo_referencia}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;color:#334155">${p.nome}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:700;color:#1e293b">${p.quantidade}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;text-align:right;color:#475569">${p.valor_unitario > 0 ? p.valor_unitario.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) : '—'}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f172a">${p.valor_total > 0 ? p.valor_total.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) : '—'}</td>
+        </tr>
+    `).join('');
+
+    const win = window.open('', '_blank', 'width=820,height=1000');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
+    <title>Pedido ${params.numeroPedido}</title>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#0f172a;padding:40px 48px;font-size:13px}
+        @media print{body{padding:24px 32px}@page{margin:10mm}}
+        .header{display:flex;align-items:center;justify-content:space-between;padding-bottom:24px;border-bottom:3px solid #0f172a;margin-bottom:28px}
+        .logo{height:52px;object-fit:contain}
+        .logo-fallback{font-size:28px;font-weight:900;letter-spacing:-1px;color:#1d4ed8}
+        .header-info{text-align:right}
+        .doc-title{font-size:22px;font-weight:900;letter-spacing:-0.5px;color:#0f172a}
+        .doc-sub{font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-top:2px}
+        .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;background:#dbeafe;color:#1d4ed8;margin-top:6px}
+        .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+        .info-box{border:1.5px solid #e2e8f0;border-radius:12px;padding:16px 20px}
+        .info-label{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.18em;color:#94a3b8;margin-bottom:6px}
+        .info-value{font-size:14px;font-weight:700;color:#1e293b}
+        .info-sub{font-size:11px;color:#64748b;margin-top:2px}
+        table{width:100%;border-collapse:collapse;border-radius:12px;overflow:hidden;border:1.5px solid #e2e8f0}
+        thead tr{background:#0f172a}
+        thead th{padding:11px 14px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.15em;color:#94a3b8}
+        thead th:nth-child(3){text-align:center}
+        thead th:nth-child(4),thead th:nth-child(5){text-align:right}
+        .total-row{background:#f1f5f9;font-weight:900}
+        .total-row td{padding:12px 14px;font-size:14px;border-top:2px solid #e2e8f0}
+        .obs-box{margin-top:20px;padding:14px 18px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;font-size:12px;color:#92400e}
+        .footer{margin-top:36px;padding-top:16px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#94a3b8}
+        .footer strong{color:#64748b}
+        .divider{height:1px;background:linear-gradient(90deg,#3b82f6,#8b5cf6,#10b981);margin:20px 0;border:none}
+    </style>
+    </head><body>
+    <div class="header">
+        <img src="${window.location.origin}/logo.png" class="logo" onerror="this.style.display='none';document.getElementById('lf').style.display='block'" alt="MCI"/>
+        <span id="lf" style="display:none" class="logo-fallback">MC<span style="color:#3b82f6">·</span></span>
+        <div class="header-info">
+            <div class="doc-title">Pedido ao CD</div>
+            <div class="doc-sub">Centro de Distribuição — Santa Catarina</div>
+            <div class="badge">${params.status ? params.status.replace('_',' ').toUpperCase() : 'ENVIADO'}</div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="info-box">
+            <div class="info-label">Número do Pedido</div>
+            <div class="info-value">${params.numeroPedido}</div>
+            ${params.pedidoIdApi ? `<div class="info-sub">API Escalasoft #${params.pedidoIdApi}</div>` : ''}
+        </div>
+        <div class="info-box">
+            <div class="info-label">Data de Emissão</div>
+            <div class="info-value">${dataFormatada}</div>
+        </div>
+        <div class="info-box">
+            <div class="info-label">Destinatário</div>
+            <div class="info-value">${params.clienteNome || '—'}</div>
+            ${params.clienteCpf ? `<div class="info-sub">CPF/CNPJ: ${params.clienteCpf}</div>` : ''}
+        </div>
+        <div class="info-box">
+            <div class="info-label">Resumo</div>
+            <div class="info-value">${params.produtos.length} ${params.produtos.length === 1 ? 'produto' : 'produtos'}</div>
+            <div class="info-sub">${params.produtos.reduce((s,p)=>s+p.quantidade,0)} unidades no total</div>
+        </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Referência</th><th>Produto</th><th>Qtd</th><th>Vl. Unit.</th><th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${linhasProdutos}
+            <tr class="total-row">
+                <td colspan="4" style="text-align:right;color:#64748b;font-size:12px">VALOR TOTAL DO PEDIDO</td>
+                <td style="text-align:right;color:#1d4ed8;font-size:15px">${params.valorTotal > 0 ? params.valorTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) : '—'}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    ${params.observacao ? `<div class="obs-box">⚠️ <strong>Observação:</strong> ${params.observacao}</div>` : ''}
+
+    <div class="footer">
+        <span>MCI Gestão Corporativa — <strong>estoquemci.vercel.app</strong></span>
+        <span>Impresso em ${new Date().toLocaleString('pt-BR')}</span>
+    </div>
+    </body></html>`);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 400);
+}
 
 // ─── config de status ─────────────────────────────────────────────────────────
 
@@ -257,6 +379,26 @@ function OrderCard({ order, onStatusChange }: {
                             {order.observacao}
                         </p>
                     )}
+
+                    {/* Botão imprimir — sempre visível */}
+                    <div className="flex flex-wrap gap-2 pt-1">
+                        <button
+                            onClick={e => { e.stopPropagation(); imprimirPedido({
+                                numeroPedido: order.numero_pedido,
+                                pedidoIdApi: order.pedido_id_api,
+                                clienteNome: order.cliente_nome,
+                                clienteCpf: order.cliente_cpf,
+                                observacao: order.observacao,
+                                produtos: order.produtos,
+                                valorTotal: order.valor_total,
+                                status: order.status,
+                                createdAt: order.created_at,
+                            }); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs font-semibold rounded-lg transition-colors"
+                        >
+                            <Printer className="w-3 h-3" /> Imprimir
+                        </button>
+                    </div>
 
                     {/* Ações — só para pedidos ativos */}
                     {!isDone && (
@@ -593,13 +735,33 @@ export function PedidosCD() {
                             </div>
                         )}
 
-                        <button
-                            onClick={handleSend} disabled={sending || cart.length === 0}
-                            className="w-full flex items-center justify-center gap-2 py-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors shadow-md"
-                        >
-                            {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                            {sending ? 'Enviando...' : 'Enviar Pedido ao CD'}
-                        </button>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleSend} disabled={sending || cart.length === 0}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors shadow-md"
+                            >
+                                {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                                {sending ? 'Enviando...' : 'Enviar Pedido ao CD'}
+                            </button>
+
+                            {cart.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => imprimirPedido({
+                                        numeroPedido: 'RASCUNHO',
+                                        clienteNome: clienteNome || 'Não informado',
+                                        clienteCpf: clienteCpf,
+                                        observacao: observacao,
+                                        produtos: cart,
+                                        valorTotal: totalCart,
+                                    })}
+                                    className="flex items-center gap-2 px-4 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 font-semibold rounded-xl transition-colors"
+                                    title="Imprimir rascunho"
+                                >
+                                    <Printer className="w-5 h-5" />
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
