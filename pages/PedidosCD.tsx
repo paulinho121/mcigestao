@@ -681,6 +681,7 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
     const [clienteNome, setClienteNome] = useState('');
     const [clienteCpf, setClienteCpf] = useState('');
     const [observacao, setObservacao] = useState('');
+    const [vendedor, setVendedor] = useState('');
     const [sending, setSending] = useState(false);
     const [sendResult, setSendResult] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
     const [selectedProduct, setSelectedProduct] = useState<SCStockItem | null>(null);
@@ -789,12 +790,13 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
         setSending(true);
         setSendResult(null);
         try {
+            const obsCompleta = [vendedor ? `Vendedor: ${vendedor}` : '', observacao].filter(Boolean).join(' | ');
             const result = await escalasoftOrderService.sendOrder({
-                cliente_nome: clienteNome, cliente_cpf: clienteCpf, produtos: cart, observacao,
+                cliente_nome: clienteNome, cliente_cpf: clienteCpf, produtos: cart, observacao: obsCompleta,
             });
             if (result.success) {
                 setSendResult({ type: 'success', msg: `${result.message} Nº ${result.numero_pedido}${result.pedido_id ? ` (API #${result.pedido_id})` : ''}` });
-                setCart([]); setClienteNome(''); setClienteCpf(''); setObservacao('');
+                setCart([]); setClienteNome(''); setClienteCpf(''); setObservacao(''); setVendedor('');
                 loadOrders();
                 setTimeout(() => setTab('pedidos'), 1500);
             }
@@ -943,6 +945,11 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
                                     className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40" />
                             </div>
                             <div>
+                                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Vendedor</label>
+                                <input value={vendedor} onChange={e => setVendedor(e.target.value)} placeholder="Nome do vendedor responsável"
+                                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40" />
+                            </div>
+                            <div>
                                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Observação</label>
                                 <textarea value={observacao} onChange={e => setObservacao(e.target.value)} placeholder="Urgente, instruções especiais..." rows={2}
                                     className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none" />
@@ -994,7 +1001,7 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
                                         numeroPedido: 'RASCUNHO',
                                         clienteNome: clienteNome || 'Não informado',
                                         clienteCpf: clienteCpf,
-                                        observacao: observacao,
+                                        observacao: [vendedor ? `Vendedor: ${vendedor}` : '', observacao].filter(Boolean).join(' | '),
                                         produtos: cart,
                                         valorTotal: totalCart,
                                     })}
