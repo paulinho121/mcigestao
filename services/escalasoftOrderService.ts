@@ -29,6 +29,17 @@ export interface CDOrder {
     updated_at: string;
 }
 
+export interface PedidoPendenteCD {
+    NumeroOrdem: number;
+    NumeroPedido: number;
+    Quantidade: number;
+    QuantidadeVolume: number;
+    PesoBruto: number;
+    PesoLiquido: number;
+    Valor: number;
+    QuantidadeEmbalagem: number;
+}
+
 const STORAGE_KEY = 'cd_orders_local';
 
 function loadLocalOrders(): CDOrder[] {
@@ -190,6 +201,20 @@ export const escalasoftOrderService = {
             return { situacaoid: data.situacaoid, situacao: data.situacao };
         } catch {
             return null;
+        }
+    },
+
+    // Busca pedidos pendentes no CD (aguardando documento fiscal / não recebidos)
+    async getPedidosPendentesCD(): Promise<PedidoPendenteCD[]> {
+        try {
+            const res = await fetch(`${SC_API_BASE}/armazem/ordem/pedidoPendente?cnpj=${CNPJ_CD}`, {
+                headers: { Accept: 'application/json' },
+            });
+            if (!res.ok) return [];
+            const data = await res.json();
+            return data.Pedidos ?? [];
+        } catch {
+            return [];
         }
     },
 

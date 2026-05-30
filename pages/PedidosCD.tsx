@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import {
     PackageSearch, Plus, Send, RefreshCw, ChevronDown, ChevronUp,
     CheckCircle2, Truck, Package, Clock, XCircle, AlertCircle,
-    Loader2, Trash2, ClipboardList, X, Search, RefreshCcw, History
+    Loader2, Trash2, ClipboardList, X, Search, RefreshCcw, History,
+    Hourglass, Weight, Box
 } from 'lucide-react';
-import { escalasoftOrderService, CDOrder, OrderProduct, OrderStatus } from '../services/escalasoftOrderService';
+import { escalasoftOrderService, CDOrder, OrderProduct, OrderStatus, PedidoPendenteCD } from '../services/escalasoftOrderService';
 import { scStockService } from '../services/scStockService';
 import { SCStockItem } from '../types/scApi';
 
@@ -299,7 +300,7 @@ function OrderCard({ order, onStatusChange }: {
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 
-type PageTab = 'novo' | 'pedidos' | 'finalizados';
+type PageTab = 'novo' | 'pedidos' | 'finalizados' | 'pendentes_cd';
 
 export function PedidosCD() {
     const [tab, setTab] = useState<PageTab>('pedidos');
@@ -317,6 +318,9 @@ export function PedidosCD() {
     const [sendResult, setSendResult] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
     const [syncingAll, setSyncingAll] = useState(false);
     const [lastSync, setLastSync] = useState<string | null>(null);
+    const [pendentesCD, setPendentesCD] = useState<PedidoPendenteCD[]>([]);
+    const [loadingPendentes, setLoadingPendentes] = useState(false);
+    const [pendentesError, setPendentesError] = useState('');
 
     const loadOrders = useCallback(async () => {
         setLoadingOrders(true);
@@ -361,7 +365,17 @@ export function PedidosCD() {
 
     useEffect(() => {
         if (tab === 'novo' && scItems.length === 0) loadSCStock();
-    }, [tab]);
+        if (tab === 'pendentes_cd' && pendentesCD.length === 0) loadPendentesCD();
+    }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const loadPendentesCD = async () => {
+        setLoadingPendentes(true);
+        setPendentesError('');
+        const data = await escalasoftOrderService.getPedidosPendentesCD();
+        if (data.length === 0) setPendentesError('Nenhum pedido pendente encontrado ou API indisponível.');
+        setPendentesCD(data);
+        setLoadingPendentes(false);
+    };
 
     const filteredSC = scItems.filter(item => {
         if (!item.Item || (item.SaldoDisponivel?.Quantidade ?? 0) <= 0) return false;
@@ -428,9 +442,10 @@ export function PedidosCD() {
     const doneOrders = orders.filter(o => DONE_STATUSES.includes(o.status));
 
     const TABS: { key: PageTab; label: string; icon: React.ReactNode; count?: number }[] = [
-        { key: 'pedidos',     label: 'Em andamento', icon: <ClipboardList className="w-4 h-4" />, count: activeOrders.length },
-        { key: 'finalizados', label: 'Finalizados',   icon: <History className="w-4 h-4" />,       count: doneOrders.length },
-        { key: 'novo',        label: 'Novo Pedido',   icon: <Plus className="w-4 h-4" /> },
+        { key: 'pedidos',      label: 'Em andamento',  icon: <ClipboardList className="w-4 h-4" />, count: activeOrders.length },
+        { key: 'pendentes_cd', label: 'Pendentes CD',  icon: <Hourglass className="w-4 h-4" />,     count: pendentesCD.length || undefined },
+        { key: 'finalizados',  label: 'Finalizados',   icon: <History className="w-4 h-4" />,        count: doneOrders.length },
+        { key: 'novo',         label: 'Novo Pedido',   icon: <Plus className="w-4 h-4" /> },
     ];
 
     return (
@@ -623,6 +638,81 @@ export function PedidosCD() {
                                 <OrderCard key={order.id} order={order} onStatusChange={handleStatusChange} />
                             ))}
                         </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── PENDENTES CD ── */}
+            {tab === 'pendentes_cd' && (
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Pedidos Pendentes no CD</p>
+                            <p className="text-xs text-slate-400">Aguardando documento fiscal ou não recebidos pelo cliente</p>
+                        </div>
+                        <button onClick={loadPendentesCD} disabled={loadingPendentes} className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 disabled:opacity-50">
+                            <RefreshCw className={`w-3 h-3 ${loadingPendentes ? 'animate-spin' : ''}`} /> Atualizar
+                        </button>
+                    </div>
+
+                    {loadingPendentes ? (
+                        <div className="flex items-center justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-brand-500" /></div>
+                    ) : pendentesError && pendentesCD.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
+                            <Hourglass className="w-12 h-12 opacity-30" />
+                            <p className="text-sm">{pendentesError}</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Totalizadores */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                {[
+                                    { label: 'Pedidos', value: pendentesCD.length, icon: <ClipboardList className="w-4 h-4 text-orange-400" /> },
+                                    { label: 'Qtd Total', value: pendentesCD.reduce((s, p) => s + p.Quantidade, 0).toLocaleString('pt-BR'), icon: <Box className="w-4 h-4 text-blue-400" /> },
+                                    { label: 'Peso Bruto', value: `${pendentesCD.reduce((s, p) => s + p.PesoBruto, 0).toLocaleString('pt-BR')} kg`, icon: <Weight className="w-4 h-4 text-violet-400" /> },
+                                    { label: 'Valor Total', value: pendentesCD.reduce((s, p) => s + p.Valor, 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: <Package className="w-4 h-4 text-emerald-400" /> },
+                                ].map(({ label, value, icon }) => (
+                                    <div key={label} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">{icon}</div>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
+                                            <p className="text-sm font-black text-slate-800 dark:text-slate-200">{value}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Tabela */}
+                            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80">
+                                                {['Nº Ordem', 'Nº Pedido', 'Qtd', 'Volumes', 'Peso Bruto', 'Peso Líq.', 'Valor', 'Embalagens'].map(h => (
+                                                    <th key={h} className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {pendentesCD.map((p, i) => (
+                                                <tr key={i} className="border-b border-slate-50 dark:border-slate-700/50 last:border-0 hover:bg-orange-50/40 dark:hover:bg-orange-900/10 transition-colors">
+                                                    <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">{p.NumeroOrdem}</td>
+                                                    <td className="px-4 py-3 font-bold text-brand-600 dark:text-brand-400">{p.NumeroPedido}</td>
+                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.Quantidade.toLocaleString('pt-BR')}</td>
+                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.QuantidadeVolume}</td>
+                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.PesoBruto.toLocaleString('pt-BR')} kg</td>
+                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.PesoLiquido.toLocaleString('pt-BR')} kg</td>
+                                                    <td className="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-400">
+                                                        {p.Valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.QuantidadeEmbalagem}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </>
                     )}
                 </div>
             )}
