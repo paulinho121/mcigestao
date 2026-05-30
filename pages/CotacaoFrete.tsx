@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
     Calculator, Truck, Clock, Package, MapPin, DollarSign,
     ArrowRight, Loader2, AlertCircle, CheckCircle2, ChevronDown, Info, RotateCcw,
@@ -286,6 +286,8 @@ function ResultCard({ result, origem, cepDestino, peso, valor, volumes }: Result
 export function CotacaoFrete() {
     const [filialIdx, setFilialIdx] = useState(0);
     const [filialCodigo, setFilialCodigo] = useState(FILIAIS[0].filialCodigo);
+    const [filialNome, setFilialNome] = useState('');
+    const [lookingUpFilial, setLookingUpFilial] = useState(false);
     const [cepDestino, setCepDestino] = useState('');
     const [peso, setPeso] = useState('');
     const [valor, setValor] = useState('');
@@ -299,6 +301,24 @@ export function CotacaoFrete() {
     const [error, setError] = useState<string | null>(null);
 
     const filial = FILIAIS[filialIdx];
+
+    // Lookup automático da filial Jamef pelo CEP de origem ao trocar a filial
+    useEffect(() => {
+        let cancelled = false;
+        setLookingUpFilial(true);
+        setFilialNome('');
+        jamefService.buscarFilialPorCep(filial.cep)
+            .then(f => {
+                if (cancelled) return;
+                if (f) {
+                    setFilialCodigo(f.sigla || f.codigo);
+                    setFilialNome(f.nome);
+                }
+            })
+            .catch(() => {}) // rate limit ou erro: mantém código padrão
+            .finally(() => { if (!cancelled) setLookingUpFilial(false); });
+        return () => { cancelled = true; };
+    }, [filialIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleCalcular = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -403,16 +423,35 @@ export function CotacaoFrete() {
                                     <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1.5">
                                         Código Filial Jamef <span className="text-amber-500">*</span>
                                     </label>
-                                    <input
-                                        value={filialCodigo}
-                                        onChange={e => setFilialCodigo(e.target.value.toUpperCase())}
-                                        placeholder="Ex: JVL"
-                                        maxLength={10}
-                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border-2 border-amber-400/40 rounded-2xl focus:border-amber-400 focus:bg-white dark:focus:bg-slate-900 transition-all outline-none text-sm font-bold dark:text-white shadow-sm"
-                                    />
-                                </div>
-                                <div className="pt-6 text-xs text-slate-400 dark:text-slate-600 leading-snug max-w-[180px]">
-                                    Consulte o código em <span className="text-brand-500 font-bold">developers.jamef.com.br</span> → Filiais
+                                    <div className="relative">
+                                        <input
+                                            value={filialCodigo}
+                                            onChange={e => setFilialCodigo(e.target.value.toUpperCase())}
+                                            placeholder="Buscando..."
+                                            maxLength={10}
+                                            className={`w-full px-4 py-3 pr-10 bg-slate-50 dark:bg-slate-950 border-2 rounded-2xl focus:bg-white dark:focus:bg-slate-900 transition-all outline-none text-sm font-bold dark:text-white shadow-sm ${
+                                                lookingUpFilial ? 'border-brand-400/40 opacity-60' : filialNome ? 'border-green-400/60' : 'border-amber-400/40 focus:border-amber-400'
+                                            }`}
+                                        />
+                                        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                                            {lookingUpFilial
+                                                ? <Loader2 className="w-4 h-4 animate-spin text-brand-400" />
+                                                : filialNome
+                                                    ? <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                                    : <AlertCircle className="w-4 h-4 text-amber-400" />
+                                            }
+                                        </div>
+                                    </div>
+                                    {filialNome && (
+                                        <p className="text-xs text-green-600 dark:text-green-400 font-semibold mt-1 ml-1">
+                                            ✓ {filialNome}
+                                        </p>
+                                    )}
+                                    {!filialNome && !lookingUpFilial && (
+                                        <p className="text-[10px] text-amber-500 font-medium mt-1 ml-1">
+                                            Código não confirmado — edite manualmente se necessário
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>

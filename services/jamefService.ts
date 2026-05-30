@@ -176,6 +176,40 @@ export const jamefService = {
     },
 
     /**
+     * Busca a filial Jamef responsável por um CEP (origem)
+     * Rate limit: 1 req / 10s — usa cache agressivo por CEP
+     */
+    async buscarFilialPorCep(cep: string): Promise<{ codigo: string; sigla: string; nome: string } | null> {
+        const cepLimpo = cep.replace(/\D/g, '');
+        const cacheKey = `jamef_filial_cep_${cepLimpo}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try { return JSON.parse(cached); } catch {}
+        }
+
+        const token = await this.login();
+        const res = await fetch(`/api/jamef-prod/infraestrutura/v1/lista-filiais?cep=${cepLimpo}`, {
+            headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) return null;
+        const data = await res.json();
+
+        // Normaliza resposta — pode vir em data.dado[0] ou diretamente
+        const filial = data.dado?.[0] ?? data.filial ?? data;
+        if (!filial?.codigo && !filial?.sigla) return null;
+
+        const result = {
+            codigo: filial.codigo ?? filial.id ?? '',
+            sigla: filial.sigla ?? filial.codigo ?? '',
+            nome: filial.nome ?? filial.descricao ?? '',
+        };
+        // Cache por 24h (filiais não mudam com frequência)
+        localStorage.setItem(cacheKey, JSON.stringify(result));
+        return result;
+    },
+
+    /**
      * Cotação de frete + prazo de entrega via Jamef
      * Usa ambiente QA (homologação). Troque para /api/jamef-prod para produção.
      */
