@@ -19,6 +19,31 @@ export interface JamefTrackingResponse {
     item?: JamefTrackingItem;
 }
 
+export interface CotacaoRequest {
+    cnpjRemetente: string;
+    cepOrigem: string;
+    cepDestino: string;
+    filialOrigem?: string;
+    peso: number;
+    valorMercadoria: number;
+    volumes: number;
+    altura?: number;
+    largura?: number;
+    comprimento?: number;
+}
+
+export interface CotacaoResponse {
+    valorFrete: number;
+    prazoEntrega: number; // dias úteis
+    dataPrevisaoEntrega?: string;
+    filialOrigem?: string;
+    filialDestino?: string;
+    servico?: string;
+    pesoTaxado?: number;
+    valorTaxas?: number;
+    raw?: any;
+}
+
 export const jamefService = {
     /**
      * Authenticate and get JWT Token (Always Production)
@@ -148,5 +173,63 @@ export const jamefService = {
             console.error('Jamef Tracking Error:', error);
             return { sucesso: false, mensagem: error.message };
         }
-    }
+    },
+
+    /**
+     * Cotação de frete + prazo de entrega via Jamef
+     * Usa ambiente QA (homologação). Troque para /api/jamef-prod para produção.
+     */
+    async cotacaoFrete(params: CotacaoRequest): Promise<CotacaoResponse> {
+        const token = await this.login();
+
+        const body: Record<string, any> = {
+            cnpjRemetente: params.cnpjRemetente.replace(/\D/g, ''),
+            cepOrigem: params.cepOrigem.replace(/\D/g, ''),
+            cepDestino: params.cepDestino.replace(/\D/g, ''),
+            peso: params.peso,
+            valorMercadoria: params.valorMercadoria,
+            quantidadeVolumes: params.volumes,
+        };
+
+        if (params.filialOrigem) body.filialOrigem = params.filialOrigem;
+        if (params.altura && params.largura && params.comprimento) {
+            body.cubagem = [{
+                altura: params.altura,
+                largura: params.largura,
+                comprimento: params.comprimento,
+                volumes: params.volumes,
+            }];
+        }
+
+        const response = await fetch('/api/jamef-prod/calculo-frete/v1/cotacao', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.mensagem || err.message || `Erro ${response.status} na cotação.`);
+        }
+
+        const data = await response.json();
+
+        // Normaliza resposta (formato pode variar entre QA e PROD)
+        const dado = data.dado?.[0] ?? data;
+        return {
+            valorFrete: dado.valorFrete ?? dado.valor ?? 0,
+            prazoEntrega: dado.prazoEntrega ?? dado.prazo ?? 0,
+            dataPrevisaoEntrega: dado.dataPrevisaoEntrega ?? dado.previsaoEntrega,
+            filialOrigem: dado.filialOrigem,
+            filialDestino: dado.filialDestino,
+            servico: dado.servico ?? dado.tipoServico,
+            pesoTaxado: dado.pesoTaxado,
+            valorTaxas: dado.valorTaxas,
+            raw: data,
+        };
+    },
 };

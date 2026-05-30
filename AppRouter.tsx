@@ -13,6 +13,9 @@ export const AppRouter = () => {
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [sharedProductId, setSharedProductId] = useState<string | null>(null);
     const [isPublicTracking, setIsPublicTracking] = useState(false);
+    const [trackingParams, setTrackingParams] = useState<{
+        nf?: string; cnpj?: string; numType?: 'notaFiscal' | 'cte'; docType?: 'remetente' | 'destinatario';
+    }>({});
     const [isHubRoute, setIsHubRoute] = useState(false);
     const [hubCompany, setHubCompany] = useState<HubCompany | null>(null);
 
@@ -29,9 +32,22 @@ export const AppRouter = () => {
                 const id = hash.replace('#/share/', '').split('/')[0].split('?')[0];
                 setSharedProductId(id);
                 setIsHubRoute(false);
-            } else if (hash === '#/tracking') {
+            } else if (hash === '#/tracking' || hash.startsWith('#/tracking?')) {
                 setIsPublicTracking(true);
                 setIsHubRoute(false);
+                // Parse query params from hash: #/tracking?nf=xxx&cnpj=xxx&...
+                const qIndex = hash.indexOf('?');
+                if (qIndex !== -1) {
+                    const sp = new URLSearchParams(hash.slice(qIndex + 1));
+                    setTrackingParams({
+                        nf: sp.get('nf') || undefined,
+                        cnpj: sp.get('cnpj') || undefined,
+                        numType: (sp.get('numType') as 'notaFiscal' | 'cte') || undefined,
+                        docType: (sp.get('docType') as 'remetente' | 'destinatario') || undefined,
+                    });
+                } else {
+                    setTrackingParams({});
+                }
             } else if (hash === '#/hub' || hash.startsWith('#/hub/')) {
                 setIsHubRoute(true);
                 setShowConfirmation(false);
@@ -84,7 +100,12 @@ export const AppRouter = () => {
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                         </button>
                     </div>
-                    <Tracking />
+                    <Tracking
+                        initialNF={trackingParams.nf}
+                        initialCNPJ={trackingParams.cnpj}
+                        initialNumType={trackingParams.numType}
+                        initialDocType={trackingParams.docType}
+                    />
                 </div>
             </ThemeProvider>
         );

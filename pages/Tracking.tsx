@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Search,
     Truck,
@@ -6,54 +6,130 @@ import {
     MapPin,
     Calendar,
     Clock,
-    AlertCircle,
     ArrowRight,
     FileText,
     ExternalLink,
     Info,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    QrCode,
+    Copy,
+    Check,
+    Warehouse
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { jamefService, JamefTrackingItem } from '../services/jamefService';
 
-export const Tracking: React.FC = () => {
-    const [document, setDocument] = useState('');
-    const [docType, setDocType] = useState<'remetente' | 'destinatario'>('remetente');
-    const [number, setNumber] = useState('');
-    const [numType, setNumType] = useState<'notaFiscal' | 'cte'>('notaFiscal');
+const CNPJ_BY_STATE: Record<string, { cnpj: string; label: string }> = {
+    SC: { cnpj: '05502390000200', label: 'SC' },
+    SP: { cnpj: '05502390000383', label: 'SP' },
+    CE: { cnpj: '05502390000111', label: 'CE' },
+};
+
+function detectStateFromNF(nf: string): { cnpj: string; label: string } | null {
+    if (nf.startsWith('562')) return CNPJ_BY_STATE.SC;
+    if (nf.startsWith('22')) return CNPJ_BY_STATE.SP;
+    if (nf.startsWith('10')) return CNPJ_BY_STATE.CE;
+    return null;
+}
+
+function hasCargoMoved(events: JamefTrackingItem['eventosRastreio']): boolean {
+    if (events.length === 0) return false;
+    return events.some(e => {
+        const s = e.status.toUpperCase();
+        return s.includes('TRANSPORTE') || s.includes('VIAGEM') || s.includes('ENTREG');
+    });
+}
+
+interface TrackingProps {
+    initialNF?: string;
+    initialCNPJ?: string;
+    initialNumType?: 'notaFiscal' | 'cte';
+    initialDocType?: 'remetente' | 'destinatario';
+}
+
+export const Tracking: React.FC<TrackingProps> = ({
+    initialNF,
+    initialCNPJ,
+    initialNumType,
+    initialDocType,
+}) => {
+    const [document, setDocument] = useState(initialCNPJ || '');
+    const [docType, setDocType] = useState<'remetente' | 'destinatario'>(initialDocType || 'remetente');
+    const [number, setNumber] = useState(initialNF || '');
+    const [numType, setNumType] = useState<'notaFiscal' | 'cte'>(initialNumType || 'notaFiscal');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<JamefTrackingItem | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [expandedEvent, setExpandedEvent] = useState<number | null>(null);
+    const [linkCopied, setLinkCopied] = useState(false);
+    const autoSearchedRef = useRef(false);
 
-    const handleSearch = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!document || !number) {
+    const performSearch = async (
+        doc: string,
+        dType: 'remetente' | 'destinatario',
+        num: string,
+        nType: 'notaFiscal' | 'cte'
+    ) => {
+        if (!doc || !num) {
             setError('Por favor, preencha o documento e o número da nota ou CT-e.');
             return;
         }
-
         setLoading(true);
         setError(null);
         setResult(null);
 
         try {
             const response = await jamefService.trackCargo({
-                documento: document.replace(/\D/g, ''),
-                docType,
-                numero: number,
-                numType
+                documento: doc.replace(/\D/g, ''),
+                docType: dType,
+                numero: num,
+                numType: nType
             });
 
             if (response.sucesso && response.item) {
                 setResult(response.item);
             } else {
-                setError(response.mensagem || 'Nenhuma carga encontrada com os dados informados.');
+                setError('Mercadoria ainda no armazém. Nenhuma movimentação encontrada para os dados informados.');
             }
         } catch (err) {
-            setError('Ocorreu um erro ao consultar o rastreamento.');
+            setError('Mercadoria ainda no armazém. Não foi possível obter informações de rastreio no momento.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Auto-search when opened via QR code link
+    useEffect(() => {
+        if (initialNF && initialCNPJ && !autoSearchedRef.current) {
+            autoSearchedRef.current = true;
+            performSearch(initialCNPJ, initialDocType || 'remetente', initialNF, initialNumType || 'notaFiscal');
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const handleSearch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        await performSearch(document, docType, number, numType);
+    };
+
+    const handleNumberChange = (val: string) => {
+        setNumber(val);
+        // Auto-detect CNPJ from NF prefix if document field is empty
+        if (!document) {
+            const detected = detectStateFromNF(val);
+            if (detected) setDocument(detected.cnpj);
+        }
+    };
+
+    const trackingUrl = `${window.location.origin}${window.location.pathname}#/tracking?nf=${encodeURIComponent(number)}&cnpj=${encodeURIComponent(document)}&numType=${numType}&docType=${docType}`;
+
+    const copyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(trackingUrl);
+            setLinkCopied(true);
+            setTimeout(() => setLinkCopied(false), 2000);
+        } catch {
+            // fallback: do nothing
         }
     };
 
@@ -64,6 +140,8 @@ export const Tracking: React.FC = () => {
         if (s.includes('PROBLEMA') || s.includes('PEND') || s.includes('FALHA')) return 'text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20';
         return 'text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
     };
+
+    const cargoMoved = result ? hasCargoMoved(result.eventosRastreio) : null;
 
     return (
         <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] pb-20 transition-colors duration-500 font-sans selection:bg-brand-500/30 selection:text-brand-900">
@@ -130,9 +208,9 @@ export const Tracking: React.FC = () => {
                                     <div className="flex items-center h-8">
                                         <div className="flex gap-2">
                                             {[
-                                                { label: 'SC', value: '05502390000200' },
-                                                { label: 'SP', value: '05502390000383' },
-                                                { label: 'CE', value: '05502390000111' }
+                                                { label: 'SC', value: CNPJ_BY_STATE.SC.cnpj },
+                                                { label: 'SP', value: CNPJ_BY_STATE.SP.cnpj },
+                                                { label: 'CE', value: CNPJ_BY_STATE.CE.cnpj }
                                             ].map((cnpj) => (
                                                 <button
                                                     key={cnpj.value}
@@ -205,7 +283,7 @@ export const Tracking: React.FC = () => {
                                         <input
                                             type="text"
                                             value={number}
-                                            onChange={(e) => setNumber(e.target.value)}
+                                            onChange={(e) => handleNumberChange(e.target.value)}
                                             placeholder={numType === 'notaFiscal' ? 'Número da Nota' : 'Número do CT-e'}
                                             className="w-full pl-6 pr-12 py-5 bg-slate-50 dark:bg-slate-950 border-2 border-transparent dark:border-slate-800/50 rounded-2xl focus:border-brand-500/30 focus:bg-white dark:focus:bg-slate-900 focus:ring-[12px] focus:ring-brand-500/5 transition-all outline-none text-sm font-bold dark:text-white dark:placeholder-slate-700 shadow-sm"
                                         />
@@ -241,13 +319,13 @@ export const Tracking: React.FC = () => {
                     </form>
 
                     {error && (
-                        <div className="mt-8 p-6 bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/20 rounded-3xl flex items-start gap-5 animate-in fade-in slide-in-from-top-4">
-                            <div className="p-3 bg-rose-500/20 rounded-2xl">
-                                <AlertCircle className="w-6 h-6 text-rose-500" />
+                        <div className="mt-8 p-6 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-3xl flex items-start gap-5 animate-in fade-in slide-in-from-top-4">
+                            <div className="p-3 bg-amber-500/20 rounded-2xl shrink-0">
+                                <Warehouse className="w-6 h-6 text-amber-500" />
                             </div>
                             <div>
-                                <h4 className="font-black text-sm uppercase tracking-widest text-rose-600 dark:text-rose-400">Interrupção no Fluxo</h4>
-                                <p className="text-rose-500/80 text-xs sm:text-sm mt-1 font-bold">{error}</p>
+                                <h4 className="font-black text-sm uppercase tracking-widest text-amber-600 dark:text-amber-400">Mercadoria ainda no armazém</h4>
+                                <p className="text-amber-500/80 text-xs sm:text-sm mt-1 font-bold">{error}</p>
                             </div>
                         </div>
                     )}
@@ -256,6 +334,19 @@ export const Tracking: React.FC = () => {
                 {/* Results Section */}
                 {result && (
                     <div className="mt-12 space-y-8 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+                        {/* Warehouse warning when cargo hasn't moved */}
+                        {!cargoMoved && (
+                            <div className="p-5 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-3xl flex items-center gap-4">
+                                <div className="p-2.5 bg-amber-500/20 rounded-2xl shrink-0">
+                                    <Warehouse className="w-5 h-5 text-amber-500" />
+                                </div>
+                                <div>
+                                    <span className="font-black text-sm text-amber-600 dark:text-amber-400 uppercase tracking-wider">Mercadoria ainda no armazém</span>
+                                    <p className="text-amber-500/70 text-xs mt-0.5 font-medium">Nenhuma movimentação de transporte registrada até o momento.</p>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Status Dashboard */}
                         <div className="bg-white/60 dark:bg-slate-950/60 backdrop-blur-2xl rounded-[2.5rem] border border-white dark:border-white/5 p-8 flex flex-col lg:flex-row items-center justify-between gap-10">
 
@@ -311,99 +402,183 @@ export const Tracking: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Professional Timeline */}
-                        <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-white dark:border-white/5 overflow-hidden shadow-2xl">
-                            <div className="p-8 sm:p-10 border-b border-slate-100 dark:border-slate-900 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-2xl bg-brand-500/10 flex items-center justify-center">
-                                        <Clock className="w-6 h-6 text-brand-500" />
+                        {/* Share Card */}
+                        {number && document && (
+                            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 rounded-[2.5rem] border border-white/10 shadow-2xl p-8 sm:p-10">
+                                {/* Glow accent */}
+                                <div className="absolute -top-10 -right-10 w-48 h-48 bg-brand-500/20 rounded-full blur-3xl pointer-events-none" />
+                                <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                                <div className="relative z-10 flex flex-col sm:flex-row items-center gap-8">
+                                    {/* QR Code */}
+                                    <div className="shrink-0 p-4 bg-white rounded-3xl shadow-2xl ring-4 ring-white/10">
+                                        <QRCodeSVG value={trackingUrl} size={148} level="M" marginSize={1} />
                                     </div>
-                                    <div>
-                                        <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Timeline Logística</h3>
-                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Histórico de Movimentação</p>
-                                    </div>
-                                </div>
-                                <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                    <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tempo Real</span>
-                                </div>
-                            </div>
 
-                            <div className="p-8 sm:p-12 space-y-0 relative">
-                                {/* The "Tube" line */}
-                                <div className="absolute left-[39px] sm:left-[55px] top-12 bottom-12 w-1 sm:w-1.5 bg-slate-100 dark:bg-slate-900/50 rounded-full">
-                                    <div className="absolute top-0 left-0 w-full h-[30%] bg-gradient-to-b from-brand-500 via-brand-400/50 to-transparent rounded-full shadow-[0_0_15px_rgba(var(--brand-rgb),0.3)]"></div>
-                                </div>
-
-                                {result.eventosRastreio.map((evento, index) => {
-                                    const isLatest = index === 0;
-                                    const isExpanded = expandedEvent === index;
-                                    const eventDate = new Date(evento.data);
-
-                                    return (
-                                        <div key={index} className="relative group/item pl-16 sm:pl-24 pb-12 last:pb-0">
-                                            {/* Step Marker */}
-                                            <div className="absolute left-[-15px] sm:left-[-5px] top-1 flex flex-col items-center">
-                                                <div className={`relative w-12 h-12 sm:w-16 sm:h-16 rounded-[1.2rem] flex items-center justify-center z-10 border-4 border-[#fff] dark:border-[#0f172a] shadow-2xl transition-all duration-500 group-hover/item:scale-110 ${isLatest
-                                                    ? 'bg-brand-600 text-white ring-[8px] ring-brand-500/10 shadow-xl'
-                                                    : 'bg-white dark:bg-slate-900 text-slate-300 dark:text-slate-700 border-2 sm:border-4'
-                                                    }`}>
-                                                    {isLatest ? <Truck className="w-6 h-6 sm:w-8 sm:h-8" /> : <div className="w-3 h-3 rounded-full bg-current"></div>}
-                                                </div>
+                                    {/* Info + actions */}
+                                    <div className="flex-1 w-full space-y-5 text-center sm:text-left">
+                                        {/* Title */}
+                                        <div className="flex items-center justify-center sm:justify-start gap-3">
+                                            <div className="w-10 h-10 rounded-2xl bg-brand-500/20 flex items-center justify-center shrink-0">
+                                                <QrCode className="w-5 h-5 text-brand-400" />
                                             </div>
-
-                                            {/* Event Card */}
-                                            <div
-                                                className={`group p-6 sm:p-8 rounded-[2rem] border transition-all duration-500 cursor-pointer hover:shadow-2xl hover:shadow-black/5 dark:hover:shadow-white/5 ${isLatest
-                                                    ? 'bg-white dark:bg-slate-900 border-brand-500/30'
-                                                    : 'bg-transparent border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/30'
-                                                    }`}
-                                                onClick={() => setExpandedEvent(isExpanded ? null : index)}
-                                            >
-                                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center gap-4">
-                                                            <div className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest ${isLatest ? 'bg-brand-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-                                                                {eventDate.toLocaleDateString('pt-BR')}
-                                                            </div>
-                                                            <div className="text-xs font-black text-slate-400 dark:text-slate-600 transition-colors group-hover/item:text-brand-500">
-                                                                {eventDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                                            </div>
-                                                        </div>
-                                                        <h4 className={`text-base sm:text-lg font-black uppercase tracking-tight leading-tight ${isLatest ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
-                                                            {evento.status}
-                                                        </h4>
-                                                    </div>
-
-                                                    <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-slate-100 dark:border-slate-800 pt-5 md:pt-0">
-                                                        <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-slate-100/50 dark:border-slate-800 shadow-sm transition-transform group-hover:translate-x-[-4px]">
-                                                            <div className="w-8 h-8 rounded-xl bg-brand-500/10 flex items-center justify-center">
-                                                                <MapPin className="w-4 h-4 text-brand-500" />
-                                                            </div>
-                                                            <div className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-tighter">
-                                                                {evento.localOrigem?.cidade || 'Central Jamef'}
-                                                                <span className="text-slate-300 dark:text-slate-700 mx-1.5 font-normal">|</span>
-                                                                <span className="text-brand-500">{evento.localOrigem?.uf || 'BR'}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className={`p-2 rounded-xl transition-all ${isExpanded ? 'bg-brand-500/10 text-brand-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-300'}`}>
-                                                            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {isExpanded && (
-                                                    <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 text-sm font-medium text-slate-500 dark:text-slate-400 animate-in fade-in slide-in-from-top-4 duration-500 leading-relaxed">
-                                                        Registro sistêmico Jamef Cód: <span className="text-slate-900 dark:text-white font-bold tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded ml-1">{evento.codigoOcorrencia || '---'}</span>
-                                                        <p className="mt-2">Movimentação confirmada via terminal {evento.localOrigem?.cidade}. Dados processados com criptografia JWT ponta-a-ponta.</p>
-                                                    </div>
-                                                )}
+                                            <div>
+                                                <h3 className="text-base font-black text-white tracking-tight">Link de Rastreio</h3>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Envie para o seu cliente</p>
                                             </div>
                                         </div>
-                                    );
-                                })}
+
+                                        {/* URL preview box */}
+                                        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 group">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                                            <span className="flex-1 text-xs font-mono text-slate-300 truncate select-all">
+                                                {trackingUrl}
+                                            </span>
+                                        </div>
+
+                                        {/* Action buttons */}
+                                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
+                                            {/* Copy link */}
+                                            <button
+                                                type="button"
+                                                onClick={copyLink}
+                                                className={`inline-flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300 border ${
+                                                    linkCopied
+                                                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 scale-95'
+                                                        : 'bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-brand-500/50 active:scale-95'
+                                                }`}
+                                            >
+                                                {linkCopied
+                                                    ? <><Check className="w-4 h-4" /> Copiado!</>
+                                                    : <><Copy className="w-4 h-4" /> Copiar Link</>
+                                                }
+                                            </button>
+
+                                            {/* WhatsApp */}
+                                            <a
+                                                href={`https://wa.me/?text=${encodeURIComponent(`🚚 *Rastreio da sua mercadoria*\n\nNF: ${number}\nAcompanhe em tempo real:\n${trackingUrl}`)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-[#25D366]/20 border border-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/30 hover:border-[#25D366]/60 transition-all active:scale-95"
+                                            >
+                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                                WhatsApp
+                                            </a>
+
+                                            {/* Abrir link */}
+                                            <a
+                                                href={trackingUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-white/10 border border-white/20 text-slate-300 hover:bg-white/20 transition-all active:scale-95"
+                                            >
+                                                <ExternalLink className="w-4 h-4" /> Abrir
+                                            </a>
+                                        </div>
+
+                                        <p className="text-xs text-slate-500 font-medium">
+                                            O cliente clica no link e já vê o rastreio desta NF diretamente, sem precisar digitar nenhum dado.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* Professional Timeline */}
+                        {result.eventosRastreio.length > 0 && (
+                            <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-white dark:border-white/5 overflow-hidden shadow-2xl">
+                                <div className="p-8 sm:p-10 border-b border-slate-100 dark:border-slate-900 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-2xl bg-brand-500/10 flex items-center justify-center">
+                                            <Clock className="w-6 h-6 text-brand-500" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Timeline Logística</h3>
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Histórico de Movimentação</p>
+                                        </div>
+                                    </div>
+                                    <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                        <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tempo Real</span>
+                                    </div>
+                                </div>
+
+                                <div className="p-8 sm:p-12 space-y-0 relative">
+                                    {/* The "Tube" line */}
+                                    <div className="absolute left-[39px] sm:left-[55px] top-12 bottom-12 w-1 sm:w-1.5 bg-slate-100 dark:bg-slate-900/50 rounded-full">
+                                        <div className="absolute top-0 left-0 w-full h-[30%] bg-gradient-to-b from-brand-500 via-brand-400/50 to-transparent rounded-full shadow-[0_0_15px_rgba(var(--brand-rgb),0.3)]"></div>
+                                    </div>
+
+                                    {result.eventosRastreio.map((evento, index) => {
+                                        const isLatest = index === 0;
+                                        const isExpanded = expandedEvent === index;
+                                        const eventDate = new Date(evento.data);
+
+                                        return (
+                                            <div key={index} className="relative group/item pl-16 sm:pl-24 pb-12 last:pb-0">
+                                                {/* Step Marker */}
+                                                <div className="absolute left-[-15px] sm:left-[-5px] top-1 flex flex-col items-center">
+                                                    <div className={`relative w-12 h-12 sm:w-16 sm:h-16 rounded-[1.2rem] flex items-center justify-center z-10 border-4 border-[#fff] dark:border-[#0f172a] shadow-2xl transition-all duration-500 group-hover/item:scale-110 ${isLatest
+                                                        ? 'bg-brand-600 text-white ring-[8px] ring-brand-500/10 shadow-xl'
+                                                        : 'bg-white dark:bg-slate-900 text-slate-300 dark:text-slate-700 border-2 sm:border-4'
+                                                        }`}>
+                                                        {isLatest ? <Truck className="w-6 h-6 sm:w-8 sm:h-8" /> : <div className="w-3 h-3 rounded-full bg-current"></div>}
+                                                    </div>
+                                                </div>
+
+                                                {/* Event Card */}
+                                                <div
+                                                    className={`group p-6 sm:p-8 rounded-[2rem] border transition-all duration-500 cursor-pointer hover:shadow-2xl hover:shadow-black/5 dark:hover:shadow-white/5 ${isLatest
+                                                        ? 'bg-white dark:bg-slate-900 border-brand-500/30'
+                                                        : 'bg-transparent border-slate-100 dark:border-slate-800/50 hover:bg-slate-100/30'
+                                                        }`}
+                                                    onClick={() => setExpandedEvent(isExpanded ? null : index)}
+                                                >
+                                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest ${isLatest ? 'bg-brand-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                                                                    {eventDate.toLocaleDateString('pt-BR')}
+                                                                </div>
+                                                                <div className="text-xs font-black text-slate-400 dark:text-slate-600 transition-colors group-hover/item:text-brand-500">
+                                                                    {eventDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                                </div>
+                                                            </div>
+                                                            <h4 className={`text-base sm:text-lg font-black uppercase tracking-tight leading-tight ${isLatest ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
+                                                                {evento.status}
+                                                            </h4>
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-slate-100 dark:border-slate-800 pt-5 md:pt-0">
+                                                            <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-slate-100/50 dark:border-slate-800 shadow-sm transition-transform group-hover:translate-x-[-4px]">
+                                                                <div className="w-8 h-8 rounded-xl bg-brand-500/10 flex items-center justify-center">
+                                                                    <MapPin className="w-4 h-4 text-brand-500" />
+                                                                </div>
+                                                                <div className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-tighter">
+                                                                    {evento.localOrigem?.cidade || 'Central Jamef'}
+                                                                    <span className="text-slate-300 dark:text-slate-700 mx-1.5 font-normal">|</span>
+                                                                    <span className="text-brand-500">{evento.localOrigem?.uf || 'BR'}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className={`p-2 rounded-xl transition-all ${isExpanded ? 'bg-brand-500/10 text-brand-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-300'}`}>
+                                                                {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {isExpanded && (
+                                                        <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 text-sm font-medium text-slate-500 dark:text-slate-400 animate-in fade-in slide-in-from-top-4 duration-500 leading-relaxed">
+                                                            Registro sistêmico Jamef Cód: <span className="text-slate-900 dark:text-white font-bold tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded ml-1">{evento.codigoOcorrencia || '---'}</span>
+                                                            <p className="mt-2">Movimentação confirmada via terminal {evento.localOrigem?.cidade}. Dados processados com criptografia JWT ponta-a-ponta.</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </main>
