@@ -23,7 +23,7 @@ export interface CotacaoRequest {
     cnpjRemetente: string;
     cepOrigem: string;
     cepDestino: string;
-    filialOrigem?: string;
+    filialOrigem: string;
     peso: number;
     valorMercadoria: number;
     volumes: number;
@@ -191,7 +191,7 @@ export const jamefService = {
             quantidadeVolumes: params.volumes,
         };
 
-        if (params.filialOrigem) body.filialOrigem = params.filialOrigem;
+        body.filialOrigem = params.filialOrigem;
         if (params.altura && params.largura && params.comprimento) {
             body.cubagem = [{
                 altura: params.altura,
@@ -212,8 +212,23 @@ export const jamefService = {
         });
 
         if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            throw new Error(err.mensagem || err.message || `Erro ${response.status} na cotação.`);
+            const errBody = await response.text().catch(() => '{}');
+            console.error('Jamef cotação erro bruto:', errBody);
+            let err: any = {};
+            try { err = JSON.parse(errBody); } catch {}
+            // Extrai mensagens de validação detalhadas se existirem
+            const erros: string[] = [];
+            if (err.errors && typeof err.errors === 'object') {
+                Object.entries(err.errors).forEach(([campo, msgs]) => {
+                    const list = Array.isArray(msgs) ? msgs : [msgs];
+                    list.forEach((m: any) => erros.push(`${campo}: ${m}`));
+                });
+            }
+            if (err.erros && Array.isArray(err.erros)) {
+                err.erros.forEach((e: any) => erros.push(e.mensagem || JSON.stringify(e)));
+            }
+            const detail = erros.length > 0 ? `\n${erros.join('\n')}` : '';
+            throw new Error((err.mensagem || err.message || err.title || `Erro ${response.status}`) + detail);
         }
 
         const data = await response.json();

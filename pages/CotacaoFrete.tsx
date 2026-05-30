@@ -6,11 +6,12 @@ import {
 } from 'lucide-react';
 import { jamefService, CotacaoResponse } from '../services/jamefService';
 
-// CNPJs das filiais MCI
-const FILIAIS: { label: string; cnpj: string; cep: string; cidade: string }[] = [
-    { label: 'SC — Santa Catarina', cnpj: '05502390000200', cep: '89218000', cidade: 'Joinville/SC' },
-    { label: 'SP — São Paulo',      cnpj: '05502390000383', cep: '01310100', cidade: 'São Paulo/SP' },
-    { label: 'CE — Ceará',          cnpj: '05502390000111', cep: '60160181', cidade: 'Fortaleza/CE' },
+// Filiais MCI — filialOrigem é o código que a Jamef usa internamente
+// Se a cotação falhar, consulte: GET /api/jamef-prod/filial/v1/filiais para listar os códigos corretos
+const FILIAIS: { label: string; cnpj: string; cep: string; cidade: string; filialCodigo: string }[] = [
+    { label: 'SC — Santa Catarina', cnpj: '05502390000200', cep: '89218000', cidade: 'Joinville/SC',  filialCodigo: 'JVL' },
+    { label: 'SP — São Paulo',      cnpj: '05502390000383', cep: '01310100', cidade: 'São Paulo/SP',  filialCodigo: 'SPA' },
+    { label: 'CE — Ceará',          cnpj: '05502390000111', cep: '60160181', cidade: 'Fortaleza/CE',  filialCodigo: 'FZA' },
 ];
 
 function formatCurrency(v: number) {
@@ -284,6 +285,7 @@ function ResultCard({ result, origem, cepDestino, peso, valor, volumes }: Result
 
 export function CotacaoFrete() {
     const [filialIdx, setFilialIdx] = useState(0);
+    const [filialCodigo, setFilialCodigo] = useState(FILIAIS[0].filialCodigo);
     const [cepDestino, setCepDestino] = useState('');
     const [peso, setPeso] = useState('');
     const [valor, setValor] = useState('');
@@ -314,6 +316,7 @@ export function CotacaoFrete() {
                 cnpjRemetente: filial.cnpj,
                 cepOrigem: filial.cep,
                 cepDestino,
+                filialOrigem: filialCodigo.trim(),
                 peso: parseFloat(peso),
                 valorMercadoria: parseFloat(valor.replace(',', '.')),
                 volumes: parseInt(volumes) || 1,
@@ -380,7 +383,7 @@ export function CotacaoFrete() {
                             <div className="flex flex-wrap gap-2">
                                 {FILIAIS.map((f, i) => (
                                     <button
-                                        key={i} type="button" onClick={() => setFilialIdx(i)}
+                                        key={i} type="button" onClick={() => { setFilialIdx(i); setFilialCodigo(f.filialCodigo); }}
                                         className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border ${
                                             filialIdx === i
                                                 ? 'bg-brand-600 text-white border-brand-600 shadow-lg shadow-brand-500/20'
@@ -394,6 +397,23 @@ export function CotacaoFrete() {
                             <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
                                 <Info className="w-3.5 h-3.5 text-brand-500 shrink-0" />
                                 <span className="text-xs font-bold text-slate-400">CEP origem: <span className="text-slate-600 dark:text-slate-300">{filial.cep} — {filial.cidade}</span></span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1">
+                                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1.5">
+                                        Código Filial Jamef <span className="text-amber-500">*</span>
+                                    </label>
+                                    <input
+                                        value={filialCodigo}
+                                        onChange={e => setFilialCodigo(e.target.value.toUpperCase())}
+                                        placeholder="Ex: JVL"
+                                        maxLength={10}
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border-2 border-amber-400/40 rounded-2xl focus:border-amber-400 focus:bg-white dark:focus:bg-slate-900 transition-all outline-none text-sm font-bold dark:text-white shadow-sm"
+                                    />
+                                </div>
+                                <div className="pt-6 text-xs text-slate-400 dark:text-slate-600 leading-snug max-w-[180px]">
+                                    Consulte o código em <span className="text-brand-500 font-bold">developers.jamef.com.br</span> → Filiais
+                                </div>
                             </div>
                         </div>
 
