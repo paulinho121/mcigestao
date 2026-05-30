@@ -8,6 +8,106 @@ import {
     Phone, Mail, MapPin, X
 } from 'lucide-react';
 import { clienteService, Cliente } from '../services/clienteService';
+
+// ─── Modal de detalhes do cliente ────────────────────────────────────────────
+function ClienteModal({ cliente, onClose, onDelete }: {
+    cliente: Cliente;
+    onClose: () => void;
+    onDelete: (id: string) => void;
+}) {
+    const isPJ = cliente.cnpj_cpf.replace(/\D/g, '').length === 14;
+    const categoriaColor = cliente.categoria?.includes('PJ')
+        ? 'from-blue-600 to-blue-500'
+        : cliente.categoria?.includes('PF')
+            ? 'from-violet-600 to-violet-500'
+            : 'from-slate-700 to-slate-600';
+
+    const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value?: string }) =>
+        value ? (
+            <div className="flex items-start gap-3 py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">{icon}</div>
+                <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{label}</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{value}</p>
+                </div>
+            </div>
+        ) : null;
+
+    const enderecoCompleto = [
+        cliente.logradouro, cliente.numero, cliente.complemento,
+        cliente.bairro, cliente.cidade, cliente.uf, cliente.cep
+    ].filter(Boolean).join(', ');
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-end">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative z-10 h-full w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+                {/* Header colorido */}
+                <div className={`bg-gradient-to-br ${categoriaColor} p-8 shrink-0`}>
+                    <div className="flex items-start justify-between gap-3 mb-6">
+                        <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-white text-2xl font-black">
+                            {cliente.nome?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                        <button onClick={onClose} className="text-white/70 hover:text-white p-1 transition-colors">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    <h2 className="text-white font-black text-xl leading-snug mb-1">{cliente.nome}</h2>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-white/70 text-xs font-mono">{cliente.cnpj_cpf}</span>
+                        <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase tracking-wider">
+                            {isPJ ? 'Pessoa Jurídica' : 'Pessoa Física'}
+                        </span>
+                        {cliente.categoria && (
+                            <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase tracking-wider">
+                                {cliente.categoria}
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {/* Corpo com informações */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-1">
+                    <InfoRow icon={<Mail className="w-4 h-4 text-brand-500" />} label="E-mail" value={cliente.email} />
+                    <InfoRow icon={<Phone className="w-4 h-4 text-emerald-500" />} label="Telefone" value={cliente.telefone} />
+                    <InfoRow icon={<MapPin className="w-4 h-4 text-red-400" />} label="Endereço" value={enderecoCompleto || undefined} />
+                    <InfoRow icon={<span className="text-xs font-black text-slate-500">UF</span>} label="Estado" value={cliente.uf} />
+                    <InfoRow icon={<span className="text-xs font-black text-slate-500">CEP</span>} label="CEP" value={cliente.cep} />
+
+                    {/* Ações rápidas */}
+                    <div className="pt-4 space-y-2">
+                        {cliente.email && (
+                            <a href={`mailto:${cliente.email}`}
+                                className="flex items-center gap-3 w-full px-4 py-3 rounded-2xl bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-900/30 transition-colors font-semibold text-sm">
+                                <Mail className="w-4 h-4" /> Enviar e-mail
+                            </a>
+                        )}
+                        {cliente.telefone && (
+                            <a href={`https://wa.me/55${cliente.telefone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-3 w-full px-4 py-3 rounded-2xl bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors font-semibold text-sm">
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                WhatsApp
+                            </a>
+                        )}
+                    </div>
+                </div>
+
+                {/* Footer com excluir */}
+                <div className="p-6 border-t border-slate-100 dark:border-slate-800 shrink-0">
+                    <p className="text-[10px] text-slate-400 mb-3 font-medium">
+                        Cadastrado em {new Date(cliente.created_at).toLocaleDateString('pt-BR')}
+                    </p>
+                    <button
+                        onClick={() => { onDelete(cliente.id); onClose(); }}
+                        className="flex items-center gap-2 w-full px-4 py-3 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors font-semibold text-sm"
+                    >
+                        <Trash2 className="w-4 h-4" /> Excluir cliente
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, Cell,
@@ -49,6 +149,7 @@ export const Diretoria = () => {
     const [novoCliente, setNovoCliente] = useState({ cnpj_cpf: '', nome: '', email: '', telefone: '', cidade: '', uf: '', categoria: 'Clientes' });
     const [savingCliente, setSavingCliente] = useState(false);
     const clienteFileRef = useRef<HTMLInputElement>(null);
+    const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
 
     const loadClientes = async (s = clienteSearch) => {
         setLoadingClientes(true);
@@ -337,6 +438,7 @@ export const Diretoria = () => {
     }
 
     return (
+        <>
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row transition-colors duration-300 font-sans">
             {/* Sidebar Navigation */}
             <aside className="w-full lg:w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 p-8 flex flex-col gap-10 transition-all">
@@ -1067,7 +1169,11 @@ export const Diretoria = () => {
                                                 </div>
                                             </td></tr>
                                         ) : clientes.map((c, i) => (
-                                            <tr key={c.id} className={`border-b border-slate-50 dark:border-slate-800/60 last:border-0 hover:bg-brand-50/30 dark:hover:bg-brand-900/10 transition-colors ${i % 2 === 0 ? '' : 'bg-slate-50/30 dark:bg-slate-800/20'}`}>
+                                            <tr
+                                                key={c.id}
+                                                onClick={() => setClienteSelecionado(c)}
+                                                className={`border-b border-slate-50 dark:border-slate-800/60 last:border-0 cursor-pointer hover:bg-brand-50/40 dark:hover:bg-brand-900/10 transition-colors ${i % 2 === 0 ? '' : 'bg-slate-50/30 dark:bg-slate-800/20'}`}
+                                            >
                                                 <td className="px-6 py-4">
                                                     <span className="font-mono text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">{c.cnpj_cpf}</span>
                                                 </td>
@@ -1076,8 +1182,8 @@ export const Diretoria = () => {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                                                        c.categoria.includes('PJ') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                                                        : c.categoria.includes('PF') ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+                                                        c.categoria?.includes('PJ') ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                                        : c.categoria?.includes('PF') ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
                                                         : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                                                     }`}>{c.categoria || 'Cliente'}</span>
                                                 </td>
@@ -1093,7 +1199,7 @@ export const Diretoria = () => {
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <button onClick={() => handleExcluirCliente(c.id)} className="p-2 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                                    <button onClick={e => { e.stopPropagation(); handleExcluirCliente(c.id); }} className="p-2 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </td>
@@ -1111,5 +1217,15 @@ export const Diretoria = () => {
                 )}
             </main>
         </div>
+
+        {/* Modal de cliente */}
+        {clienteSelecionado && (
+            <ClienteModal
+                cliente={clienteSelecionado}
+                onClose={() => setClienteSelecionado(null)}
+                onDelete={id => { handleExcluirCliente(id); setClienteSelecionado(null); }}
+            />
+        )}
+        </>
     );
 };
