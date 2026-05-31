@@ -15,10 +15,278 @@ import {
     QrCode,
     Copy,
     Check,
-    Warehouse
+    Warehouse,
+    Link2,
+    Printer,
+    Sparkles,
+    Loader2
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { jamefService, JamefTrackingItem } from '../services/jamefService';
+
+// ─── Gerar Link de Rastreio ───────────────────────────────────────────────────
+
+function GerarLink() {
+    const [nf, setNf] = useState('');
+    const [cnpj, setCnpj] = useState('');
+    const [numType, setNumType] = useState<'notaFiscal' | 'cte'>('notaFiscal');
+    const [copied, setCopied] = useState(false);
+    const [shortUrl, setShortUrl] = useState('');
+    const [loadingShort, setLoadingShort] = useState(false);
+    const [customMsg, setCustomMsg] = useState('');
+
+    const trackingUrl = nf && cnpj
+        ? `${window.location.origin}${window.location.pathname}#/tracking?nf=${encodeURIComponent(nf)}&cnpj=${encodeURIComponent(cnpj)}&numType=${numType}&docType=remetente`
+        : '';
+
+    // Auto-detecta CNPJ pelo prefixo da NF
+    useEffect(() => {
+        if (!nf) { setCnpj(''); return; }
+        if (nf.startsWith('562') || nf.startsWith('56')) setCnpj('05502390000200');
+        else if (nf.startsWith('22')) setCnpj('05502390000383');
+        else if (nf.startsWith('10')) setCnpj('05502390000111');
+    }, [nf]);
+
+    // Gera link curto via TinyURL
+    const gerarLinkCurto = async () => {
+        if (!trackingUrl) return;
+        setLoadingShort(true);
+        setShortUrl('');
+        try {
+            const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(trackingUrl)}`);
+            if (res.ok) {
+                const url = await res.text();
+                if (url.startsWith('http')) setShortUrl(url.trim());
+            }
+        } catch { /* usa URL completa */ }
+        setLoadingShort(false);
+    };
+
+    const linkFinal = shortUrl || trackingUrl;
+
+    const handleCopy = async () => {
+        await navigator.clipboard.writeText(linkFinal);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const whatsappMsg = customMsg
+        ? `${customMsg}\n\n🔗 ${linkFinal}`
+        : `🚚 *Rastreamento da sua mercadoria*\n\n📦 *NF:* ${nf}\n\n Acompanhe o status da entrega em tempo real pelo link abaixo:\n🔗 ${linkFinal}`;
+
+    const handlePrint = () => {
+        const win = window.open('', '_blank', 'width=500,height=700');
+        if (!win) return;
+        win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
+        <title>Rastreamento NF ${nf}</title>
+        <style>
+            *{box-sizing:border-box;margin:0;padding:0}
+            body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;display:flex;flex-direction:column;align-items:center;padding:32px;gap:20px;color:#0f172a}
+            .logo{height:48px;object-fit:contain;margin-bottom:4px}
+            h1{font-size:18px;font-weight:900;text-align:center}
+            p{font-size:12px;color:#64748b;text-align:center;max-width:280px;line-height:1.5}
+            .nf{font-size:22px;font-weight:900;color:#0f172a;letter-spacing:-0.5px}
+            .url{font-size:10px;color:#3b82f6;word-break:break-all;text-align:center;max-width:280px;margin-top:4px}
+            .footer{font-size:9px;color:#94a3b8;text-align:center;margin-top:12px}
+            img.qr{border:8px solid white;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.12)}
+            @media print{body{padding:16px}}
+        </style></head><body>
+        <img src="${window.location.origin}/logo.png" class="logo" onerror="this.style.display='none'" alt="MCI"/>
+        <h1>Acompanhe sua entrega</h1>
+        <p>${customMsg || 'Escaneie o QR Code abaixo para rastrear sua mercadoria em tempo real.'}</p>
+        <div style="margin:8px 0"><span style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.1em">Nota Fiscal</span></div>
+        <div class="nf">${nf}</div>
+        <div id="qr" style="margin:16px 0"></div>
+        <div class="url">${linkFinal}</div>
+        <div class="footer">MCI Estoque · estoquemci.vercel.app · Powered by JAMEF</div>
+        <script>
+            const svg = document.querySelector('[data-qr]');
+            const qrDiv = document.getElementById('qr');
+            qrDiv.innerHTML = document.getElementById('qr-source')?.innerHTML || '';
+        </script>
+        </body></html>`);
+        win.document.close();
+        // Insere QR code via canvas
+        setTimeout(() => {
+            const srcQR = document.getElementById('qr-print-source');
+            if (srcQR) {
+                const qrDiv = win.document.getElementById('qr');
+                if (qrDiv) qrDiv.innerHTML = srcQR.innerHTML;
+            }
+            win.focus();
+            setTimeout(() => win.print(), 300);
+        }, 200);
+    };
+
+    const canGenerate = nf.length >= 3 && cnpj.length >= 11;
+
+    return (
+        <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] pb-20 transition-colors duration-500 font-sans">
+            {/* Background glows */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+                <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-[120px]" />
+                <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-500/5 dark:bg-brand-500/10 rounded-full blur-[120px]" />
+            </div>
+
+            {/* Hero */}
+            <div className="relative pt-12 pb-24 sm:pt-16 sm:pb-32 px-4 text-center overflow-hidden">
+                <div className="max-w-3xl mx-auto relative z-10">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/20 rounded-full text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-8">
+                        <Sparkles className="w-3.5 h-3.5" /> Transparência na Entrega
+                    </div>
+                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tighter mb-4 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-600 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">
+                        Gerar Link de <span className="text-emerald-500 italic font-medium">Rastreio</span>
+                    </h1>
+                    <p className="text-slate-500 dark:text-slate-400 text-base sm:text-lg max-w-xl mx-auto leading-relaxed font-medium opacity-80">
+                        Informe o número da NF e envie o QR Code ou link direto para o seu cliente acompanhar a entrega.
+                    </p>
+                </div>
+            </div>
+
+            <main className="max-w-2xl mx-auto px-4 -mt-16 sm:-mt-24 relative z-20 space-y-6">
+                {/* Formulário */}
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] dark:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)] border border-white dark:border-white/5 p-8 sm:p-10 space-y-6">
+                    {/* Tipo */}
+                    <div className="flex bg-slate-100/50 dark:bg-slate-950/50 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-inner">
+                        {(['notaFiscal', 'cte'] as const).map(t => (
+                            <button key={t} type="button" onClick={() => setNumType(t)}
+                                className={`flex-1 py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${numType === t ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xl ring-1 ring-black/5 dark:ring-white/5 scale-[1.02]' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>
+                                {t === 'notaFiscal' ? 'Nota Fiscal' : 'CT-e'}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* NF Input */}
+                    <div className="relative group">
+                        <FileText className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />
+                        <input
+                            type="text" value={nf} onChange={e => setNf(e.target.value)}
+                            placeholder={numType === 'notaFiscal' ? 'Número da Nota Fiscal...' : 'Número do CT-e...'}
+                            className="w-full pl-14 pr-6 py-5 bg-slate-50 dark:bg-slate-950 border-2 border-transparent dark:border-slate-800/50 rounded-2xl focus:border-emerald-500/40 focus:bg-white dark:focus:bg-slate-900 focus:ring-[12px] focus:ring-emerald-500/5 transition-all outline-none text-lg font-bold dark:text-white dark:placeholder-slate-700 shadow-sm"
+                        />
+                    </div>
+
+                    {/* CNPJ detectado */}
+                    {cnpj && (
+                        <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800/40 animate-in fade-in duration-300">
+                            <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                Filial detectada automaticamente · CNPJ: {cnpj}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* CNPJ manual se não detectado */}
+                    {nf && !cnpj && (
+                        <div className="relative group">
+                            <input
+                                type="text" value={cnpj} onChange={e => setCnpj(e.target.value)}
+                                placeholder="CNPJ da filial remetente (não detectado automaticamente)"
+                                className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-950 border-2 border-amber-300/60 rounded-2xl focus:border-amber-400 transition-all outline-none text-sm font-bold dark:text-white dark:placeholder-slate-700"
+                            />
+                        </div>
+                    )}
+
+                    {/* Mensagem personalizada */}
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Mensagem personalizada (opcional)</label>
+                        <textarea
+                            value={customMsg}
+                            onChange={e => setCustomMsg(e.target.value)}
+                            placeholder="Ex: Olá! Segue o link para acompanhar sua encomenda. Qualquer dúvida, entre em contato."
+                            rows={2}
+                            className="w-full px-5 py-3 bg-slate-50 dark:bg-slate-950 border-2 border-transparent dark:border-slate-800/50 rounded-2xl focus:border-emerald-500/40 transition-all outline-none text-sm font-medium dark:text-white dark:placeholder-slate-700 resize-none"
+                        />
+                    </div>
+
+                    {/* Botão gerar link curto */}
+                    <button
+                        onClick={gerarLinkCurto}
+                        disabled={!canGenerate || loadingShort}
+                        className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] transition-all bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white shadow-xl shadow-emerald-500/20 active:scale-[0.97]"
+                    >
+                        {loadingShort ? <Loader2 className="w-5 h-5 animate-spin" /> : <Link2 className="w-5 h-5" />}
+                        {loadingShort ? 'Gerando link curto...' : shortUrl ? 'Gerar novo link curto' : 'Gerar Link de Rastreio'}
+                    </button>
+                </div>
+
+                {/* Card de resultado */}
+                {canGenerate && (
+                    <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 rounded-[2.5rem] border border-white/10 shadow-2xl p-8 animate-in fade-in slide-in-from-bottom-8 duration-500">
+                        <div className="absolute -top-12 -right-12 w-48 h-48 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+                        <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                        <div className="relative z-10 flex flex-col sm:flex-row items-center gap-8">
+                            {/* QR Code com id para impressão */}
+                            <div id="qr-print-source" className="shrink-0 p-4 bg-white rounded-3xl shadow-2xl ring-4 ring-white/10">
+                                <QRCodeSVG value={trackingUrl} size={160} level="M" marginSize={1} />
+                            </div>
+
+                            <div className="flex-1 w-full space-y-4 text-center sm:text-left">
+                                {/* Header */}
+                                <div className="flex items-center justify-center sm:justify-start gap-3">
+                                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                                        <QrCode className="w-5 h-5 text-emerald-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-black text-white">Link de Rastreio</h3>
+                                        <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">NF: {nf}</p>
+                                    </div>
+                                </div>
+
+                                {/* URL */}
+                                <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                                    <span className="flex-1 text-xs font-mono text-slate-300 truncate">{linkFinal || trackingUrl}</span>
+                                </div>
+
+                                {shortUrl && (
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl w-fit mx-auto sm:mx-0">
+                                        <Sparkles className="w-3 h-3 text-emerald-400" />
+                                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Link curto ativo</span>
+                                    </div>
+                                )}
+
+                                {/* Botões de ação */}
+                                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                                    {/* Copiar */}
+                                    <button onClick={handleCopy}
+                                        className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border active:scale-95 ${copied ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' : 'bg-white/10 border-white/20 text-white hover:bg-white/20'}`}>
+                                        {copied ? <><Check className="w-3.5 h-3.5" /> Copiado!</> : <><Copy className="w-3.5 h-3.5" /> Copiar Link</>}
+                                    </button>
+
+                                    {/* WhatsApp */}
+                                    <a href={`https://wa.me/?text=${encodeURIComponent(whatsappMsg)}`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-[#25D366]/20 border border-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/30 transition-all active:scale-95">
+                                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                        WhatsApp
+                                    </a>
+
+                                    {/* Imprimir QR */}
+                                    <button onClick={handlePrint}
+                                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-white/10 border border-white/20 text-slate-300 hover:bg-white/20 transition-all active:scale-95">
+                                        <Printer className="w-3.5 h-3.5" /> Imprimir QR
+                                    </button>
+
+                                    {/* Abrir */}
+                                    <a href={trackingUrl} target="_blank" rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-white/10 border border-white/20 text-slate-300 hover:bg-white/20 transition-all active:scale-95">
+                                        <ExternalLink className="w-3.5 h-3.5" /> Testar
+                                    </a>
+                                </div>
+
+                                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                                    O cliente clica e já vê o rastreio da NF {nf} em tempo real, sem precisar digitar nada.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </main>
+        </div>
+    );
+}
 
 const CNPJ_BY_STATE: Record<string, { cnpj: string; label: string }> = {
     SC: { cnpj: '05502390000200', label: 'SC' },
@@ -54,6 +322,9 @@ export const Tracking: React.FC<TrackingProps> = ({
     initialNumType,
     initialDocType,
 }) => {
+    const [activeView, setActiveView] = useState<'rastrear' | 'gerar_link'>(
+        initialNF ? 'rastrear' : 'rastrear'
+    );
     const [document, setDocument] = useState(initialCNPJ || '');
     const [docType, setDocType] = useState<'remetente' | 'destinatario'>(initialDocType || 'remetente');
     const [number, setNumber] = useState(initialNF || '');
@@ -143,8 +414,41 @@ export const Tracking: React.FC<TrackingProps> = ({
 
     const cargoMoved = result ? hasCargoMoved(result.eventosRastreio) : null;
 
+    if (activeView === 'gerar_link') {
+        return (
+            <>
+                {/* Tabs fixas */}
+                <div className="sticky top-0 z-30 flex justify-center pt-4 pb-2 bg-[#f8fafc]/80 dark:bg-[#020617]/80 backdrop-blur-md">
+                    <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl shadow-sm">
+                        <button onClick={() => setActiveView('rastrear')}
+                            className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                            <Search className="w-4 h-4" /> Rastrear
+                        </button>
+                        <button onClick={() => setActiveView('gerar_link')}
+                            className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm">
+                            <Link2 className="w-4 h-4" /> Gerar Link
+                        </button>
+                    </div>
+                </div>
+                <GerarLink />
+            </>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] pb-20 transition-colors duration-500 font-sans selection:bg-brand-500/30 selection:text-brand-900">
+            {/* Tabs */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex gap-1 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md p-1 rounded-2xl shadow-sm">
+                <button onClick={() => setActiveView('rastrear')}
+                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm">
+                    <Search className="w-4 h-4" /> Rastrear
+                </button>
+                <button onClick={() => setActiveView('gerar_link')}
+                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                    <Link2 className="w-4 h-4" /> Gerar Link
+                </button>
+            </div>
+
             {/* Background decorative elements */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-500/5 dark:bg-brand-500/10 rounded-full blur-[120px]"></div>
