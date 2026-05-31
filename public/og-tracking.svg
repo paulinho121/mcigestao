@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#020617"/>
+      <stop offset="100%" style="stop-color:#0f172a"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0ea5e9"/>
+      <stop offset="100%" style="stop-color:#10b981"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Glow effects -->
+  <circle cx="200" cy="150" r="300" fill="#0ea5e9" opacity="0.04"/>
+  <circle cx="1000" cy="480" r="250" fill="#10b981" opacity="0.04"/>
+
+  <!-- Top accent line -->
+  <rect x="0" y="0" width="1200" height="4" fill="url(#accent)"/>
+
+  <!-- Logo box -->
+  <rect x="80" y="180" width="100" height="100" rx="24" fill="#1d4ed8"/>
+  <text x="130" y="248" font-size="52" text-anchor="middle" font-family="Arial">🚚</text>
+
+  <!-- Brand name -->
+  <text x="200" y="218" font-family="-apple-system,BlinkMacSystemFont,Arial,sans-serif" font-size="18" font-weight="800" fill="#64748b" letter-spacing="4">MCI ESTOQUE</text>
+
+  <!-- Main title -->
+  <text x="80" y="360" font-family="-apple-system,BlinkMacSystemFont,Arial,sans-serif" font-size="64" font-weight="900" fill="#ffffff" letter-spacing="-2">Rastreamento</text>
+  <text x="80" y="440" font-family="-apple-system,BlinkMacSystemFont,Arial,sans-serif" font-size="64" font-weight="900" fill="url(#accent)" letter-spacing="-2">de Mercadoria</text>
+
+  <!-- Description -->
+  <text x="80" y="510" font-family="-apple-system,BlinkMacSystemFont,Arial,sans-serif" font-size="24" fill="#64748b">Acompanhe sua entrega em tempo real • Powered by JAMEF</text>
+
+  <!-- Right side - truck icon area -->
+  <rect x="820" y="140" width="300" height="300" rx="40" fill="#0f172a" stroke="#1e293b" stroke-width="2"/>
+  <text x="970" y="330" font-size="140" text-anchor="middle" font-family="Arial">📦</text>
+
+  <!-- Status badges -->
+  <rect x="840" y="460" width="130" height="36" rx="18" fill="#10b98120"/>
+  <text x="905" y="484" font-family="Arial,sans-serif" font-size="13" font-weight="800" fill="#10b981" text-anchor="middle" letter-spacing="1">● LIVE</text>
+
+  <rect x="990" y="460" width="130" height="36" rx="18" fill="#0ea5e920"/>
+  <text x="1055" y="484" font-family="Arial,sans-serif" font-size="13" font-weight="800" fill="#0ea5e9" text-anchor="middle" letter-spacing="1">JAMEF API</text>
+
+  <!-- Bottom URL -->
+  <text x="80" y="590" font-family="monospace,Arial" font-size="18" fill="#334155">estoquemci.vercel.app</text>
+</svg>

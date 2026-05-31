@@ -38,7 +38,7 @@
         },
         {
             "source": "/nf/:nf",
-            "destination": "/index.html"
+            "destination": "/api/nf/:nf"
         },
         {
             "source": "/((?!api|assets|nf).*)",
