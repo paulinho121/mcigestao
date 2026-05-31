@@ -35,6 +35,14 @@
         {
             "source": "/api/focus-nfe/:path*",
             "destination": "https://api.focusnfe.com.br/:path*"
+        },
+        {
+            "source": "/nf/:nf",
+            "destination": "/index.html"
+        },
+        {
+            "source": "/((?!api|assets|nf).*)",
+            "destination": "/index.html"
         }
     ]
 }

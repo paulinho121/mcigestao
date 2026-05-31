@@ -9,15 +9,33 @@ import { ThemeProvider } from './context/ThemeContext';
 import { HubCompany, clearHubCompanyCache } from './services/hubService';
 import { supabase } from './lib/supabase';
 
+// Auto-detecta CNPJ pelo prefixo da NF
+function cnpjFromNF(nf: string): string {
+    if (nf.startsWith('562') || nf.startsWith('56')) return '05502390000200'; // SC
+    if (nf.startsWith('22')) return '05502390000383'; // SP
+    if (nf.startsWith('10')) return '05502390000111'; // CE
+    return '05502390000200'; // fallback SC
+}
+
 export const AppRouter = () => {
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [sharedProductId, setSharedProductId] = useState<string | null>(null);
     const [isPublicTracking, setIsPublicTracking] = useState(false);
+    const [nfShortRoute, setNfShortRoute] = useState<string | null>(null); // /nf/:numero
     const [trackingParams, setTrackingParams] = useState<{
         nf?: string; cnpj?: string; numType?: 'notaFiscal' | 'cte'; docType?: 'remetente' | 'destinatario';
     }>({});
     const [isHubRoute, setIsHubRoute] = useState(false);
     const [hubCompany, setHubCompany] = useState<HubCompany | null>(null);
+
+    useEffect(() => {
+        // Detecta rota limpa /nf/:numero (URL do tipo estoquemci.vercel.app/nf/562011)
+        const path = window.location.pathname;
+        if (path.startsWith('/nf/')) {
+            const nf = path.replace('/nf/', '').split('/')[0].split('?')[0].trim();
+            if (nf) { setNfShortRoute(nf); return; }
+        }
+    }, []);
 
     useEffect(() => {
         // Check if we're on the confirmation route or share route
@@ -74,6 +92,23 @@ export const AppRouter = () => {
         setHubCompany(null);
         window.location.hash = '#/hub';
     };
+
+    // ── ROTA LIMPA /nf/:numero ─────────────────────────────────────────────────
+    if (nfShortRoute) {
+        const cnpjDetected = cnpjFromNF(nfShortRoute);
+        return (
+            <ThemeProvider>
+                <div className="min-h-screen overflow-auto">
+                    <Tracking
+                        initialNF={nfShortRoute}
+                        initialCNPJ={cnpjDetected}
+                        initialNumType="notaFiscal"
+                        initialDocType="remetente"
+                    />
+                </div>
+            </ThemeProvider>
+        );
+    }
 
     if (showConfirmation) {
         return (

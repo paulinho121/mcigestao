@@ -17,8 +17,7 @@ import {
     Warehouse,
     Link2,
     Printer,
-    Sparkles,
-    Loader2
+    Sparkles
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { jamefService, JamefTrackingItem } from '../services/jamefService';
@@ -30,10 +29,11 @@ function GerarLink() {
     const [cnpj, setCnpj] = useState('');
     const [numType, setNumType] = useState<'notaFiscal' | 'cte'>('notaFiscal');
     const [copied, setCopied] = useState(false);
-    const [shortUrl, setShortUrl] = useState('');
-    const [loadingShort, setLoadingShort] = useState(false);
     const [customMsg, setCustomMsg] = useState('');
 
+    // URL limpa: estoquemci.vercel.app/nf/562011
+    const cleanUrl = nf ? `${window.location.origin}/nf/${encodeURIComponent(nf)}` : '';
+    // URL completa (fallback para uso interno)
     const trackingUrl = nf && cnpj
         ? `${window.location.origin}${window.location.pathname}#/tracking?nf=${encodeURIComponent(nf)}&cnpj=${encodeURIComponent(cnpj)}&numType=${numType}&docType=remetente`
         : '';
@@ -46,22 +46,8 @@ function GerarLink() {
         else if (nf.startsWith('10')) setCnpj('05502390000111');
     }, [nf]);
 
-    // Gera link curto via TinyURL
-    const gerarLinkCurto = async () => {
-        if (!trackingUrl) return;
-        setLoadingShort(true);
-        setShortUrl('');
-        try {
-            const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(trackingUrl)}`);
-            if (res.ok) {
-                const url = await res.text();
-                if (url.startsWith('http')) setShortUrl(url.trim());
-            }
-        } catch { /* usa URL completa */ }
-        setLoadingShort(false);
-    };
-
-    const linkFinal = shortUrl || trackingUrl;
+    // Link final é sempre a URL limpa
+    const linkFinal = cleanUrl;
 
     const handleCopy = async () => {
         await navigator.clipboard.writeText(linkFinal);
@@ -198,15 +184,13 @@ function GerarLink() {
                         />
                     </div>
 
-                    {/* Botão gerar link curto */}
-                    <button
-                        onClick={gerarLinkCurto}
-                        disabled={!canGenerate || loadingShort}
-                        className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] transition-all bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white shadow-xl shadow-emerald-500/20 active:scale-[0.97]"
-                    >
-                        {loadingShort ? <Loader2 className="w-5 h-5 animate-spin" /> : <Link2 className="w-5 h-5" />}
-                        {loadingShort ? 'Gerando link curto...' : shortUrl ? 'Gerar novo link curto' : 'Gerar Link de Rastreio'}
-                    </button>
+                    {/* Preview do link gerado */}
+                    {canGenerate && (
+                        <div className="flex items-center gap-3 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl animate-in fade-in duration-300">
+                            <Link2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400 truncate">{linkFinal}</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Card de resultado */}
@@ -239,12 +223,10 @@ function GerarLink() {
                                     <span className="flex-1 text-xs font-mono text-slate-300 truncate">{linkFinal || trackingUrl}</span>
                                 </div>
 
-                                {shortUrl && (
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl w-fit mx-auto sm:mx-0">
-                                        <Sparkles className="w-3 h-3 text-emerald-400" />
-                                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Link curto ativo</span>
-                                    </div>
-                                )}
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl w-fit mx-auto sm:mx-0">
+                                    <Sparkles className="w-3 h-3 text-emerald-400" />
+                                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Link próprio · sem redirect</span>
+                                </div>
 
                                 {/* Botões de ação */}
                                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
@@ -269,7 +251,7 @@ function GerarLink() {
                                     </button>
 
                                     {/* Abrir */}
-                                    <a href={trackingUrl} target="_blank" rel="noopener noreferrer"
+                                    <a href={cleanUrl} target="_blank" rel="noopener noreferrer"
                                         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-white/10 border border-white/20 text-slate-300 hover:bg-white/20 transition-all active:scale-95">
                                         <ExternalLink className="w-3.5 h-3.5" /> Testar
                                     </a>
