@@ -6,7 +6,6 @@ import {
     MapPin,
     Calendar,
     Clock,
-    ArrowRight,
     FileText,
     ExternalLink,
     Info,
@@ -326,9 +325,9 @@ export const Tracking: React.FC<TrackingProps> = ({
         initialNF ? 'rastrear' : 'rastrear'
     );
     const [document, setDocument] = useState(initialCNPJ || '');
-    const [docType, setDocType] = useState<'remetente' | 'destinatario'>(initialDocType || 'remetente');
+    const docType: 'remetente' | 'destinatario' = initialDocType || 'remetente';
     const [number, setNumber] = useState(initialNF || '');
-    const [numType, setNumType] = useState<'notaFiscal' | 'cte'>(initialNumType || 'notaFiscal');
+    const numType: 'notaFiscal' | 'cte' = initialNumType || 'notaFiscal';
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<JamefTrackingItem | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -470,156 +469,72 @@ export const Tracking: React.FC<TrackingProps> = ({
                         Rastreamento <span className="text-brand-500 italic font-medium tracking-tight">JAMEF</span>
                     </h1>
 
-                    <p className="text-slate-500 dark:text-slate-400 text-base sm:text-lg md:text-xl max-w-2xl mx-auto leading-relaxed px-4 font-medium opacity-80">
-                        Sua mercadoria monitorada por inteligência logística. Insira seus dados abaixo para visualização completa do fluxo.
+                    <p className="text-slate-500 dark:text-slate-400 text-base sm:text-lg max-w-xl mx-auto leading-relaxed px-4 font-medium opacity-80">
+                        Digite o número da NF para rastrear ou gerar um link de acompanhamento para o cliente.
                     </p>
                 </div>
             </div>
 
             {/* Main Content Area */}
-            <main className="max-w-4xl mx-auto px-4 -mt-16 sm:-mt-24 relative z-20">
-                {/* Search Glass Card */}
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] dark:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)] border border-white dark:border-white/5 p-8 sm:p-12 transition-all duration-500 group hover:border-brand-500/20">
-                    <form onSubmit={handleSearch} className="space-y-10">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 sm:gap-16">
-                            {/* Column 1: Identification */}
-                            <div className="flex flex-col h-full">
-                                <div className="space-y-6">
-                                    <div className="flex items-center justify-between h-6">
-                                        <label className="flex items-center gap-2.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">
-                                            <FileText className="w-4 h-4 text-brand-500" />
-                                            Identificação
-                                        </label>
-                                    </div>
+            <main className="max-w-2xl mx-auto px-4 -mt-16 sm:-mt-24 relative z-20">
+                {/* Search Card — campo único */}
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] dark:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)] border border-white dark:border-white/5 p-8 sm:p-10 space-y-5">
+                    {/* Badge live */}
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">Número da Nota Fiscal</span>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase tracking-[0.2em] border border-emerald-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            LIVE PROD
+                        </div>
+                    </div>
 
-                                    <div className="flex bg-slate-100/50 dark:bg-slate-950/50 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-inner">
-                                        {(['remetente', 'destinatario'] as const).map((type) => (
-                                            <button
-                                                key={type}
-                                                type="button"
-                                                onClick={() => setDocType(type)}
-                                                className={`flex-1 py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-500 ${docType === type
-                                                    ? 'bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-xl shadow-black/5 ring-1 ring-black/5 dark:ring-white/5 scale-[1.02]'
-                                                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                                                    }`}
-                                            >
-                                                {type}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    {/* Symmetrical Helper Row */}
-                                    <div className="flex items-center h-8">
-                                        <div className="flex gap-2">
-                                            {[
-                                                { label: 'SC', value: CNPJ_BY_STATE.SC.cnpj },
-                                                { label: 'SP', value: CNPJ_BY_STATE.SP.cnpj },
-                                                { label: 'CE', value: CNPJ_BY_STATE.CE.cnpj }
-                                            ].map((cnpj) => (
-                                                <button
-                                                    key={cnpj.value}
-                                                    type="button"
-                                                    onClick={() => setDocument(cnpj.value)}
-                                                    className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all border ${document === cnpj.value
-                                                        ? 'bg-brand-500 text-white border-brand-500 shadow-lg shadow-brand-500/20'
-                                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-400 hover:border-brand-500/50 hover:text-brand-500'
-                                                        }`}
-                                                >
-                                                    {cnpj.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="relative group">
-                                        <input
-                                            type="text"
-                                            value={document}
-                                            onChange={(e) => setDocument(e.target.value)}
-                                            placeholder="CNPJ ou CPF"
-                                            className="w-full pl-6 pr-12 py-5 bg-slate-50 dark:bg-slate-950 border-2 border-transparent dark:border-slate-800/50 rounded-2xl focus:border-brand-500/30 focus:bg-white dark:focus:bg-slate-900 focus:ring-[12px] focus:ring-brand-500/5 transition-all outline-none text-sm font-bold dark:text-white dark:placeholder-slate-700 shadow-sm"
-                                        />
-                                        <div className="absolute inset-y-0 right-0 pr-6 flex items-center pointer-events-none text-slate-300 dark:text-slate-700 group-focus-within:text-brand-500 transition-colors">
-                                            <Info className="w-5 h-5" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Column 2: Documentation */}
-                            <div className="flex flex-col h-full">
-                                <div className="space-y-6">
-                                    <div className="flex items-center justify-between h-6">
-                                        <label className="flex items-center gap-2.5 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">
-                                            <Search className="w-4 h-4 text-brand-500" />
-                                            Documentação
-                                        </label>
-                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase tracking-[0.2em] border border-emerald-500/20">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                            LIVE PROD
-                                        </div>
-                                    </div>
-
-                                    <div className="flex bg-slate-100/50 dark:bg-slate-950/50 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-inner">
-                                        {(['notaFiscal', 'cte'] as const).map((type) => (
-                                            <button
-                                                key={type}
-                                                type="button"
-                                                onClick={() => setNumType(type)}
-                                                className={`flex-1 py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-500 ${numType === type
-                                                    ? 'bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-xl shadow-black/5 ring-1 ring-black/5 dark:ring-white/5 scale-[1.02]'
-                                                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                                                    }`}
-                                            >
-                                                {type === 'notaFiscal' ? 'Nota Fiscal' : 'CT-e'}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    {/* Symmetrical Helper Row (Matching Height) */}
-                                    <div className="flex items-center h-8">
-                                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-60">
-                                            Insira o número identificador
-                                        </span>
-                                    </div>
-
-                                    <div className="relative group">
-                                        <input
-                                            type="text"
-                                            value={number}
-                                            onChange={(e) => handleNumberChange(e.target.value)}
-                                            placeholder={numType === 'notaFiscal' ? 'Número da Nota' : 'Número do CT-e'}
-                                            className="w-full pl-6 pr-12 py-5 bg-slate-50 dark:bg-slate-950 border-2 border-transparent dark:border-slate-800/50 rounded-2xl focus:border-brand-500/30 focus:bg-white dark:focus:bg-slate-900 focus:ring-[12px] focus:ring-brand-500/5 transition-all outline-none text-sm font-bold dark:text-white dark:placeholder-slate-700 shadow-sm"
-                                        />
-                                        <div className="absolute inset-y-0 right-0 pr-6 flex items-center pointer-events-none text-slate-300 dark:text-slate-700 group-focus-within:text-brand-500 transition-colors">
-                                            <Package className="w-5 h-5" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                    {/* Input principal */}
+                    <form onSubmit={handleSearch}>
+                        <div className="relative group mb-4">
+                            <Package className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-300 dark:text-slate-600 group-focus-within:text-brand-500 transition-colors" />
+                            <input
+                                type="text"
+                                value={number}
+                                onChange={(e) => handleNumberChange(e.target.value)}
+                                placeholder="Digite o número da NF ou CT-e..."
+                                autoFocus
+                                className="w-full pl-16 pr-6 py-6 bg-slate-50 dark:bg-slate-950 border-2 border-transparent dark:border-slate-800/50 rounded-2xl focus:border-brand-500/40 focus:bg-white dark:focus:bg-slate-900 focus:ring-[12px] focus:ring-brand-500/5 transition-all outline-none text-xl font-bold dark:text-white dark:placeholder-slate-700 shadow-sm tracking-tight"
+                            />
                         </div>
 
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className={`group relative w-full py-5 rounded-2xl font-black text-base sm:text-lg uppercase tracking-[0.3em] transition-all duration-500 flex items-center justify-center gap-4 overflow-hidden active:scale-[0.97] ${loading
-                                ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                                : 'bg-brand-600 hover:bg-brand-500 text-white shadow-xl'
-                                }`}
-                        >
-                            <div className="absolute inset-0 w-1/4 h-full bg-white/10 -skew-x-[45deg] translate-x-[-200%] group-hover:translate-x-[400%] transition-transform duration-1000 ease-in-out"></div>
-                            {loading ? (
-                                <>
-                                    <div className="w-5 h-5 border-[3px] border-slate-300 border-t-brand-500 rounded-full animate-spin"></div>
-                                    <span>Syncing...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <span>Buscar Mercadoria</span>
-                                    <ArrowRight className="w-6 h-6 transition-transform group-hover:translate-x-1" />
-                                </>
-                            )}
-                        </button>
+                        {/* Filial detectada */}
+                        {document && (
+                            <div className="flex items-center gap-2 px-4 py-2 mb-4 bg-brand-50 dark:bg-brand-900/20 rounded-xl border border-brand-200/50 dark:border-brand-800/30 animate-in fade-in duration-300">
+                                <span className="w-2 h-2 rounded-full bg-brand-500 shrink-0" />
+                                <span className="text-xs font-bold text-brand-700 dark:text-brand-400">
+                                    Filial detectada automaticamente · CNPJ {document}
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Dois botões */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="submit"
+                                disabled={loading || !number.trim()}
+                                className="group relative flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] transition-all duration-300 overflow-hidden active:scale-[0.97] bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-xl shadow-brand-500/20"
+                            >
+                                <div className="absolute inset-0 w-1/3 h-full bg-white/10 -skew-x-[45deg] translate-x-[-200%] group-hover:translate-x-[400%] transition-transform duration-700" />
+                                {loading
+                                    ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /><span>Buscando...</span></>
+                                    : <><Search className="w-4 h-4" /><span>Rastrear</span></>
+                                }
+                            </button>
+
+                            <button
+                                type="button"
+                                disabled={!number.trim()}
+                                onClick={() => setActiveView('gerar_link')}
+                                className="group flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] transition-all duration-300 active:scale-[0.97] bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-xl shadow-emerald-500/20"
+                            >
+                                <Link2 className="w-4 h-4" /><span>Criar Link</span>
+                            </button>
+                        </div>
                     </form>
 
                     {error && (
