@@ -93,19 +93,18 @@ export const AppRouter = () => {
         window.location.hash = '#/hub';
     };
 
-    // ── ROTA LIMPA /nf/:numero ─────────────────────────────────────────────────
+    // ── ROTA LIMPA /nf/:numero — vista pública sem app shell ──────────────────
     if (nfShortRoute) {
         const cnpjDetected = cnpjFromNF(nfShortRoute);
         return (
             <ThemeProvider>
-                <div className="min-h-screen overflow-auto">
-                    <Tracking
-                        initialNF={nfShortRoute}
-                        initialCNPJ={cnpjDetected}
-                        initialNumType="notaFiscal"
-                        initialDocType="remetente"
-                    />
-                </div>
+                <Tracking
+                    initialNF={nfShortRoute}
+                    initialCNPJ={cnpjDetected}
+                    initialNumType="notaFiscal"
+                    initialDocType="remetente"
+                    isPublic
+                />
             </ThemeProvider>
         );
     }

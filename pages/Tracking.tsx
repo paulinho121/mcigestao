@@ -295,6 +295,7 @@ interface TrackingProps {
     initialCNPJ?: string;
     initialNumType?: 'notaFiscal' | 'cte';
     initialDocType?: 'remetente' | 'destinatario';
+    isPublic?: boolean; // quando true: vista limpa para o cliente final
 }
 
 export const Tracking: React.FC<TrackingProps> = ({
@@ -302,10 +303,9 @@ export const Tracking: React.FC<TrackingProps> = ({
     initialCNPJ,
     initialNumType,
     initialDocType,
+    isPublic = false,
 }) => {
-    const [activeView, setActiveView] = useState<'rastrear' | 'gerar_link'>(
-        initialNF ? 'rastrear' : 'rastrear'
-    );
+    const [activeView, setActiveView] = useState<'rastrear' | 'gerar_link'>('rastrear');
     const [document, setDocument] = useState(initialCNPJ || '');
     const docType: 'remetente' | 'destinatario' = initialDocType || 'remetente';
     const [number, setNumber] = useState(initialNF || '');
@@ -374,10 +374,11 @@ export const Tracking: React.FC<TrackingProps> = ({
     };
 
     const trackingUrl = `${window.location.origin}${window.location.pathname}#/tracking?nf=${encodeURIComponent(number)}&cnpj=${encodeURIComponent(document)}&numType=${numType}&docType=${docType}`;
+    const cleanShareUrl = number ? `${window.location.origin}/nf/${encodeURIComponent(number)}` : trackingUrl;
 
     const copyLink = async () => {
         try {
-            await navigator.clipboard.writeText(trackingUrl);
+            await navigator.clipboard.writeText(cleanShareUrl);
             setLinkCopied(true);
             setTimeout(() => setLinkCopied(false), 2000);
         } catch {
@@ -398,19 +399,20 @@ export const Tracking: React.FC<TrackingProps> = ({
     if (activeView === 'gerar_link') {
         return (
             <>
-                {/* Tabs fixas */}
-                <div className="sticky top-0 z-30 flex justify-center pt-4 pb-2 bg-[#f8fafc]/80 dark:bg-[#020617]/80 backdrop-blur-md">
-                    <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl shadow-sm">
-                        <button onClick={() => setActiveView('rastrear')}
-                            className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
-                            <Search className="w-4 h-4" /> Rastrear
-                        </button>
-                        <button onClick={() => setActiveView('gerar_link')}
-                            className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm">
-                            <Link2 className="w-4 h-4" /> Gerar Link
-                        </button>
+                {!isPublic && (
+                    <div className="sticky top-0 z-30 flex justify-center pt-4 pb-2 bg-[#f8fafc]/80 dark:bg-[#020617]/80 backdrop-blur-md">
+                        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl shadow-sm">
+                            <button onClick={() => setActiveView('rastrear')}
+                                className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                                <Search className="w-4 h-4" /> Rastrear
+                            </button>
+                            <button onClick={() => setActiveView('gerar_link')}
+                                className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm">
+                                <Link2 className="w-4 h-4" /> Gerar Link
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
                 <GerarLink />
             </>
         );
@@ -418,17 +420,19 @@ export const Tracking: React.FC<TrackingProps> = ({
 
     return (
         <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] pb-20 transition-colors duration-500 font-sans selection:bg-brand-500/30 selection:text-brand-900">
-            {/* Tabs */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex gap-1 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md p-1 rounded-2xl shadow-sm">
-                <button onClick={() => setActiveView('rastrear')}
-                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm">
-                    <Search className="w-4 h-4" /> Rastrear
-                </button>
-                <button onClick={() => setActiveView('gerar_link')}
-                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
-                    <Link2 className="w-4 h-4" /> Gerar Link
-                </button>
-            </div>
+            {/* Tabs — só para usuários internos */}
+            {!isPublic && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex gap-1 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md p-1 rounded-2xl shadow-sm">
+                    <button onClick={() => setActiveView('rastrear')}
+                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm">
+                        <Search className="w-4 h-4" /> Rastrear
+                    </button>
+                    <button onClick={() => setActiveView('gerar_link')}
+                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                        <Link2 className="w-4 h-4" /> Gerar Link
+                    </button>
+                </div>
+            )}
 
             {/* Background decorative elements */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
@@ -604,16 +608,16 @@ export const Tracking: React.FC<TrackingProps> = ({
                         </div>
 
                         {/* Share Card */}
-                        {number && document && (
+                        {number && document && !isPublic && (
                             <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 rounded-[2.5rem] border border-white/10 shadow-2xl p-8 sm:p-10">
                                 {/* Glow accent */}
                                 <div className="absolute -top-10 -right-10 w-48 h-48 bg-brand-500/20 rounded-full blur-3xl pointer-events-none" />
                                 <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
                                 <div className="relative z-10 flex flex-col sm:flex-row items-center gap-8">
-                                    {/* QR Code */}
+                                    {/* QR Code — usa URL limpa /nf/:numero */}
                                     <div className="shrink-0 p-4 bg-white rounded-3xl shadow-2xl ring-4 ring-white/10">
-                                        <QRCodeSVG value={trackingUrl} size={148} level="M" marginSize={1} />
+                                        <QRCodeSVG value={`${window.location.origin}/nf/${encodeURIComponent(number)}`} size={148} level="M" marginSize={1} />
                                     </div>
 
                                     {/* Info + actions */}
@@ -629,11 +633,11 @@ export const Tracking: React.FC<TrackingProps> = ({
                                             </div>
                                         </div>
 
-                                        {/* URL preview box */}
+                                        {/* URL preview box — URL limpa */}
                                         <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 group">
                                             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
                                             <span className="flex-1 text-xs font-mono text-slate-300 truncate select-all">
-                                                {trackingUrl}
+                                                {`${window.location.origin}/nf/${number}`}
                                             </span>
                                         </div>
 
@@ -655,9 +659,9 @@ export const Tracking: React.FC<TrackingProps> = ({
                                                 }
                                             </button>
 
-                                            {/* WhatsApp */}
+                                            {/* WhatsApp — URL limpa */}
                                             <a
-                                                href={`https://wa.me/?text=${encodeURIComponent(`🚚 *Rastreio da sua mercadoria*\n\nNF: ${number}\nAcompanhe em tempo real:\n${trackingUrl}`)}`}
+                                                href={`https://wa.me/?text=${encodeURIComponent(`🚚 *Rastreio da sua mercadoria*\n\nNF: ${number}\nAcompanhe em tempo real:\n${cleanShareUrl}`)}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="inline-flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-[#25D366]/20 border border-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/30 hover:border-[#25D366]/60 transition-all active:scale-95"
@@ -666,9 +670,9 @@ export const Tracking: React.FC<TrackingProps> = ({
                                                 WhatsApp
                                             </a>
 
-                                            {/* Abrir link */}
+                                            {/* Abrir link limpo */}
                                             <a
-                                                href={trackingUrl}
+                                                href={cleanShareUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="inline-flex items-center gap-2.5 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-white/10 border border-white/20 text-slate-300 hover:bg-white/20 transition-all active:scale-95"
