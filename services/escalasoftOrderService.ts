@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 
-const SC_API_BASE = '/api/escalasoft'; // WMS + OMS — tudo em 170.82.192.22:9999
+const SC_API_BASE = '/api/escalasoft';           // WMS interno (170.82.192.22:9999)
+const SC_OMS_BASE = '/api/escalasoft-oms';        // API pública (api.escalasoft.com.br)
 const CNPJ_CD = '05502390000200';
 
 export type OrderStatus = 'enviado' | 'confirmado' | 'em_separacao' | 'em_transito' | 'entregue' | 'cancelado';
@@ -68,7 +69,6 @@ export const escalasoftOrderService = {
         cliente_cpf: string;
         produtos: OrderProduct[];
         observacao?: string;
-        // Dados de endereço (obrigatórios pela API Escalasoft)
         cep?: number;
         uf?: string;
         municipio?: string;
@@ -82,92 +82,107 @@ export const escalasoftOrderService = {
         const dataFormatada = `${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
         const valorTotal = params.produtos.reduce((sum, p) => sum + p.valor_total, 0);
 
-        // cnpjcpf deve ser NUMBER conforme schema da API
-        const cnpjNumero = parseInt(params.cliente_cpf.replace(/\D/g, '') || '0', 10);
+        // CNPJ da filial e do cliente como numbers
+        const filialCnpj = parseInt(CNPJ_CD.replace(/\D/g, ''), 10);
+        const clienteCnpj = parseInt(params.cliente_cpf.replace(/\D/g, '') || '0', 10);
 
-        // Monta produto principal como OBJETO ÚNICO (schema da API não aceita array)
-        const produtoPrincipal = params.produtos[0] ?? {
-            codigo_referencia: '', nome: '', quantidade: 1,
-            valor_unitario: 0, valor_desconto: 0, valor_total: 0, bonificacao: 'N',
-        };
+        // Monta Programacao[] — cada produto vira um item de saída
+        const programacao = params.produtos.map((p, i) => ({
+            Produto: p.codigo_referencia,
+            UnidadeMedida: 'UN',
+            Quantidade: p.quantidade,
+            SequencialPedido: i + 1,
+            PercentualTolerancia: 0,
+            Observacao: p.nome,
+        }));
 
+        // Payload conforme schema WMS - Ordem de Armazenagem (Saída)
         const payload = {
-            tipo: 1,
-            data: dataFormatada,
-            numero_pedido: numeroPedido,
-            numero_controle: numeroPedido,
-            condicao_pagamento: 1,
-            forma_pagamento: 1,
-            conta_tesouraria: 1,
-            cliente: {
-                razao_social: params.cliente_nome,
-                nome_fantasia: params.cliente_nome,
-                tipo: cnpjNumero.toString().length > 11 ? 'J' : 'F',
-                cnpjcpf: cnpjNumero,          // NUMBER obrigatório
-                telefone: '',
-                email: '',
-                ramo_atividade: 1,
-                setor_atividade: 1,
-                observacao: params.observacao || '',
-                inscricao_estadual: 'ISENTO',
-                consumidor_final: 'S',
-                endereco_fiscal: {
-                    cep: params.cep ?? 0,
-                    logradouro: params.logradouro || '',
-                    numero: params.numero_endereco ?? 0,
-                    complemento: '',
-                    pais: 'Brasil',
-                    uf: params.uf || 'SC',
-                    municipio: params.municipio || '',
-                    codigo_municipio: params.codigo_municipio ?? 0,
-                    bairro: params.bairro || '',
-                },
+            Lista: {
+                Ordem: [{
+                    Filial: filialCnpj,
+                    Tipo: 0,
+                    Cliente: clienteCnpj,
+                    NaturezaOperacao: 0,
+                    Solicitante: 0,
+                    Deposito: 0,
+                    Projeto: '',
+                    UnidadeNegocioCliente: 0,
+                    Observacao: params.observacao || '',
+                    Solicitacao: dataFormatada,
+                    Previsao: dataFormatada,
+                    Data: dataFormatada,
+                    NumeroPedido: numeroPedido,
+                    NumeroControle: numeroPedido,
+                    RealizaRetrabalho: 'N',
+                    CompoeRetrabalho: 'N',
+                    NaturezaFiscal: 0,
+                    Saida: {
+                        TipoTransporte: 1,
+                        Transportadora: '',
+                        ClienteFinal: String(clienteCnpj),
+                        NomeClienteFinal: params.cliente_nome,
+                        UF: params.uf || 'SC',
+                        Municipio: params.municipio || '',
+                        OrdemEntrega: 0,
+                        LocalEntrega: {
+                            Cep: params.cep ? String(params.cep) : '',
+                            Pais: 'Brasil',
+                            Estado: params.uf || 'SC',
+                            Municipio: params.codigo_municipio ?? 0,
+                            Bairro: params.bairro || '',
+                            Logradouro: params.logradouro || '',
+                            TipoLogradouro: 'Rua',
+                            Numero: params.numero_endereco ? String(params.numero_endereco) : '0',
+                            Complemento: '',
+                        },
+                        Programacao: programacao,
+                    },
+                }],
             },
-            endereco_entrega: { campo: '' },
-            pagamento: [{ forma_pagamento: 1, vencimento: now.toLocaleDateString('pt-BR'), valor: valorTotal }],
-            valor_frete: 0,
-            // OBJETO ÚNICO conforme schema (não array)
-            produtos: {
-                codigo_referencia: produtoPrincipal.codigo_referencia,
-                nome: produtoPrincipal.nome,
-                quantidade: produtoPrincipal.quantidade,
-                valor_unitario: produtoPrincipal.valor_unitario,
-                valor_desconto: produtoPrincipal.valor_desconto,
-                valor_total: produtoPrincipal.valor_total,
-                bonificacao: produtoPrincipal.bonificacao,
-            },
-            valor_total: valorTotal,
         };
 
         let pedidoIdApi: number | null = null;
         let apiSuccess = false;
         let apiError = '';
 
-        // A API Escalasoft aceita produtos como array ou objeto único.
-        // Tentamos array primeiro; se der 400, tentamos com o primeiro item.
-        try {
-            console.log('[Escalasoft] POST /armazem/ordem/cadastrar payload:', JSON.stringify(payload, null, 2));
-            const res = await fetch(`${SC_API_BASE}/armazem/ordem/cadastrar`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                body: JSON.stringify(payload),
-            });
-            const text = await res.text();
-            console.log(`[Escalasoft] Resposta ${res.status}:`, text);
+        // Tenta API pública primeiro, depois servidor interno
+        const urls = [
+            `${SC_OMS_BASE}/armazem/ordem/cadastrar`,
+            `${SC_API_BASE}/armazem/ordem/cadastrar`,
+        ];
 
-            if (res.ok) {
-                try {
-                    const data = JSON.parse(text);
-                    pedidoIdApi = data.pedido_id ?? null;
-                } catch { /* sem body JSON */ }
-                apiSuccess = true;
-            } else {
-                apiError = `HTTP ${res.status}: ${text.slice(0, 300)}`;
-                console.error('[Escalasoft] Erro:', apiError);
+        for (const url of urls) {
+            try {
+                console.log(`[Escalasoft] POST ${url} payload:`, JSON.stringify(payload, null, 2));
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const text = await res.text();
+                console.log(`[Escalasoft] Resposta ${res.status} de ${url}:`, text);
+
+                if (res.ok) {
+                    try {
+                        const data = JSON.parse(text);
+                        const registro = data.Lista?.[0];
+                        pedidoIdApi = registro?.NumeroOrdem ?? registro?.Registro ?? null;
+                    } catch { /* sem body JSON */ }
+                    apiSuccess = true;
+                    break; // sucesso — não tenta próximo URL
+                } else if (res.status === 401) {
+                    apiError = 'Autenticação necessária (401). Verifique com o suporte Escalasoft.';
+                    break; // 401 = não adianta tentar outro URL
+                } else {
+                    apiError = `HTTP ${res.status}: ${text.slice(0, 300)}`;
+                    console.warn(`[Escalasoft] ${url} falhou, tentando próximo...`);
+                    // continua para tentar próximo URL
+                }
+            } catch (e: any) {
+                apiError = e?.message || 'Conexão recusada';
+                console.warn(`[Escalasoft] ${url} falha de conexão:`, apiError);
             }
-        } catch (e: any) {
-            apiError = e?.message || 'Conexão recusada';
-            console.error('[Escalasoft] Falha na conexão:', apiError);
         }
 
         const newOrder: CDOrder = {
