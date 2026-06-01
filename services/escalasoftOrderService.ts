@@ -147,9 +147,9 @@ export const escalasoftOrderService = {
         let apiError = '';
 
         // Tenta API pública primeiro, depois servidor interno
+        // Apenas servidor interno WMS (onde o estoque funciona)
         const urls = [
             `${SC_API_BASE}/armazem/ordem/cadastrar?cnpj=${CNPJ_CD}`,
-            `${SC_OMS_BASE}/armazem/ordem/cadastrar?cnpj=${CNPJ_CD}`,
         ];
 
         for (const url of urls) {
