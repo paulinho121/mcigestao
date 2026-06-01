@@ -58,7 +58,8 @@ function generateNumeroPedido(): string {
     const now = new Date();
     const date = now.toISOString().slice(0, 10).replace(/-/g, '');
     const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `PED-${date}-${rand}`;
+    // Sem hífens — formato compatível com Escalasoft ex: PED20260601SPWC
+    return `PED${date}${rand}`;
 }
 
 export const escalasoftOrderService = {
@@ -73,6 +74,15 @@ export const escalasoftOrderService = {
         const dataFormatada = `${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
         const valorTotal = params.produtos.reduce((sum, p) => sum + p.valor_total, 0);
 
+        // cnpjcpf deve ser NUMBER conforme schema da API
+        const cnpjNumero = parseInt(params.cliente_cpf.replace(/\D/g, '') || '0', 10);
+
+        // Monta produto principal como OBJETO ÚNICO (schema da API não aceita array)
+        const produtoPrincipal = params.produtos[0] ?? {
+            codigo_referencia: '', nome: '', quantidade: 1,
+            valor_unitario: 0, valor_desconto: 0, valor_total: 0, bonificacao: 'N',
+        };
+
         const payload = {
             tipo: 1,
             data: dataFormatada,
@@ -84,8 +94,8 @@ export const escalasoftOrderService = {
             cliente: {
                 razao_social: params.cliente_nome,
                 nome_fantasia: params.cliente_nome,
-                tipo: 'F',
-                cnpjcpf: params.cliente_cpf.replace(/\D/g, ''),
+                tipo: cnpjNumero.toString().length > 11 ? 'J' : 'F',
+                cnpjcpf: cnpjNumero,          // NUMBER obrigatório
                 telefone: '',
                 email: '',
                 ramo_atividade: 1,
@@ -94,21 +104,30 @@ export const escalasoftOrderService = {
                 inscricao_estadual: 'ISENTO',
                 consumidor_final: 'S',
                 endereco_fiscal: {
-                    cep: 0,
+                    cep: 0,                   // NUMBER obrigatório
                     logradouro: '',
-                    numero: 0,
+                    numero: 0,                // NUMBER obrigatório
                     complemento: '',
                     pais: 'Brasil',
                     uf: 'SC',
                     municipio: '',
-                    codigo_municipio: 0,
+                    codigo_municipio: 0,      // NUMBER obrigatório
                     bairro: '',
                 },
             },
             endereco_entrega: { campo: '' },
             pagamento: [{ forma_pagamento: 1, vencimento: now.toLocaleDateString('pt-BR'), valor: valorTotal }],
             valor_frete: 0,
-            produtos: params.produtos,
+            // OBJETO ÚNICO conforme schema (não array)
+            produtos: {
+                codigo_referencia: produtoPrincipal.codigo_referencia,
+                nome: produtoPrincipal.nome,
+                quantidade: produtoPrincipal.quantidade,
+                valor_unitario: produtoPrincipal.valor_unitario,
+                valor_desconto: produtoPrincipal.valor_desconto,
+                valor_total: produtoPrincipal.valor_total,
+                bonificacao: produtoPrincipal.bonificacao,
+            },
             valor_total: valorTotal,
         };
 
@@ -118,38 +137,25 @@ export const escalasoftOrderService = {
 
         // A API Escalasoft aceita produtos como array ou objeto único.
         // Tentamos array primeiro; se der 400, tentamos com o primeiro item.
-        const tryPost = async (produtosPayload: any) => {
-            const body = { ...payload, produtos: produtosPayload };
-            console.log('[Escalasoft WMS] POST payload:', JSON.stringify(body, null, 2));
+        try {
+            console.log('[Escalasoft] POST /venda/pedido payload:', JSON.stringify(payload, null, 2));
             const res = await fetch(`${SC_API_BASE}/venda/pedido?cnpj=${CNPJ_CD}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                body: JSON.stringify(body),
+                body: JSON.stringify(payload),
             });
             const text = await res.text();
             console.log(`[Escalasoft] Resposta ${res.status}:`, text);
-            return { ok: res.ok, status: res.status, text };
-        };
 
-        try {
-            // Tentativa 1: produtos como array (padrão multi-item)
-            let result = await tryPost(params.produtos);
-
-            // Se 400, tenta como objeto único (schema da doc mostra objeto)
-            if (!result.ok && result.status === 400 && params.produtos.length > 0) {
-                console.log('[Escalasoft] Tentando produtos como objeto único...');
-                result = await tryPost(params.produtos[0]);
-            }
-
-            if (result.ok) {
+            if (res.ok) {
                 try {
-                    const data = JSON.parse(result.text);
+                    const data = JSON.parse(text);
                     pedidoIdApi = data.pedido_id ?? null;
                 } catch { /* sem body JSON */ }
                 apiSuccess = true;
             } else {
-                apiError = `HTTP ${result.status}: ${result.text.slice(0, 200)}`;
-                console.error('[Escalasoft] Erro na API:', apiError);
+                apiError = `HTTP ${res.status}: ${text.slice(0, 300)}`;
+                console.error('[Escalasoft] Erro:', apiError);
             }
         } catch (e: any) {
             apiError = e?.message || 'Conexão recusada';
