@@ -148,8 +148,8 @@ export const escalasoftOrderService = {
 
         // Tenta API pública primeiro, depois servidor interno
         const urls = [
-            `${SC_OMS_BASE}/armazem/ordem/cadastrar`,
-            `${SC_API_BASE}/armazem/ordem/cadastrar`,
+            `${SC_API_BASE}/armazem/ordem/cadastrar?cnpj=${CNPJ_CD}`,
+            `${SC_OMS_BASE}/armazem/ordem/cadastrar?cnpj=${CNPJ_CD}`,
         ];
 
         for (const url of urls) {
