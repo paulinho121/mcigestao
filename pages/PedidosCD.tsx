@@ -717,12 +717,8 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
 
     useEffect(() => { loadOrders(); }, [loadOrders]);
 
-    useEffect(() => {
-        if (orders.length > 0 && !loadingOrders && !syncingAll) {
-            syncAllStatuses(orders);
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [loadingOrders]);
+    // Auto-sync de status desabilitado — endpoint de status não existe no servidor.
+    // O usuário pode sincronizar manualmente pelo botão "Sync API".
 
     const loadSCStock = async () => {
         setLoadingSC(true);
