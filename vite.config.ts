@@ -13,7 +13,14 @@ export default defineConfig(({ mode }) => {
           target: 'http://170.82.192.22:9999',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/escalasoft/, '/escalasoft'),
-          secure: false, // Aceita conexões http simples
+          secure: false,
+        },
+        // API pública Escalasoft (OMS — pedidos, vendas)
+        '/api/escalasoft-oms': {
+          target: 'https://api.escalasoft.com.br',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/escalasoft-oms/, ''),
+          secure: false,
         },
         '/api/jamef-prod': {
           target: 'https://api.jamef.com.br',
