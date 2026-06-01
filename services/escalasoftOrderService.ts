@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase';
 
-const SC_API_BASE = '/api/escalasoft';           // WMS interno (estoque, armazem)
-const SC_OMS_BASE = '/api/escalasoft-oms';        // OMS público (pedidos, vendas)
+const SC_API_BASE = '/api/escalasoft'; // WMS + OMS — tudo em 170.82.192.22:9999
 const CNPJ_CD = '05502390000200';
 
 export type OrderStatus = 'enviado' | 'confirmado' | 'em_separacao' | 'em_transito' | 'entregue' | 'cancelado';
@@ -121,8 +120,8 @@ export const escalasoftOrderService = {
         // Tentamos array primeiro; se der 400, tentamos com o primeiro item.
         const tryPost = async (produtosPayload: any) => {
             const body = { ...payload, produtos: produtosPayload };
-            console.log('[Escalasoft OMS] POST payload:', JSON.stringify(body, null, 2));
-            const res = await fetch(`${SC_OMS_BASE}/venda/pedido?cnpj=${CNPJ_CD}`, {
+            console.log('[Escalasoft WMS] POST payload:', JSON.stringify(body, null, 2));
+            const res = await fetch(`${SC_API_BASE}/venda/pedido?cnpj=${CNPJ_CD}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
                 body: JSON.stringify(body),
@@ -221,7 +220,7 @@ export const escalasoftOrderService = {
     // Consulta o status real do pedido na API Escalasoft
     async fetchApiStatus(pedidoIdApi: number): Promise<{ situacaoid: number; situacao: string } | null> {
         try {
-            const res = await fetch(`${SC_OMS_BASE}/venda/pedido/status?pedidoid=${pedidoIdApi}`, {
+            const res = await fetch(`${SC_API_BASE}/venda/pedido/status?pedidoid=${pedidoIdApi}`, {
                 headers: { Accept: 'application/json' },
             });
             if (!res.ok) return null;
