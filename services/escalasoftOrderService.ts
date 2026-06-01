@@ -146,9 +146,8 @@ export const escalasoftOrderService = {
         // A API Escalasoft aceita produtos como array ou objeto único.
         // Tentamos array primeiro; se der 400, tentamos com o primeiro item.
         try {
-            console.log('[Escalasoft] POST /venda/pedido payload:', JSON.stringify(payload, null, 2));
-            // Sem ?cnpj na URL — o endpoint POST não tem parâmetros de query (ver swagger)
-            const res = await fetch(`${SC_API_BASE}/venda/pedido`, {
+            console.log('[Escalasoft] POST /armazem/ordem/cadastrar payload:', JSON.stringify(payload, null, 2));
+            const res = await fetch(`${SC_API_BASE}/armazem/ordem/cadastrar`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
                 body: JSON.stringify(payload),
