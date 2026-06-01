@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase';
 
 const SC_API_BASE = '/api/escalasoft';           // WMS interno (170.82.192.22:9999)
-const SC_OMS_BASE = '/api/escalasoft-oms';        // API pública (api.escalasoft.com.br)
 const CNPJ_CD = '05502390000200';
 
 export type OrderStatus = 'enviado' | 'confirmado' | 'em_separacao' | 'em_transito' | 'entregue' | 'cancelado';
