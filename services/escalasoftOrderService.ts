@@ -68,6 +68,14 @@ export const escalasoftOrderService = {
         cliente_cpf: string;
         produtos: OrderProduct[];
         observacao?: string;
+        // Dados de endereço (obrigatórios pela API Escalasoft)
+        cep?: number;
+        uf?: string;
+        municipio?: string;
+        bairro?: string;
+        logradouro?: string;
+        numero_endereco?: number;
+        codigo_municipio?: number;
     }): Promise<{ success: boolean; pedido_id?: number; numero_pedido?: string; message?: string }> {
         const numeroPedido = generateNumeroPedido();
         const now = new Date();
@@ -104,15 +112,15 @@ export const escalasoftOrderService = {
                 inscricao_estadual: 'ISENTO',
                 consumidor_final: 'S',
                 endereco_fiscal: {
-                    cep: 0,                   // NUMBER obrigatório
-                    logradouro: '',
-                    numero: 0,                // NUMBER obrigatório
+                    cep: params.cep ?? 0,
+                    logradouro: params.logradouro || '',
+                    numero: params.numero_endereco ?? 0,
                     complemento: '',
                     pais: 'Brasil',
-                    uf: 'SC',
-                    municipio: '',
-                    codigo_municipio: 0,      // NUMBER obrigatório
-                    bairro: '',
+                    uf: params.uf || 'SC',
+                    municipio: params.municipio || '',
+                    codigo_municipio: params.codigo_municipio ?? 0,
+                    bairro: params.bairro || '',
                 },
             },
             endereco_entrega: { campo: '' },

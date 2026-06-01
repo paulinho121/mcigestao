@@ -284,7 +284,7 @@ function QuickAddClienteModal({ onClose, onSaved }: {
 
 function ClienteSelector({ value, cpf, onChange, onAddNew }: {
     value: string; cpf: string;
-    onChange: (nome: string, cnpj: string) => void;
+    onChange: (nome: string, cnpj: string, cliente?: Cliente) => void;
     onAddNew: () => void;
 }) {
     const [search, setSearch] = useState(value);
@@ -299,9 +299,7 @@ function ClienteSelector({ value, cpf, onChange, onAddNew }: {
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    useEffect(() => {
-        setSearch(value);
-    }, [value]);
+    useEffect(() => { setSearch(value); }, [value]);
 
     const handleInput = async (v: string) => {
         setSearch(v);
@@ -318,7 +316,7 @@ function ClienteSelector({ value, cpf, onChange, onAddNew }: {
         setSearch(c.nome);
         setResults([]);
         setOpen(false);
-        onChange(c.nome, c.cnpj_cpf);
+        onChange(c.nome, c.cnpj_cpf, c); // passa objeto completo
     };
 
     return (
@@ -682,6 +680,11 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
     const [clienteCpf, setClienteCpf] = useState('');
     const [observacao, setObservacao] = useState('');
     const [vendedor, setVendedor] = useState('');
+    const [cep, setCep] = useState('');
+    const [uf, setUf] = useState('');
+    const [municipio, setMunicipio] = useState('');
+    const [bairro, setBairro] = useState('');
+    const [logradouro, setLogradouro] = useState('');
     const [sending, setSending] = useState(false);
     const [sendResult, setSendResult] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
     const [selectedProduct, setSelectedProduct] = useState<SCStockItem | null>(null);
@@ -785,6 +788,8 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
 
     const handleSend = async () => {
         if (!clienteNome.trim()) { setSendResult({ type: 'error', msg: 'Informe o nome do destinatário.' }); return; }
+        if (!cep.trim()) { setSendResult({ type: 'error', msg: 'CEP é obrigatório para enviar o pedido.' }); return; }
+        if (!uf.trim()) { setSendResult({ type: 'error', msg: 'UF é obrigatório.' }); return; }
         if (cart.length === 0) { setSendResult({ type: 'error', msg: 'Adicione pelo menos um produto ao pedido.' }); return; }
 
         setSending(true);
@@ -792,11 +797,20 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
         try {
             const obsCompleta = [vendedor ? `Vendedor: ${vendedor}` : '', observacao].filter(Boolean).join(' | ');
             const result = await escalasoftOrderService.sendOrder({
-                cliente_nome: clienteNome, cliente_cpf: clienteCpf, produtos: cart, observacao: obsCompleta,
+                cliente_nome: clienteNome,
+                cliente_cpf: clienteCpf,
+                produtos: cart,
+                observacao: obsCompleta,
+                cep: parseInt(cep.replace(/\D/g, '') || '0', 10),
+                uf,
+                municipio,
+                bairro,
+                logradouro,
             });
             if (result.success) {
                 setSendResult({ type: 'success', msg: `${result.message} Nº ${result.numero_pedido}${result.pedido_id ? ` (API #${result.pedido_id})` : ''}` });
                 setCart([]); setClienteNome(''); setClienteCpf(''); setObservacao(''); setVendedor('');
+                setCep(''); setUf(''); setMunicipio(''); setBairro(''); setLogradouro('');
                 loadOrders();
                 setTimeout(() => setTab('pedidos'), 1500);
             }
@@ -935,7 +949,18 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
                                 <ClienteSelector
                                     value={clienteNome}
                                     cpf={clienteCpf}
-                                    onChange={(nome, cnpj) => { setClienteNome(nome); setClienteCpf(cnpj); }}
+                                    onChange={(nome, cnpj, cliente) => {
+                                        setClienteNome(nome);
+                                        setClienteCpf(cnpj);
+                                        // Preenche campos de endereço automaticamente
+                                        if (cliente) {
+                                            setCep(cliente.cep || '');
+                                            setUf(cliente.uf || '');
+                                            setMunicipio(cliente.cidade?.split('-')[0]?.trim() || '');
+                                            setBairro(cliente.bairro || '');
+                                            setLogradouro(cliente.logradouro || '');
+                                        }
+                                    }}
                                     onAddNew={() => setShowQuickCliente(true)}
                                 />
                             </div>
@@ -944,6 +969,42 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
                                 <input value={clienteCpf} onChange={e => setClienteCpf(e.target.value)} placeholder="Preenchido ao selecionar cliente"
                                     className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40" />
                             </div>
+                            {/* Campos de endereço — obrigatórios pela API */}
+                            <div className="pt-1 pb-1">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                    <span className="text-red-400">*</span> Endereço de Entrega (obrigatório)
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">CEP <span className="text-red-400">*</span></label>
+                                    <input value={cep} onChange={e => setCep(e.target.value.replace(/\D/g, ''))} placeholder="00000000"
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">UF <span className="text-red-400">*</span></label>
+                                    <input value={uf} onChange={e => setUf(e.target.value.toUpperCase().slice(0, 2))} placeholder="SC"
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Município</label>
+                                    <input value={municipio} onChange={e => setMunicipio(e.target.value)} placeholder="São Paulo"
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Bairro</label>
+                                    <input value={bairro} onChange={e => setBairro(e.target.value)} placeholder="Centro"
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Logradouro</label>
+                                <input value={logradouro} onChange={e => setLogradouro(e.target.value)} placeholder="Rua das Flores, 123"
+                                    className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40" />
+                            </div>
+
                             <div>
                                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Vendedor</label>
                                 <input value={vendedor} onChange={e => setVendedor(e.target.value)} placeholder="Nome do vendedor responsável"
