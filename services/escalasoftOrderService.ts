@@ -114,21 +114,46 @@ export const escalasoftOrderService = {
 
         let pedidoIdApi: number | null = null;
         let apiSuccess = false;
+        let apiError = '';
 
-        try {
+        // A API Escalasoft aceita produtos como array ou objeto único.
+        // Tentamos array primeiro; se der 400, tentamos com o primeiro item.
+        const tryPost = async (produtosPayload: any) => {
+            const body = { ...payload, produtos: produtosPayload };
+            console.log('[Escalasoft] POST payload:', JSON.stringify(body, null, 2));
             const res = await fetch(`${SC_API_BASE}/venda/pedido?cnpj=${CNPJ_CD}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-                body: JSON.stringify(payload),
+                body: JSON.stringify(body),
             });
+            const text = await res.text();
+            console.log(`[Escalasoft] Resposta ${res.status}:`, text);
+            return { ok: res.ok, status: res.status, text };
+        };
 
-            if (res.ok) {
-                const data = await res.json();
-                pedidoIdApi = data.pedido_id ?? null;
-                apiSuccess = true;
+        try {
+            // Tentativa 1: produtos como array (padrão multi-item)
+            let result = await tryPost(params.produtos);
+
+            // Se 400, tenta como objeto único (schema da doc mostra objeto)
+            if (!result.ok && result.status === 400 && params.produtos.length > 0) {
+                console.log('[Escalasoft] Tentando produtos como objeto único...');
+                result = await tryPost(params.produtos[0]);
             }
-        } catch {
-            // API indisponível — salva localmente como pendente
+
+            if (result.ok) {
+                try {
+                    const data = JSON.parse(result.text);
+                    pedidoIdApi = data.pedido_id ?? null;
+                } catch { /* sem body JSON */ }
+                apiSuccess = true;
+            } else {
+                apiError = `HTTP ${result.status}: ${result.text.slice(0, 200)}`;
+                console.error('[Escalasoft] Erro na API:', apiError);
+            }
+        } catch (e: any) {
+            apiError = e?.message || 'Conexão recusada';
+            console.error('[Escalasoft] Falha na conexão:', apiError);
         }
 
         const newOrder: CDOrder = {
@@ -163,7 +188,9 @@ export const escalasoftOrderService = {
             success: true,
             pedido_id: pedidoIdApi ?? undefined,
             numero_pedido: numeroPedido,
-            message: apiSuccess ? 'Pedido enviado ao CD com sucesso!' : 'Pedido salvo localmente (API indisponível).',
+            message: apiSuccess
+                ? 'Pedido enviado ao CD com sucesso!'
+                : `Pedido salvo localmente (API: ${apiError || 'indisponível'}).`,
         };
     },
 
