@@ -147,7 +147,8 @@ export const escalasoftOrderService = {
         // Tentamos array primeiro; se der 400, tentamos com o primeiro item.
         try {
             console.log('[Escalasoft] POST /venda/pedido payload:', JSON.stringify(payload, null, 2));
-            const res = await fetch(`${SC_API_BASE}/venda/pedido?cnpj=${CNPJ_CD}`, {
+            // Sem ?cnpj na URL — o endpoint POST não tem parâmetros de query (ver swagger)
+            const res = await fetch(`${SC_API_BASE}/venda/pedido`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
                 body: JSON.stringify(payload),
