@@ -978,7 +978,16 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">CEP <span className="text-red-400">*</span></label>
-                                    <input value={cep} onChange={e => setCep(e.target.value.replace(/\D/g, ''))} placeholder="00000000"
+                                    <input value={cep} onChange={e => {
+                                        const v = e.target.value.replace(/\D/g, '').slice(0, 8);
+                                        setCep(v);
+                                        if (v.length === 8) {
+                                            fetch(`https://viacep.com.br/ws/${v}/json/`)
+                                                .then(r => r.json())
+                                                .then(d => { if (!d.erro) { setUf(d.uf || ''); setMunicipio(d.localidade || ''); setBairro(d.bairro || ''); setLogradouro(d.logradouro || ''); } })
+                                                .catch(() => {});
+                                        }
+                                    }} placeholder="00000000"
                                         className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40" />
                                 </div>
                                 <div>
