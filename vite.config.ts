@@ -9,6 +9,12 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: '0.0.0.0',
       proxy: {
+        '/api/wms': {
+          target: 'http://170.82.192.22:9999',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/wms/, ''),
+          secure: false,
+        },
         '/api/escalasoft': {
           target: 'http://170.82.192.22:9999',
           changeOrigin: true,

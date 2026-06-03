@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 
-const SC_API_BASE = '/api/escalasoft';           // WMS interno (170.82.192.22:9999)
+const SC_API_BASE = '/api/escalasoft';           // WMS interno — estoque (/escalasoft/armazem/...)
+const SC_WMS_BASE = '/api/wms';                  // WMS interno — ordens (sem prefixo /escalasoft)
 const CNPJ_CD = '05502390000200';
 
 export type OrderStatus = 'enviado' | 'confirmado' | 'em_separacao' | 'em_transito' | 'entregue' | 'cancelado';
@@ -146,9 +147,9 @@ export const escalasoftOrderService = {
         let apiSuccess = false;
         let apiError = '';
 
-        // Tenta API pública primeiro, depois servidor interno
-        // Apenas servidor interno WMS (onde o estoque funciona)
+        // Tenta sem prefixo /escalasoft primeiro, depois com prefixo como fallback
         const urls = [
+            `${SC_WMS_BASE}/armazem/ordem/cadastrar?cnpj=${CNPJ_CD}`,
             `${SC_API_BASE}/armazem/ordem/cadastrar?cnpj=${CNPJ_CD}`,
         ];
 

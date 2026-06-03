@@ -25,6 +25,10 @@
     ],
     "rewrites": [
         {
+            "source": "/api/wms/:path*",
+            "destination": "http://170.82.192.22:9999/:path*"
+        },
+        {
             "source": "/api/escalasoft/:path*",
             "destination": "http://170.82.192.22:9999/escalasoft/:path*"
         },
