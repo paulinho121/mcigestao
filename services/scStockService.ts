@@ -7,8 +7,8 @@ import { preSaleService } from './preSaleService';
  * Service to handle integration with the external SC Stock API
  */
 
-// URL base do servidor WMS interno. Em dev, pode usar o proxy do Vite via VITE_SC_API_BASE_URL=/api/escalasoft
-const SC_API_BASE_URL = import.meta.env.VITE_SC_API_BASE_URL || 'http://170.82.192.22:9999/escalasoft';
+// Usa o proxy configurado no Vite (dev) e no vercel.json (producao) para evitar Mixed Content
+const SC_API_BASE_URL = '/api/escalasoft';
 const SC_STOCK_ENDPOINT = '/armazem/producao/estoquemercadoria?cnpj=05502390000200';
 
 const SC_API_TOKEN = import.meta.env.VITE_SC_API_TOKEN || ''; // Token de autenticação (se necessário além do CNPJ)
