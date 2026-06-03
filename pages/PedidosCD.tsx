@@ -3,7 +3,7 @@ import {
     PackageSearch, Plus, Send, RefreshCw, ChevronDown, ChevronUp,
     CheckCircle2, Truck, Package, Clock, XCircle, AlertCircle,
     Loader2, Trash2, ClipboardList, X, Search, RefreshCcw, History,
-    Hourglass, Weight, Box, Printer, UserPlus, Users, ShoppingCart,
+    Hourglass, Box, Printer, UserPlus, Users, ShoppingCart,
     Info, ShieldAlert
 } from 'lucide-react';
 import { escalasoftOrderService, CDOrder, OrderProduct, OrderStatus, PedidoPendenteCD } from '../services/escalasoftOrderService';
@@ -1143,12 +1143,11 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
                     ) : (
                         <>
                             {/* Totalizadores */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                 {[
                                     { label: 'Pedidos', value: pendentesCD.length, icon: <ClipboardList className="w-4 h-4 text-orange-400" /> },
-                                    { label: 'Qtd Total', value: pendentesCD.reduce((s, p) => s + p.Quantidade, 0).toLocaleString('pt-BR'), icon: <Box className="w-4 h-4 text-blue-400" /> },
-                                    { label: 'Peso Bruto', value: `${pendentesCD.reduce((s, p) => s + p.PesoBruto, 0).toLocaleString('pt-BR')} kg`, icon: <Weight className="w-4 h-4 text-violet-400" /> },
-                                    { label: 'Valor Total', value: pendentesCD.reduce((s, p) => s + p.Valor, 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: <Package className="w-4 h-4 text-emerald-400" /> },
+                                    { label: 'Itens Total', value: pendentesCD.reduce((s, p) => s + p.produtos.reduce((a, pr) => a + pr.quantidade, 0), 0).toLocaleString('pt-BR'), icon: <Box className="w-4 h-4 text-blue-400" /> },
+                                    { label: 'Valor Total', value: pendentesCD.reduce((s, p) => s + p.valor_total, 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: <Package className="w-4 h-4 text-emerald-400" /> },
                                 ].map(({ label, value, icon }) => (
                                     <div key={label} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">{icon}</div>
@@ -1166,24 +1165,29 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80">
-                                                {['Nº Ordem', 'Nº Pedido', 'Qtd', 'Volumes', 'Peso Bruto', 'Peso Líq.', 'Valor', 'Embalagens'].map(h => (
+                                                {['Nº Pedido', 'Nº Ordem WMS', 'Cliente', 'Itens', 'Valor', 'Situação WMS', 'Data'].map(h => (
                                                     <th key={h} className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                                 ))}
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {pendentesCD.map((p, i) => (
-                                                <tr key={i} className="border-b border-slate-50 dark:border-slate-700/50 last:border-0 hover:bg-orange-50/40 dark:hover:bg-orange-900/10 transition-colors">
-                                                    <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">{p.NumeroOrdem}</td>
-                                                    <td className="px-4 py-3 font-bold text-brand-600 dark:text-brand-400">{p.NumeroPedido}</td>
-                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.Quantidade.toLocaleString('pt-BR')}</td>
-                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.QuantidadeVolume}</td>
-                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.PesoBruto.toLocaleString('pt-BR')} kg</td>
-                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.PesoLiquido.toLocaleString('pt-BR')} kg</td>
+                                            {pendentesCD.map((p) => (
+                                                <tr key={p.id} className="border-b border-slate-50 dark:border-slate-700/50 last:border-0 hover:bg-orange-50/40 dark:hover:bg-orange-900/10 transition-colors">
+                                                    <td className="px-4 py-3 font-bold text-brand-600 dark:text-brand-400">{p.numero_pedido}</td>
+                                                    <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">{p.numeroOrdemApi ?? '—'}</td>
+                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300 max-w-[160px] truncate">{p.cliente_nome}</td>
+                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.produtos.reduce((a, pr) => a + pr.quantidade, 0).toLocaleString('pt-BR')}</td>
                                                     <td className="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-400">
-                                                        {p.Valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        {p.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                     </td>
-                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.QuantidadeEmbalagem}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${p.situacaoApi ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}`}>
+                                                            {p.situacaoApi ?? 'Sem retorno'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
+                                                        {new Date(p.created_at).toLocaleDateString('pt-BR')}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>

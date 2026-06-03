@@ -30,14 +30,15 @@ export interface CDOrder {
 }
 
 export interface PedidoPendenteCD {
-    NumeroOrdem: number;
-    NumeroPedido: number;
-    Quantidade: number;
-    QuantidadeVolume: number;
-    PesoBruto: number;
-    PesoLiquido: number;
-    Valor: number;
-    QuantidadeEmbalagem: number;
+    id: string;
+    numero_pedido: string;
+    cliente_nome: string;
+    valor_total: number;
+    created_at: string;
+    status: OrderStatus;
+    situacaoApi?: string;        // Situacao retornada pelo WMS
+    numeroOrdemApi?: number;     // NumeroOrdem retornado pelo WMS
+    produtos: OrderProduct[];
 }
 
 const STORAGE_KEY = 'cd_orders_local';
@@ -259,18 +260,41 @@ export const escalasoftOrderService = {
         }
     },
 
-    // Busca pedidos pendentes no CD (aguardando documento fiscal / não recebidos)
-    async getPedidosPendentesCD(): Promise<PedidoPendenteCD[]> {
+    // Consulta uma ordem pelo numeroPedido no WMS
+    async consultarOrdem(numeroPedido: string): Promise<{ situacao?: string; numeroOrdem?: number } | null> {
         try {
-            const res = await fetch(`${SC_API_BASE}/armazem/ordem/pedidoPendente?cnpj=${CNPJ_CD}`, {
+            const res = await fetch(`${SC_API_BASE}/armazem/ordem/consultar?numeroPedido=${encodeURIComponent(numeroPedido)}&cnpj=${CNPJ_CD}`, {
                 headers: { Accept: 'application/json' },
             });
-            if (!res.ok) return [];
+            if (!res.ok) return null;
             const data = await res.json();
-            return data.Pedidos ?? [];
+            return { situacao: data.Situacao, numeroOrdem: data.NumeroOrdem };
         } catch {
-            return [];
+            return null;
         }
+    },
+
+    // Busca pedidos pendentes: carrega do Supabase e enriquece com status real da API WMS
+    async getPedidosPendentesCD(): Promise<PedidoPendenteCD[]> {
+        const allOrders = await this.getOrders();
+        const pending = allOrders.filter(o => o.status !== 'entregue' && o.status !== 'cancelado');
+
+        const enriched = await Promise.all(pending.map(async (order) => {
+            const apiData = await this.consultarOrdem(order.numero_pedido);
+            return {
+                id: order.id,
+                numero_pedido: order.numero_pedido,
+                cliente_nome: order.cliente_nome,
+                valor_total: order.valor_total,
+                created_at: order.created_at,
+                status: order.status,
+                produtos: order.produtos,
+                situacaoApi: apiData?.situacao,
+                numeroOrdemApi: apiData?.numeroOrdem,
+            };
+        }));
+
+        return enriched;
     },
 
     // Mapeia o situacaoid da API para nosso OrderStatus interno
