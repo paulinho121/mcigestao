@@ -4,9 +4,9 @@ import {
     CheckCircle2, Truck, Package, Clock, XCircle, AlertCircle,
     Loader2, Trash2, ClipboardList, X, Search, RefreshCcw, History,
     Hourglass, Box, Printer, UserPlus, Users, ShoppingCart,
-    Info, ShieldAlert
+    Info, ShieldAlert, FileText, Hash, CalendarDays
 } from 'lucide-react';
-import { escalasoftOrderService, CDOrder, OrderProduct, OrderStatus, PedidoPendenteCD } from '../services/escalasoftOrderService';
+import { escalasoftOrderService, CDOrder, OrderProduct, OrderStatus, PedidoPendenteCD, mapWmsStatus } from '../services/escalasoftOrderService';
 import { scStockService } from '../services/scStockService';
 import { clienteService, Cliente } from '../services/clienteService';
 import { SCStockItem } from '../types/scApi';
@@ -502,14 +502,20 @@ function OrderCard({ order, onStatusChange }: {
     };
 
     const handleSyncStatus = async () => {
-        if (!order.pedido_id_api) return;
         setSyncing(true);
-        const result = await escalasoftOrderService.fetchApiStatus(order.pedido_id_api);
-        if (result) {
-            setApiSituacao(result.situacao);
-            const mapped = escalasoftOrderService.mapApiStatus(result.situacaoid);
-            if (mapped !== order.status) {
-                await escalasoftOrderService.updateStatus(order.id, mapped);
+        const wmsData = await escalasoftOrderService.consultarOrdem(order.numero_pedido);
+        if (wmsData?.situacao) {
+            setApiSituacao(wmsData.situacao);
+            const mapped = mapWmsStatus(wmsData.situacao);
+            if (mapped !== order.status || wmsData.situacao !== order.status_wms) {
+                await escalasoftOrderService.updateStatus(order.id, mapped, {
+                    status_wms:    wmsData.situacao,
+                    transportadora: wmsData.transportadora ?? order.transportadora,
+                    carregamento:  wmsData.carregamento   ?? order.carregamento,
+                    volume:        wmsData.volume         ?? order.volume,
+                    nota_fiscal:   wmsData.nota_fiscal    ?? order.nota_fiscal,
+                    numeros_serie: wmsData.numeros_serie  ?? order.numeros_serie,
+                });
                 onStatusChange(order.id, mapped);
             }
         }
@@ -586,6 +592,48 @@ function OrderCard({ order, onStatusChange }: {
             {/* Detalhes expandidos */}
             {expanded && (
                 <div className="border-t border-slate-200/60 dark:border-slate-700 px-4 py-3 space-y-3 bg-white/60 dark:bg-slate-800/60">
+                    {/* Campos do painel WMS */}
+                    {(order.status_wms || order.transportadora || order.nota_fiscal || order.carregamento || order.numeros_serie) && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                            {order.status_wms && (
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Status WMS</p>
+                                    <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{order.status_wms}</p>
+                                </div>
+                            )}
+                            {order.transportadora && (
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5 flex items-center gap-1"><Truck className="w-2.5 h-2.5" />Transportadora</p>
+                                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">{order.transportadora}</p>
+                                </div>
+                            )}
+                            {order.carregamento && (
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5 flex items-center gap-1"><CalendarDays className="w-2.5 h-2.5" />Carregamento</p>
+                                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">{order.carregamento}</p>
+                                </div>
+                            )}
+                            {order.nota_fiscal && (
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5 flex items-center gap-1"><FileText className="w-2.5 h-2.5" />Nota Fiscal</p>
+                                    <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{order.nota_fiscal}</p>
+                                </div>
+                            )}
+                            {order.volume != null && (
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5 flex items-center gap-1"><Box className="w-2.5 h-2.5" />Volumes</p>
+                                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{order.volume}</p>
+                                </div>
+                            )}
+                            {order.numeros_serie && (
+                                <div className="col-span-2 sm:col-span-3">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5 flex items-center gap-1"><Hash className="w-2.5 h-2.5" />Nº de Série</p>
+                                    <p className="text-xs text-slate-600 dark:text-slate-400 break-all">{order.numeros_serie}</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <div className="space-y-1">
                         {order.produtos.map((p, i) => (
                             <div key={i} className="flex justify-between text-sm">
@@ -667,7 +715,7 @@ function OrderCard({ order, onStatusChange }: {
 
 type PageTab = 'novo' | 'pedidos' | 'finalizados' | 'pendentes_cd';
 
-export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
+export function PedidosCD({ isMaster = false, userEmail = '' }: { isMaster?: boolean; userEmail?: string }) {
     const [tab, setTab] = useState<PageTab>('pedidos');
     const [orders, setOrders] = useState<CDOrder[]>([]);
     const [loadingOrders, setLoadingOrders] = useState(true);
@@ -708,7 +756,7 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
         if (updates.size > 0) {
             setOrders(prev => prev.map(o => {
                 const upd = updates.get(o.id);
-                return upd ? { ...o, status: upd.status } : o;
+                return upd ? { ...o, status: upd.status, status_wms: upd.status_wms } : o;
             }));
         }
         setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
@@ -802,6 +850,8 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
                 municipio,
                 bairro,
                 logradouro,
+                vendedor_email: userEmail || undefined,
+                vendedor_nome: vendedor || undefined,
             });
             if (result.success) {
                 setSendResult({ type: 'success', msg: `${result.message} Nº ${result.numero_pedido}${result.pedido_id ? ` (API #${result.pedido_id})` : ''}` });
@@ -1165,27 +1215,40 @@ export function PedidosCD({ isMaster = false }: { isMaster?: boolean }) {
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80">
-                                                {['Nº Pedido', 'Nº Ordem WMS', 'Cliente', 'Itens', 'Valor', 'Situação WMS', 'Data'].map(h => (
-                                                    <th key={h} className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                                {['Nº Pedido', 'Ordem WMS', 'Cliente', 'Situação WMS', 'Transportadora', 'Carregamento', 'Vol.', 'NF', 'Nº Série', 'Valor', 'Data'].map(h => (
+                                                    <th key={h} className="px-3 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                                 ))}
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {pendentesCD.map((p) => (
                                                 <tr key={p.id} className="border-b border-slate-50 dark:border-slate-700/50 last:border-0 hover:bg-orange-50/40 dark:hover:bg-orange-900/10 transition-colors">
-                                                    <td className="px-4 py-3 font-bold text-brand-600 dark:text-brand-400">{p.numero_pedido}</td>
-                                                    <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">{p.numeroOrdemApi ?? '—'}</td>
-                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300 max-w-[160px] truncate">{p.cliente_nome}</td>
-                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.produtos.reduce((a, pr) => a + pr.quantidade, 0).toLocaleString('pt-BR')}</td>
-                                                    <td className="px-4 py-3 font-semibold text-emerald-700 dark:text-emerald-400">
+                                                    <td className="px-3 py-3 font-bold text-brand-600 dark:text-brand-400 whitespace-nowrap">{p.numero_pedido}</td>
+                                                    <td className="px-3 py-3 font-bold text-slate-800 dark:text-slate-200">{p.numeroOrdemApi ?? '—'}</td>
+                                                    <td className="px-3 py-3 text-slate-600 dark:text-slate-300 max-w-[140px] truncate">{p.cliente_nome}</td>
+                                                    <td className="px-3 py-3">
+                                                        {p.status_wms ? (
+                                                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
+                                                                p.status_wms === 'Encerrada'           ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' :
+                                                                p.status_wms === 'Em execução'         ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
+                                                                p.status_wms === 'Ag gerar embarque'   ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
+                                                                p.status_wms === 'Ag embarque'         ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' :
+                                                                p.status_wms === 'Ag gerar devolução'  ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+                                                                'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                                                            }`}>{p.status_wms}</span>
+                                                        ) : (
+                                                            <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-3 text-slate-600 dark:text-slate-300 max-w-[120px] truncate text-xs">{p.transportadora ?? '—'}</td>
+                                                    <td className="px-3 py-3 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">{p.carregamento ?? '—'}</td>
+                                                    <td className="px-3 py-3 text-center font-bold text-slate-700 dark:text-slate-300">{p.volume ?? '—'}</td>
+                                                    <td className="px-3 py-3 font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">{p.nota_fiscal ?? '—'}</td>
+                                                    <td className="px-3 py-3 text-slate-500 dark:text-slate-400 text-xs max-w-[140px] truncate" title={p.numeros_serie ?? ''}>{p.numeros_serie ?? '—'}</td>
+                                                    <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
                                                         {p.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                     </td>
-                                                    <td className="px-4 py-3">
-                                                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${p.situacaoApi ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}`}>
-                                                            {p.situacaoApi ?? 'Sem retorno'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
+                                                    <td className="px-3 py-3 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
                                                         {new Date(p.created_at).toLocaleDateString('pt-BR')}
                                                     </td>
                                                 </tr>
