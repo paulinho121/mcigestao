@@ -24,6 +24,7 @@
     "puppeteer-core": "^24.42.0",
     "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
+    "react-barcode": "^1.6.1",
     "react-dom": "^18.2.0",
     "recharts": "^3.7.0",
     "tailwind-merge": "^2.2.1",

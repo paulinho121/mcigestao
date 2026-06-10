@@ -24,6 +24,7 @@ import { PedidosCD } from './pages/PedidosCD';
 import { MeusPedidos } from './pages/MeusPedidos';
 import { CotacaoFrete } from './pages/CotacaoFrete';
 import { Etiquetas } from './pages/Etiquetas';
+import { EtiquetaPersonalizada } from './pages/EtiquetaPersonalizada';
 import { PreSaleAlertBanner } from './components/PreSaleAlertBanner';
 // import { nfeService } from './services/nfeService';
 import { User } from './types';
@@ -34,7 +35,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 import { CircleMenu, CircleMenuItem } from './components/ui/circle-menu';
 
-type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas';
+type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas' | 'etiqueta_personalizada';
 
 function BackgroundMesh() {
   return null;
@@ -227,7 +228,8 @@ function App() {
       subItems: [
         { label: 'Rastreamento', icon: <Truck size={20} />, onClick: () => navigate('tracking'), colorClass: 'bg-violet-600 hover:bg-violet-700' },
         { label: 'Cotação Frete', icon: <Calculator size={20} />, onClick: () => navigate('cotacao_frete'), colorClass: 'bg-violet-500 hover:bg-violet-600' },
-        { label: 'Etiquetas', icon: <Tag size={20} />, onClick: () => navigate('etiquetas'), colorClass: 'bg-violet-700 hover:bg-violet-800' },
+        { label: 'Etiquetas API', icon: <Tag size={20} />, onClick: () => navigate('etiquetas'), colorClass: 'bg-violet-700 hover:bg-violet-800' },
+        { label: 'Gerar Etiqueta', icon: <Package size={20} />, onClick: () => navigate('etiqueta_personalizada'), colorClass: 'bg-violet-800 hover:bg-violet-900' },
         { label: 'Locações', icon: <CalendarClock size={20} />, onClick: () => navigate('rental_management'), colorClass: 'bg-violet-400 hover:bg-violet-500' },
       ],
     },
@@ -431,6 +433,7 @@ function App() {
           {activeTab === 'meus_pedidos' && <MeusPedidos userEmail={user.email} userName={user.name} />}
           {activeTab === 'cotacao_frete' && <CotacaoFrete />}
           {activeTab === 'etiquetas' && <Etiquetas />}
+          {activeTab === 'etiqueta_personalizada' && <EtiquetaPersonalizada />}
         </main>
       </div>
 
