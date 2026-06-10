@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Barcode from 'react-barcode';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -14,7 +14,36 @@ import {
     Hash,
     Building2,
     ChevronRight,
+    Search,
+    Loader2,
+    AlertCircle,
 } from 'lucide-react';
+
+// ─── Lookup CNPJ via BrasilAPI ────────────────────────────────────────────────
+
+async function lookupCNPJ(cnpj: string): Promise<string | null> {
+    const clean = cnpj.replace(/\D/g, '');
+    if (clean.length !== 14) return null;
+    try {
+        const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${clean}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        return (data.nome_fantasia && data.nome_fantasia.trim())
+            ? data.nome_fantasia.trim()
+            : data.razao_social?.trim() ?? null;
+    } catch {
+        return null;
+    }
+}
+
+function formatCNPJInput(val: string) {
+    const d = val.replace(/\D/g, '').slice(0, 14);
+    return d
+        .replace(/^(\d{2})(\d)/, '$1.$2')
+        .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+        .replace(/\.(\d{3})(\d)/, '.$1/$2')
+        .replace(/(\d{4})(\d)/, '$1-$2');
+}
 
 // ─── Parser da Chave NF-e ─────────────────────────────────────────────────────
 
@@ -267,8 +296,18 @@ export function EtiquetaPersonalizada() {
     const [transportadora, setTransportadora] = useState('JAMEF');
     const [transportadoraCustom, setTransportadoraCustom] = useState('');
     const [volumes, setVolumes] = useState(1);
+
+    // Remetente — auto-detectado via CNPJ da chave
     const [remetente, setRemetente] = useState('');
+    const [remetenteLoading, setRemetenteLoading] = useState(false);
+    const [remetenteErro, setRemetenteErro] = useState(false);
+
+    // Destinatário — input de CNPJ com lookup
+    const [destCNPJRaw, setDestCNPJRaw] = useState('');
     const [destinatario, setDestinatario] = useState('');
+    const [destLoading, setDestLoading] = useState(false);
+    const [destErro, setDestErro] = useState(false);
+
     const [gerado, setGerado] = useState(false);
     const printRef = useRef<HTMLDivElement>(null);
 
@@ -277,6 +316,38 @@ export function EtiquetaPersonalizada() {
     const isValid = !!chave;
     const transportadoraFinal = transportadora === 'Outro' ? transportadoraCustom : transportadora;
     const dataEmissao = new Date().toLocaleDateString('pt-BR');
+
+    // Auto-busca remetente quando chave fica válida
+    useEffect(() => {
+        if (!chave) { setRemetente(''); setRemetenteErro(false); return; }
+        let cancelled = false;
+        setRemetenteLoading(true);
+        setRemetenteErro(false);
+        lookupCNPJ(chave.cnpj).then(nome => {
+            if (cancelled) return;
+            if (nome) { setRemetente(nome); setRemetenteErro(false); }
+            else { setRemetenteErro(true); }
+            setRemetenteLoading(false);
+        });
+        return () => { cancelled = true; };
+    }, [chave?.cnpj]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Lookup destinatário quando CNPJ tiver 14 dígitos
+    const destDigits = destCNPJRaw.replace(/\D/g, '');
+    const handleLookupDest = useCallback(async () => {
+        if (destDigits.length !== 14) return;
+        setDestLoading(true);
+        setDestErro(false);
+        const nome = await lookupCNPJ(destDigits);
+        if (nome) { setDestinatario(nome); setDestErro(false); }
+        else { setDestErro(true); }
+        setDestLoading(false);
+    }, [destDigits]);
+
+    useEffect(() => {
+        if (destDigits.length === 14) handleLookupDest();
+        else { setDestinatario(''); setDestErro(false); }
+    }, [destDigits]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleGerar = () => {
         if (!isValid || !transportadoraFinal) return;
@@ -524,32 +595,64 @@ window.onload = function() {
                         </div>
                     </div>
 
-                    {/* Opcional: Remetente / Destinatário */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                                Remetente <span className="text-slate-300 normal-case font-medium tracking-normal">(opcional)</span>
-                            </label>
-                            <div className="relative">
-                                <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                                <input type="text" value={remetente} onChange={e => { setRemetente(e.target.value); setGerado(false); }}
-                                    placeholder="Nome da empresa..."
-                                    className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border-2 border-transparent dark:border-slate-800/50 rounded-2xl focus:border-violet-500/40 transition-all outline-none text-sm font-medium dark:text-white dark:placeholder-slate-700"
-                                />
-                            </div>
+                    {/* Remetente — auto via CNPJ da chave */}
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <Building2 className="w-3.5 h-3.5" /> Remetente
+                            {remetenteLoading && <Loader2 className="w-3 h-3 animate-spin text-violet-400" />}
+                            {!remetenteLoading && remetente && <Check className="w-3 h-3 text-emerald-500" />}
+                            {!remetenteLoading && remetenteErro && <AlertCircle className="w-3 h-3 text-amber-400" />}
+                        </label>
+                        <input
+                            type="text"
+                            value={remetente}
+                            onChange={e => { setRemetente(e.target.value); setGerado(false); }}
+                            placeholder={remetenteLoading ? 'Buscando na Receita Federal...' : isValid ? 'Não encontrado — digite manualmente' : 'Cole a chave NF-e para buscar automaticamente'}
+                            className={`w-full px-5 py-3 border-2 rounded-2xl transition-all outline-none text-sm font-bold dark:text-white dark:placeholder-slate-600 shadow-sm
+                                ${remetente ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/40' : 'bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800/50'}
+                                focus:border-violet-500/40 focus:bg-white dark:focus:bg-slate-900`}
+                        />
+                        {chave && !remetenteLoading && (
+                            <p className="mt-1 text-[10px] text-slate-400 font-medium">
+                                CNPJ extraído da chave: <span className="font-bold text-slate-500">{formatCNPJ(chave.cnpj)}</span>
+                                {remetenteErro && <span className="text-amber-500 ml-1">· não encontrado na Receita Federal</span>}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Destinatário — busca por CNPJ */}
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <Truck className="w-3.5 h-3.5" /> Destinatário
+                            {destLoading && <Loader2 className="w-3 h-3 animate-spin text-violet-400" />}
+                            {!destLoading && destinatario && <Check className="w-3 h-3 text-emerald-500" />}
+                            {!destLoading && destErro && <AlertCircle className="w-3 h-3 text-amber-400" />}
+                        </label>
+                        {/* CNPJ input */}
+                        <div className="relative group mb-2">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-violet-500 transition-colors" />
+                            <input
+                                type="text"
+                                value={formatCNPJInput(destCNPJRaw)}
+                                onChange={e => { setDestCNPJRaw(e.target.value); setGerado(false); }}
+                                placeholder="CNPJ do destinatário (busca automática)"
+                                className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border-2 border-transparent dark:border-slate-800/50 rounded-2xl focus:border-violet-500/40 focus:bg-white dark:focus:bg-slate-900 transition-all outline-none text-sm font-mono font-bold dark:text-white dark:placeholder-slate-600"
+                                maxLength={18}
+                            />
                         </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                                Destinatário <span className="text-slate-300 normal-case font-medium tracking-normal">(opcional)</span>
-                            </label>
-                            <div className="relative">
-                                <Truck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                                <input type="text" value={destinatario} onChange={e => { setDestinatario(e.target.value); setGerado(false); }}
-                                    placeholder="Nome do destinatário..."
-                                    className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border-2 border-transparent dark:border-slate-800/50 rounded-2xl focus:border-violet-500/40 transition-all outline-none text-sm font-medium dark:text-white dark:placeholder-slate-700"
-                                />
-                            </div>
-                        </div>
+                        {/* Nome resultante (editável) */}
+                        <input
+                            type="text"
+                            value={destinatario}
+                            onChange={e => { setDestinatario(e.target.value); setGerado(false); }}
+                            placeholder={destLoading ? 'Buscando...' : 'Nome do destinatário (preenchido automaticamente ou manual)'}
+                            className={`w-full px-5 py-3 border-2 rounded-2xl transition-all outline-none text-sm font-bold dark:text-white dark:placeholder-slate-600
+                                ${destinatario ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/40' : 'bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800/50'}
+                                focus:border-violet-500/40 focus:bg-white dark:focus:bg-slate-900`}
+                        />
+                        {destErro && (
+                            <p className="mt-1 text-[10px] text-amber-500 font-medium">CNPJ não encontrado — edite o nome manualmente acima.</p>
+                        )}
                     </div>
 
                     {/* Info */}
