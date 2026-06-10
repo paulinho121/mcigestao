@@ -8,13 +8,11 @@ import { HubMarketplace } from './pages/HubMarketplace';
 import { ThemeProvider } from './context/ThemeContext';
 import { HubCompany, clearHubCompanyCache } from './services/hubService';
 import { supabase } from './lib/supabase';
+import { detectFilialFromNF, FILIAIS } from './config/filiais';
 
-// Auto-detecta CNPJ pelo prefixo da NF
+// Auto-detecta CNPJ pelo prefixo da NF (config centralizada em config/filiais.ts)
 function cnpjFromNF(nf: string): string {
-    if (nf.startsWith('562') || nf.startsWith('56')) return '05502390000200'; // SC
-    if (nf.startsWith('22')) return '05502390000383'; // SP
-    if (nf.startsWith('10')) return '05502390000111'; // CE
-    return '05502390000200'; // fallback SC
+    return detectFilialFromNF(nf)?.cnpj ?? FILIAIS[0].cnpj; // fallback SC
 }
 
 export const AppRouter = () => {

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { jamefService, JamefTrackingItem } from '../services/jamefService';
+import { detectFilialFromNF } from '../config/filiais';
 
 // ─── Gerar Link de Rastreio ───────────────────────────────────────────────────
 
@@ -38,12 +39,11 @@ function GerarLink() {
         ? `${window.location.origin}${window.location.pathname}#/tracking?nf=${encodeURIComponent(nf)}&cnpj=${encodeURIComponent(cnpj)}&numType=${numType}&docType=remetente`
         : '';
 
-    // Auto-detecta CNPJ pelo prefixo da NF
+    // Auto-detecta CNPJ pelo prefixo da NF (config centralizada em config/filiais.ts)
     useEffect(() => {
         if (!nf) { setCnpj(''); return; }
-        if (nf.startsWith('562') || nf.startsWith('56')) setCnpj('05502390000200');
-        else if (nf.startsWith('22')) setCnpj('05502390000383');
-        else if (nf.startsWith('10')) setCnpj('05502390000111');
+        const filial = detectFilialFromNF(nf);
+        setCnpj(filial?.cnpj ?? '');
     }, [nf]);
 
     // Link final é sempre a URL limpa
@@ -269,17 +269,10 @@ function GerarLink() {
     );
 }
 
-const CNPJ_BY_STATE: Record<string, { cnpj: string; label: string }> = {
-    SC: { cnpj: '05502390000200', label: 'SC' },
-    SP: { cnpj: '05502390000383', label: 'SP' },
-    CE: { cnpj: '05502390000111', label: 'CE' },
-};
-
+// Detecção de filial centralizada em config/filiais.ts
 function detectStateFromNF(nf: string): { cnpj: string; label: string } | null {
-    if (nf.startsWith('562')) return CNPJ_BY_STATE.SC;
-    if (nf.startsWith('22')) return CNPJ_BY_STATE.SP;
-    if (nf.startsWith('10')) return CNPJ_BY_STATE.CE;
-    return null;
+    const filial = detectFilialFromNF(nf);
+    return filial ? { cnpj: filial.cnpj, label: filial.label } : null;
 }
 
 function hasCargoMoved(events: JamefTrackingItem['eventosRastreio']): boolean {
