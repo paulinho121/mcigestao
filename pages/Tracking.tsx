@@ -498,8 +498,8 @@ export const Tracking: React.FC<TrackingProps> = ({
                             </div>
                         )}
 
-                        {/* Dois botões */}
-                        <div className="grid grid-cols-2 gap-3">
+                        {/* Botões de ação */}
+                        <div className={`grid gap-3 ${isPublic ? 'grid-cols-1' : 'grid-cols-2'}`}>
                             <button
                                 type="submit"
                                 disabled={loading || !number.trim()}
@@ -512,14 +512,16 @@ export const Tracking: React.FC<TrackingProps> = ({
                                 }
                             </button>
 
-                            <button
-                                type="button"
-                                disabled={!number.trim()}
-                                onClick={() => setActiveView('gerar_link')}
-                                className="group flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] transition-all duration-300 active:scale-[0.97] bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-xl shadow-emerald-500/20"
-                            >
-                                <Link2 className="w-4 h-4" /><span>Criar Link</span>
-                            </button>
+                            {!isPublic && (
+                                <button
+                                    type="button"
+                                    disabled={!number.trim()}
+                                    onClick={() => setActiveView('gerar_link')}
+                                    className="group flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] transition-all duration-300 active:scale-[0.97] bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-xl shadow-emerald-500/20"
+                                >
+                                    <Link2 className="w-4 h-4" /><span>Criar Link</span>
+                                </button>
+                            )}
                         </div>
                     </form>
 
@@ -595,15 +597,18 @@ export const Tracking: React.FC<TrackingProps> = ({
                             </div>
 
                             {result.frete?.urlComprovanteEntrega && (
-                                <a
-                                    href={result.frete.urlComprovanteEntrega}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const url = result.frete!.urlComprovanteEntrega;
+                                        const absolute = url.startsWith('http') ? url : `https://${url}`;
+                                        window.open(absolute, '_blank', 'noopener,noreferrer');
+                                    }}
                                     className="group/btn flex items-center gap-3 px-6 py-4 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
                                 >
                                     <ExternalLink className="w-4 h-4" />
                                     <span>Comprovante</span>
-                                </a>
+                                </button>
                             )}
                         </div>
 
