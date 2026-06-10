@@ -107,184 +107,90 @@ interface EtiquetaProps {
     dataEmissao: string;
 }
 
+// 190mm × 130mm — cabe 2 por folha A4 (297mm altura, margens 8mm + 9mm gap)
+const LABEL_W = '190mm';
+const LABEL_H = '130mm';
+
 const EtiquetaLabel: React.FC<EtiquetaProps> = ({
     chave, volume, totalVolumes, transportadora, remetente, destinatario, dataEmissao,
-}) => {
-    // Tamanho: 94mm × 76mm = 355px × 287px @ 96dpi
-    return (
-        <div
-            className="etiqueta-label"
-            style={{
-                width: '94mm',
-                height: '76mm',
-                border: '1.5px solid #000',
-                fontFamily: 'Arial, sans-serif',
-                background: '#fff',
-                color: '#000',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-                pageBreakAfter: 'always',
-                boxSizing: 'border-box',
-            }}
-        >
-            {/* ── Header: Logo + Transportadora + Volume ── */}
-            <div style={{
-                display: 'flex',
-                alignItems: 'stretch',
-                borderBottom: '1.5px solid #000',
-                height: '16mm',
-                flexShrink: 0,
-            }}>
-                {/* Logo MCI */}
-                <div style={{
-                    width: '22mm',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '2mm',
-                    borderRight: '1px solid #ddd',
-                    flexShrink: 0,
-                }}>
-                    <img
-                        src="/logo.png"
-                        alt="MCI"
-                        style={{ maxWidth: '18mm', maxHeight: '11mm', objectFit: 'contain' }}
-                    />
-                </div>
-
-                {/* Transportadora */}
-                <div style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    paddingLeft: '3mm',
-                    borderRight: '1.5px solid #000',
-                }}>
-                    <div>
-                        <div style={{ fontSize: '6px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            Transportadora
-                        </div>
-                        <div style={{ fontSize: '13px', fontWeight: 900, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
-                            {transportadora}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Volume X/Y — destaque */}
-                <div style={{
-                    width: '26mm',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: '#000',
-                    color: '#fff',
-                    flexShrink: 0,
-                }}>
-                    <div style={{ fontSize: '6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1px' }}>Volume</div>
-                    <div style={{ fontSize: '22px', fontWeight: 900, lineHeight: 1 }}>
-                        {volume}<span style={{ fontSize: '13px', fontWeight: 700 }}>/{totalVolumes}</span>
-                    </div>
-                </div>
+}) => (
+    <div style={{
+        width: LABEL_W,
+        height: LABEL_H,
+        border: '1.5px solid #000',
+        fontFamily: 'Arial, sans-serif',
+        background: '#fff',
+        color: '#000',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+    }}>
+        {/* ── Header: Logo · Transportadora · Volume ── */}
+        <div style={{ display: 'flex', alignItems: 'stretch', borderBottom: '2px solid #000', height: '26mm', flexShrink: 0 }}>
+            {/* Logo */}
+            <div style={{ width: '38mm', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3mm', borderRight: '1px solid #ddd', flexShrink: 0 }}>
+                <img src="/logo.png" alt="MCI" style={{ maxWidth: '32mm', maxHeight: '18mm', objectFit: 'contain' }} />
             </div>
-
-            {/* ── Barcode area ── */}
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderBottom: '1px solid #000',
-                padding: '1mm 0',
-                flexShrink: 0,
-                height: '22mm',
-                overflow: 'hidden',
-            }}>
-                <Barcode
-                    value={chave.raw}
-                    format="CODE128"
-                    width={1.2}
-                    height={52}
-                    fontSize={7}
-                    margin={2}
-                    displayValue={false}
-                />
+            {/* Transportadora */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingLeft: '5mm', borderRight: '2px solid #000' }}>
+                <div style={{ fontSize: '9px', fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>Transportadora</div>
+                <div style={{ fontSize: '22px', fontWeight: 900, letterSpacing: '-0.5px', lineHeight: 1 }}>{transportadora}</div>
             </div>
-
-            {/* ── Chave NF-e (texto) ── */}
-            <div style={{
-                textAlign: 'center',
-                fontSize: '6px',
-                fontFamily: 'monospace',
-                letterSpacing: '0.5px',
-                padding: '1mm 2mm',
-                borderBottom: '1px solid #ddd',
-                flexShrink: 0,
-                color: '#333',
-            }}>
-                {formatChaveDisplay(chave.raw)}
-            </div>
-
-            {/* ── Info NF ── */}
-            <div style={{
-                display: 'flex',
-                flex: 1,
-                alignItems: 'stretch',
-                overflow: 'hidden',
-            }}>
-                {/* Dados NF */}
-                <div style={{
-                    flex: 1,
-                    padding: '2mm 3mm',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-around',
-                    borderRight: '1px solid #ddd',
-                    fontSize: '7px',
-                }}>
-                    <div>
-                        <div style={{ color: '#777', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '5px' }}>NF-e · Série · UF</div>
-                        <div style={{ fontWeight: 900, fontSize: '11px', letterSpacing: '-0.3px' }}>
-                            {chave.numeroNF} <span style={{ fontSize: '8px', fontWeight: 700, color: '#555' }}>· {chave.serie} · {chave.uf}</span>
-                        </div>
-                    </div>
-                    {remetente && (
-                        <div>
-                            <div style={{ color: '#777', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '5px' }}>Remetente</div>
-                            <div style={{ fontWeight: 700, fontSize: '7px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '52mm' }}>{remetente}</div>
-                        </div>
-                    )}
-                    {destinatario && (
-                        <div>
-                            <div style={{ color: '#777', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '5px' }}>Destinatário</div>
-                            <div style={{ fontWeight: 700, fontSize: '7px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '52mm' }}>{destinatario}</div>
-                        </div>
-                    )}
-                    <div style={{ color: '#aaa', fontSize: '5.5px' }}>
-                        Emitido: {dataEmissao} · CNPJ {formatCNPJ(chave.cnpj)}
-                    </div>
-                </div>
-
-                {/* QR Code */}
-                <div style={{
-                    width: '18mm',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '2mm',
-                    flexShrink: 0,
-                }}>
-                    <QRCodeSVG value={chave.raw} size={56} level="M" marginSize={0} />
+            {/* Volume */}
+            <div style={{ width: '46mm', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#000', color: '#fff', flexShrink: 0 }}>
+                <div style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '2px' }}>Volume</div>
+                <div style={{ fontSize: '42px', fontWeight: 900, lineHeight: 1 }}>
+                    {volume}<span style={{ fontSize: '22px', fontWeight: 700 }}>/{totalVolumes}</span>
                 </div>
             </div>
         </div>
-    );
-};
+
+        {/* ── Barcode ── */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #000', padding: '2mm 0', height: '38mm', overflow: 'hidden', flexShrink: 0 }}>
+            <Barcode value={chave.raw} format="CODE128" width={2.2} height={85} fontSize={0} margin={4} displayValue={false} />
+        </div>
+
+        {/* ── Chave em texto ── */}
+        <div style={{ textAlign: 'center', fontSize: '9px', fontFamily: 'monospace', letterSpacing: '1px', padding: '1.5mm 3mm', borderBottom: '1px solid #ddd', flexShrink: 0, color: '#444' }}>
+            {formatChaveDisplay(chave.raw)}
+        </div>
+
+        {/* ── Dados NF + QR ── */}
+        <div style={{ display: 'flex', flex: 1, alignItems: 'stretch', overflow: 'hidden' }}>
+            <div style={{ flex: 1, padding: '3mm 5mm', display: 'flex', flexDirection: 'column', justifyContent: 'space-around', borderRight: '1px solid #ddd' }}>
+                <div>
+                    <div style={{ color: '#888', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', fontSize: '8px' }}>NF-e · Série · UF</div>
+                    <div style={{ fontWeight: 900, fontSize: '18px', letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+                        {chave.numeroNF} <span style={{ fontSize: '13px', fontWeight: 700, color: '#555' }}>· {chave.serie} · {chave.uf}</span>
+                    </div>
+                </div>
+                {remetente && (
+                    <div>
+                        <div style={{ color: '#888', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', fontSize: '8px' }}>Remetente</div>
+                        <div style={{ fontWeight: 800, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{remetente}</div>
+                    </div>
+                )}
+                {destinatario && (
+                    <div>
+                        <div style={{ color: '#888', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', fontSize: '8px' }}>Destinatário</div>
+                        <div style={{ fontWeight: 800, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{destinatario}</div>
+                    </div>
+                )}
+                <div style={{ color: '#bbb', fontSize: '8px' }}>Emitido: {dataEmissao} · CNPJ {formatCNPJ(chave.cnpj)}</div>
+            </div>
+            {/* QR Code */}
+            <div style={{ width: '30mm', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3mm', flexShrink: 0 }}>
+                <QRCodeSVG value={chave.raw} size={90} level="M" marginSize={0} />
+            </div>
+        </div>
+    </div>
+);
 
 // ─── Preview Thumbnail (escalonado para a UI) ─────────────────────────────────
 
 const EtiquetaPreview: React.FC<EtiquetaProps> = (props) => (
-    <div style={{ transform: 'scale(0.55)', transformOrigin: 'top left', width: '94mm', height: '76mm' }}>
+    <div style={{ transform: 'scale(0.38)', transformOrigin: 'top left', width: LABEL_W, height: LABEL_H }}>
         <EtiquetaLabel {...props} />
     </div>
 );
@@ -356,27 +262,22 @@ export function EtiquetaPersonalizada() {
     const handleImprimir = () => {
         if (!chave) return;
 
-        const conteudo = Array.from({ length: volumes }, (_, i) => {
-            const vol = i + 1;
-            // Monta HTML inline para cada etiqueta — sem dependência de React no print
-            return `
+        const etiquetaHTML = (vol: number) => `
             <div class="etiqueta">
                 <div class="header">
                     <div class="logo-box">
                         <img src="${window.location.origin}/logo.png" alt="MCI" class="logo-img" onerror="this.style.display='none'"/>
                     </div>
                     <div class="transportadora">
-                        <div class="label-small-dark">Transportadora</div>
+                        <div class="label-dark">Transportadora</div>
                         <div class="transportadora-nome">${transportadoraFinal}</div>
                     </div>
                     <div class="volume-box">
-                        <div class="label-small">Volume</div>
+                        <div class="label-white">Volume</div>
                         <div class="volume-num">${vol}<span class="volume-total">/${volumes}</span></div>
                     </div>
                 </div>
-                <div class="barcode-area">
-                    <svg id="barcode-${vol}"></svg>
-                </div>
+                <div class="barcode-area"><svg id="barcode-${vol}"></svg></div>
                 <div class="chave-texto">${formatChaveDisplay(chave.raw)}</div>
                 <div class="info-row">
                     <div class="info-dados">
@@ -388,12 +289,18 @@ export function EtiquetaPersonalizada() {
                         ${destinatario ? `<div><div class="sub-label">Destinatário</div><div class="info-text">${destinatario}</div></div>` : ''}
                         <div class="rodape">Emitido: ${dataEmissao} · CNPJ ${formatCNPJ(chave.cnpj)}</div>
                     </div>
-                    <div class="qr-area">
-                        <canvas id="qr-${vol}"></canvas>
-                    </div>
+                    <div class="qr-area"><canvas id="qr-${vol}"></canvas></div>
                 </div>
             </div>`;
-        }).join('');
+
+        // Agrupa de 2 em 2 por página A4
+        const pages: string[] = [];
+        for (let i = 1; i <= volumes; i += 2) {
+            const a = etiquetaHTML(i);
+            const b = i + 1 <= volumes ? etiquetaHTML(i + 1) : '';
+            pages.push(`<div class="page">${a}${b}</div>`);
+        }
+        const conteudo = pages.join('');
 
         const win = window.open('', '_blank', 'width=900,height=700');
         if (!win) return;
@@ -405,62 +312,68 @@ export function EtiquetaPersonalizada() {
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"><\/script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,sans-serif;background:#fff;padding:4mm}
-.etiqueta{
-    width:94mm;height:76mm;border:1.5px solid #000;
-    display:flex;flex-direction:column;overflow:hidden;
-    page-break-after:always;margin-bottom:4mm;
+body{font-family:Arial,sans-serif;background:#fff}
+/* Página A4 — 2 etiquetas por folha */
+.page{
+    width:210mm;height:297mm;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    gap:9mm;padding:8mm;
+    page-break-after:always;break-after:page;
 }
-.header{display:flex;height:16mm;border-bottom:1.5px solid #000;flex-shrink:0}
-.logo-box{width:22mm;display:flex;align-items:center;justify-content:center;padding:2mm;border-right:1px solid #ddd;flex-shrink:0}
-.logo-img{max-width:18mm;max-height:11mm;object-fit:contain}
-.transportadora{flex:1;display:flex;flex-direction:column;justify-content:center;padding-left:3mm;border-right:1.5px solid #000}
-.transportadora-nome{font-size:13px;font-weight:900;letter-spacing:-0.5px;line-height:1.1}
-.volume-box{width:26mm;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000;color:#fff;flex-shrink:0}
-.volume-num{font-size:22px;font-weight:900;line-height:1}
-.volume-total{font-size:13px;font-weight:700}
-.label-small{font-size:6px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;color:#fff}
-.label-small-dark{font-size:6px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;color:#555}
-.barcode-area{display:flex;align-items:center;justify-content:center;border-bottom:1px solid #000;padding:1mm 0;height:22mm;overflow:hidden;flex-shrink:0}
-.barcode-area svg{max-height:52px}
-.chave-texto{text-align:center;font-family:monospace;font-size:6px;letter-spacing:0.5px;padding:1mm 2mm;border-bottom:1px solid #ddd;flex-shrink:0;color:#333}
+.etiqueta{
+    width:190mm;height:130mm;
+    border:1.5px solid #000;
+    display:flex;flex-direction:column;
+    overflow:hidden;flex-shrink:0;
+}
+/* Header */
+.header{display:flex;height:26mm;border-bottom:2px solid #000;flex-shrink:0}
+.logo-box{width:38mm;display:flex;align-items:center;justify-content:center;padding:3mm;border-right:1px solid #ddd;flex-shrink:0}
+.logo-img{max-width:32mm;max-height:18mm;object-fit:contain}
+.transportadora{flex:1;display:flex;flex-direction:column;justify-content:center;padding-left:5mm;border-right:2px solid #000}
+.label-dark{font-size:9px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:2px}
+.transportadora-nome{font-size:22px;font-weight:900;letter-spacing:-0.5px;line-height:1}
+.volume-box{width:46mm;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000;color:#fff;flex-shrink:0}
+.label-white{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px;color:#fff}
+.volume-num{font-size:42px;font-weight:900;line-height:1}
+.volume-total{font-size:22px;font-weight:700}
+/* Barcode */
+.barcode-area{display:flex;align-items:center;justify-content:center;border-bottom:1px solid #000;padding:2mm 0;height:38mm;overflow:hidden;flex-shrink:0}
+.barcode-area svg{max-height:85px}
+/* Chave texto */
+.chave-texto{text-align:center;font-family:monospace;font-size:9px;letter-spacing:1px;padding:1.5mm 3mm;border-bottom:1px solid #ddd;flex-shrink:0;color:#444}
+/* Info */
 .info-row{display:flex;flex:1;overflow:hidden}
-.info-dados{flex:1;padding:2mm 3mm;display:flex;flex-direction:column;justify-content:space-around;border-right:1px solid #ddd;font-size:7px}
-.sub-label{color:#777;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:5px}
-.nf-num{font-weight:900;font-size:11px;letter-spacing:-0.3px}
-.nf-serie{font-size:8px;font-weight:700;color:#555}
-.info-text{font-weight:700;font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52mm}
-.rodape{color:#aaa;font-size:5.5px}
-.qr-area{width:18mm;display:flex;align-items:center;justify-content:center;padding:2mm;flex-shrink:0}
-.qr-area canvas,.qr-area img{width:56px!important;height:56px!important}
+.info-dados{flex:1;padding:3mm 5mm;display:flex;flex-direction:column;justify-content:space-around;border-right:1px solid #ddd}
+.sub-label{color:#888;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;font-size:8px}
+.nf-num{font-weight:900;font-size:18px;letter-spacing:-0.5px;line-height:1.1}
+.nf-serie{font-size:13px;font-weight:700;color:#555}
+.info-text{font-weight:800;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140mm}
+.rodape{color:#bbb;font-size:8px}
+.qr-area{width:30mm;display:flex;align-items:center;justify-content:center;padding:3mm;flex-shrink:0}
+.qr-area canvas,.qr-area img{width:90px!important;height:90px!important}
 @media print{
-    @page{size:94mm 76mm;margin:0}
-    body{padding:0}
-    .etiqueta{margin:0;border:1px solid #000;page-break-after:always;break-after:page}
+    @page{size:A4;margin:0}
+    body{margin:0;padding:0}
+    .page{page-break-after:always;break-after:page}
 }
 </style></head>
 <body>
 ${conteudo}
 <script>
 window.onload = function() {
-    // Gera barcodes
     for(var i = 1; i <= ${volumes}; i++) {
         try {
             JsBarcode('#barcode-' + i, '${chave.raw}', {
-                format: 'CODE128',
-                width: 1.2,
-                height: 52,
-                displayValue: false,
-                margin: 2
+                format: 'CODE128', width: 2.2, height: 85,
+                displayValue: false, margin: 4
             });
         } catch(e){}
-        // Gera QR
         try {
             var el = document.getElementById('qr-' + i);
             new QRCode(el, {
-                text: '${chave.raw}',
-                width: 56,
-                height: 56,
+                text: '${chave.raw}', width: 90, height: 90,
                 correctLevel: QRCode.CorrectLevel.M
             });
         } catch(e){}
@@ -698,7 +611,7 @@ window.onload = function() {
                             <div className="flex gap-4" style={{ minWidth: 'max-content' }}>
                                 {Array.from({ length: volumes }, (_, i) => (
                                     <div key={i} className="bg-white rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden flex-shrink-0"
-                                        style={{ width: `calc(94mm * 0.55)`, height: `calc(76mm * 0.55)` }}>
+                                        style={{ width: `calc(190mm * 0.38)`, height: `calc(130mm * 0.38)` }}>
                                         <EtiquetaPreview
                                             chave={chave}
                                             volume={i + 1}
@@ -714,7 +627,7 @@ window.onload = function() {
                         </div>
 
                         <p className="text-center text-[11px] text-slate-400 font-medium">
-                            Escala 55% · tamanho real 94×76 mm. Clique em <strong>Imprimir</strong> para enviar à impressora.
+                            Escala 38% · tamanho real 190×130 mm · <strong>2 etiquetas por folha A4</strong>. Clique em <strong>Imprimir</strong> para enviar à impressora.
                         </p>
                     </div>
                 )}
