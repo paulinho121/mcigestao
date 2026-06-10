@@ -15,5 +15,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["."]
+  "include": ["."],
+  "exclude": ["supabase/functions"]
 }
