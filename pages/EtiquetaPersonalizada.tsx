@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Barcode from 'react-barcode';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -309,7 +309,6 @@ export function EtiquetaPersonalizada() {
     const [destErro, setDestErro] = useState(false);
 
     const [gerado, setGerado] = useState(false);
-    const printRef = useRef<HTMLDivElement>(null);
 
     const chaveDigits = chaveRaw.replace(/\D/g, '');
     const chave = parseChaveNF(chaveDigits);
@@ -355,7 +354,7 @@ export function EtiquetaPersonalizada() {
     };
 
     const handleImprimir = () => {
-        if (!printRef.current || !chave) return;
+        if (!chave) return;
 
         const conteudo = Array.from({ length: volumes }, (_, i) => {
             const vol = i + 1;
