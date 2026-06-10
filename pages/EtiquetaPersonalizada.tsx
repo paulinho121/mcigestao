@@ -99,7 +99,7 @@ const EtiquetaLabel: React.FC<EtiquetaProps> = ({
                 boxSizing: 'border-box',
             }}
         >
-            {/* ── Header: Transportadora + Volume ── */}
+            {/* ── Header: Logo + Transportadora + Volume ── */}
             <div style={{
                 display: 'flex',
                 alignItems: 'stretch',
@@ -107,6 +107,23 @@ const EtiquetaLabel: React.FC<EtiquetaProps> = ({
                 height: '16mm',
                 flexShrink: 0,
             }}>
+                {/* Logo MCI */}
+                <div style={{
+                    width: '22mm',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '2mm',
+                    borderRight: '1px solid #ddd',
+                    flexShrink: 0,
+                }}>
+                    <img
+                        src="/logo.png"
+                        alt="MCI"
+                        style={{ maxWidth: '18mm', maxHeight: '11mm', objectFit: 'contain' }}
+                    />
+                </div>
+
                 {/* Transportadora */}
                 <div style={{
                     flex: 1,
@@ -119,7 +136,7 @@ const EtiquetaLabel: React.FC<EtiquetaProps> = ({
                         <div style={{ fontSize: '6px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             Transportadora
                         </div>
-                        <div style={{ fontSize: '14px', fontWeight: 900, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 900, letterSpacing: '-0.5px', lineHeight: 1.1 }}>
                             {transportadora}
                         </div>
                     </div>
@@ -127,17 +144,18 @@ const EtiquetaLabel: React.FC<EtiquetaProps> = ({
 
                 {/* Volume X/Y — destaque */}
                 <div style={{
-                    width: '28mm',
+                    width: '26mm',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
                     background: '#000',
                     color: '#fff',
+                    flexShrink: 0,
                 }}>
-                    <div style={{ fontSize: '7px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1px' }}>Volume</div>
-                    <div style={{ fontSize: '24px', fontWeight: 900, lineHeight: 1 }}>
-                        {volume}<span style={{ fontSize: '14px', fontWeight: 700 }}>/{totalVolumes}</span>
+                    <div style={{ fontSize: '6px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1px' }}>Volume</div>
+                    <div style={{ fontSize: '22px', fontWeight: 900, lineHeight: 1 }}>
+                        {volume}<span style={{ fontSize: '13px', fontWeight: 700 }}>/{totalVolumes}</span>
                     </div>
                 </div>
             </div>
@@ -274,8 +292,11 @@ export function EtiquetaPersonalizada() {
             return `
             <div class="etiqueta">
                 <div class="header">
+                    <div class="logo-box">
+                        <img src="${window.location.origin}/logo.png" alt="MCI" class="logo-img" onerror="this.style.display='none'"/>
+                    </div>
                     <div class="transportadora">
-                        <div class="label-small">Transportadora</div>
+                        <div class="label-small-dark">Transportadora</div>
                         <div class="transportadora-nome">${transportadoraFinal}</div>
                     </div>
                     <div class="volume-box">
@@ -321,13 +342,15 @@ body{font-family:Arial,sans-serif;background:#fff;padding:4mm}
     page-break-after:always;margin-bottom:4mm;
 }
 .header{display:flex;height:16mm;border-bottom:1.5px solid #000;flex-shrink:0}
+.logo-box{width:22mm;display:flex;align-items:center;justify-content:center;padding:2mm;border-right:1px solid #ddd;flex-shrink:0}
+.logo-img{max-width:18mm;max-height:11mm;object-fit:contain}
 .transportadora{flex:1;display:flex;flex-direction:column;justify-content:center;padding-left:3mm;border-right:1.5px solid #000}
-.transportadora-nome{font-size:14px;font-weight:900;letter-spacing:-0.5px;line-height:1.1}
-.volume-box{width:28mm;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000;color:#fff}
-.volume-num{font-size:24px;font-weight:900;line-height:1}
-.volume-total{font-size:14px;font-weight:700}
+.transportadora-nome{font-size:13px;font-weight:900;letter-spacing:-0.5px;line-height:1.1}
+.volume-box{width:26mm;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000;color:#fff;flex-shrink:0}
+.volume-num{font-size:22px;font-weight:900;line-height:1}
+.volume-total{font-size:13px;font-weight:700}
 .label-small{font-size:6px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;color:#fff}
-.transportadora .label-small{color:#555}
+.label-small-dark{font-size:6px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;color:#555}
 .barcode-area{display:flex;align-items:center;justify-content:center;border-bottom:1px solid #000;padding:1mm 0;height:22mm;overflow:hidden;flex-shrink:0}
 .barcode-area svg{max-height:52px}
 .chave-texto{text-align:center;font-family:monospace;font-size:6px;letter-spacing:0.5px;padding:1mm 2mm;border-bottom:1px solid #ddd;flex-shrink:0;color:#333}
