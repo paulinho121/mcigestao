@@ -330,7 +330,7 @@ export const jamefService = {
             const token = await this.login();
             const chave = chaveNotaFiscal.replace(/\D/g, '');
             const res = await fetch(
-                `/api/jamef-prod/operacao/v1/etiqueta/${chave}?formato=zpl`,
+                `/api/jamef-prod/operacao/v1/etiqueta/${chave}?tipoRetorno=zpl`,
                 { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } }
             );
             if (!res.ok) {
@@ -358,7 +358,7 @@ export const jamefService = {
             const token = await this.login();
             const chave = chaveNotaFiscal.replace(/\D/g, '');
             const res = await fetch(
-                `/api/jamef-prod/operacao/v1/etiqueta/${chave}?formato=dados`,
+                `/api/jamef-prod/operacao/v1/etiqueta/${chave}?tipoRetorno=dados`,
                 { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } }
             );
             if (!res.ok) {
