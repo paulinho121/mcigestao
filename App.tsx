@@ -21,7 +21,9 @@ import { Withdrawals } from './pages/Withdrawals';
 import EnrichmentReview from './pages/EnrichmentReview';
 import { PreVenda } from './pages/PreVenda';
 import { PedidosCD } from './pages/PedidosCD';
+import { MeusPedidos } from './pages/MeusPedidos';
 import { CotacaoFrete } from './pages/CotacaoFrete';
+import { Etiquetas } from './pages/Etiquetas';
 import { PreSaleAlertBanner } from './components/PreSaleAlertBanner';
 // import { nfeService } from './services/nfeService';
 import { User } from './types';
@@ -32,7 +34,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 import { CircleMenu, CircleMenuItem } from './components/ui/circle-menu';
 
-type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete';
+type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas';
 
 function BackgroundMesh() {
   return null;
@@ -225,6 +227,7 @@ function App() {
       subItems: [
         { label: 'Rastreamento', icon: <Truck size={20} />, onClick: () => navigate('tracking'), colorClass: 'bg-violet-600 hover:bg-violet-700' },
         { label: 'Cotação Frete', icon: <Calculator size={20} />, onClick: () => navigate('cotacao_frete'), colorClass: 'bg-violet-500 hover:bg-violet-600' },
+        { label: 'Etiquetas', icon: <Tag size={20} />, onClick: () => navigate('etiquetas'), colorClass: 'bg-violet-700 hover:bg-violet-800' },
         { label: 'Locações', icon: <CalendarClock size={20} />, onClick: () => navigate('rental_management'), colorClass: 'bg-violet-400 hover:bg-violet-500' },
       ],
     },
@@ -261,8 +264,12 @@ function App() {
       {
         label: 'Pedidos CD',
         icon: <PackageSearch size={20} />,
-        onClick: () => navigate('pedidos_cd'),
+        onClick: () => navigate(isMaster ? 'pedidos_cd' : 'meus_pedidos'),
         colorClass: 'bg-orange-600 hover:bg-orange-700',
+        subItems: isMaster ? [
+          { label: 'Gerenciar',    icon: <PackageSearch size={20} />, onClick: () => navigate('pedidos_cd'),    colorClass: 'bg-orange-600 hover:bg-orange-700' },
+          { label: 'Meus Pedidos', icon: <ClipboardList size={20} />, onClick: () => navigate('meus_pedidos'), colorClass: 'bg-orange-500 hover:bg-orange-600' },
+        ] : undefined,
       },
       {
         label: 'Fornecedores',
@@ -420,8 +427,10 @@ function App() {
           {activeTab === 'product_registration' && isMaster && <ProductRegistration />}
           {activeTab === 'image_review' && isMaster && <EnrichmentReview />}
           {activeTab === 'pre_venda' && isMaster && <PreVenda />}
-          {activeTab === 'pedidos_cd' && isMaster && <PedidosCD isMaster={isMaster} />}
+          {activeTab === 'pedidos_cd' && isMaster && <PedidosCD isMaster={isMaster} userEmail={user.email} />}
+          {activeTab === 'meus_pedidos' && <MeusPedidos userEmail={user.email} userName={user.name} />}
           {activeTab === 'cotacao_frete' && <CotacaoFrete />}
+          {activeTab === 'etiquetas' && <Etiquetas />}
         </main>
       </div>
 

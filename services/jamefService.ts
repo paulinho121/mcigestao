@@ -44,6 +44,45 @@ export interface CotacaoResponse {
     raw?: any;
 }
 
+// ─── Etiquetas ───────────────────────────────────────────────────────────────
+
+export interface EtiquetaZpl {
+    zpl: string;
+    correlacaoId?: string;
+}
+
+export interface EtiquetaDadosVolume {
+    numeroVolume?: number;
+    peso?: number;
+    altura?: number;
+    largura?: number;
+    comprimento?: number;
+    descricao?: string;
+}
+
+export interface EtiquetaDados {
+    correlacaoId?: string;
+    sigla?: string;
+    setor?: string;
+    remetente?: { nome?: string; cnpj?: string; endereco?: string; cidade?: string; uf?: string; cep?: string };
+    destinatario?: { nome?: string; cnpj?: string; cpf?: string; endereco?: string; cidade?: string; uf?: string; cep?: string };
+    notaFiscal?: { chave?: string; numero?: string; serie?: string; valorTotal?: number };
+    conhecimento?: { numero?: string; serie?: string };
+    volumes?: EtiquetaDadosVolume[];
+    totalVolumes?: number;
+    pesoTotal?: number;
+    raw?: any;
+}
+
+export interface SiglaSetor {
+    sigla?: string;
+    setor?: string;
+    descricao?: string;
+    filial?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const jamefService = {
     /**
      * Authenticate and get JWT Token (Always Production)
@@ -280,5 +319,79 @@ export const jamefService = {
             valorTaxas: dado.valorTaxas,
             raw: data,
         };
+    },
+
+    /**
+     * Busca etiqueta no formato ZPL para uma chave de NF-e (44 dígitos)
+     * GET /operacao/v1/etiqueta/{chaveNotaFiscal}?formato=zpl
+     */
+    async gerarEtiquetaZpl(chaveNotaFiscal: string): Promise<{ sucesso: boolean; etiqueta?: EtiquetaZpl; mensagem?: string }> {
+        try {
+            const token = await this.login();
+            const chave = chaveNotaFiscal.replace(/\D/g, '');
+            const res = await fetch(
+                `/api/jamef-prod/operacao/v1/etiqueta/${chave}?formato=zpl`,
+                { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) {
+                if (res.status === 401) localStorage.removeItem('jamef_token_prod');
+                const err = await res.json().catch(() => ({}));
+                return { sucesso: false, mensagem: err.mensagem || `Erro ${res.status}` };
+            }
+            const data = await res.json();
+            const dado = data.dado?.[0] ?? data;
+            return {
+                sucesso: true,
+                etiqueta: { zpl: dado.zpl ?? dado.conteudo ?? dado.etiqueta ?? JSON.stringify(dado), correlacaoId: dado.correlacaoId }
+            };
+        } catch (e: any) {
+            return { sucesso: false, mensagem: e.message };
+        }
+    },
+
+    /**
+     * Busca etiqueta no formato dados (JSON estruturado) para uma chave de NF-e
+     * GET /operacao/v1/etiqueta/{chaveNotaFiscal}?formato=dados
+     */
+    async gerarEtiquetaDados(chaveNotaFiscal: string): Promise<{ sucesso: boolean; etiqueta?: EtiquetaDados; mensagem?: string }> {
+        try {
+            const token = await this.login();
+            const chave = chaveNotaFiscal.replace(/\D/g, '');
+            const res = await fetch(
+                `/api/jamef-prod/operacao/v1/etiqueta/${chave}?formato=dados`,
+                { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) {
+                if (res.status === 401) localStorage.removeItem('jamef_token_prod');
+                const err = await res.json().catch(() => ({}));
+                return { sucesso: false, mensagem: err.mensagem || `Erro ${res.status}` };
+            }
+            const data = await res.json();
+            const dado = data.dado?.[0] ?? data;
+            return {
+                sucesso: true,
+                etiqueta: { ...dado, raw: data }
+            };
+        } catch (e: any) {
+            return { sucesso: false, mensagem: e.message };
+        }
+    },
+
+    /**
+     * Lista siglas e setores disponíveis para etiquetagem
+     * GET /operacao/v1/etiqueta/sigla
+     */
+    async buscarSiglasEtiqueta(): Promise<SiglaSetor[]> {
+        try {
+            const token = await this.login();
+            const res = await fetch(`/api/jamef-prod/operacao/v1/etiqueta/sigla`, {
+                headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) return [];
+            const data = await res.json();
+            return data.dado ?? data ?? [];
+        } catch {
+            return [];
+        }
     },
 };
