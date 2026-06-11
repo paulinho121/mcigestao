@@ -28,14 +28,15 @@ import { EtiquetaPersonalizada } from './pages/EtiquetaPersonalizada';
 import { PreSaleAlertBanner } from './components/PreSaleAlertBanner';
 // import { nfeService } from './services/nfeService';
 import { User } from './types';
-import { isMasterUser } from './config/masterUsers';
-import { Package, ClipboardList, Wrench, LogOut, Ship, ShoppingBag, FileText, Sun, Moon, Users, Truck, BookOpen, Menu, BarChart3, PackagePlus, Image as ImageIcon, Upload as UploadIcon, Layers, ArrowDownUp, CalendarClock, Tag, FileCode2, Activity, PackageSearch, Calculator } from 'lucide-react';
+import { isMasterUser, isMarketingUser } from './config/masterUsers';
+import { MarketingSC } from './pages/MarketingSC';
+import { Package, ClipboardList, Wrench, LogOut, Ship, ShoppingBag, FileText, Sun, Moon, Users, Truck, BookOpen, Menu, BarChart3, PackagePlus, Image as ImageIcon, Upload as UploadIcon, Layers, ArrowDownUp, CalendarClock, Tag, FileCode2, Activity, PackageSearch, Calculator, ShoppingCart } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 import { CircleMenu, CircleMenuItem } from './components/ui/circle-menu';
 
-type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas' | 'etiqueta_personalizada';
+type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas' | 'etiqueta_personalizada' | 'marketing_sc';
 
 function BackgroundMesh() {
   return null;
@@ -46,6 +47,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('inventory');
   const [isMaster, setIsMaster] = useState(false);
+  const [isMarketing, setIsMarketing] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'mock' | 'error'>('checking');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [preSaleAlertTrigger] = useState(0);
@@ -64,6 +66,7 @@ function App() {
           };
           setUser(userData);
           setIsMaster(isMasterUser(userData.email));
+          setIsMarketing(isMarketingUser(userData.email));
         }
       } else {
         // Fallback for mock mode
@@ -72,6 +75,7 @@ function App() {
           const parsedUser = JSON.parse(storedUser);
           setUser(parsedUser);
           setIsMaster(isMasterUser(parsedUser.email));
+          setIsMarketing(isMarketingUser(parsedUser.email));
         }
       }
       setLoading(false);
@@ -108,9 +112,11 @@ function App() {
           };
           setUser(userData);
           setIsMaster(isMasterUser(userData.email));
+          setIsMarketing(isMarketingUser(userData.email));
         } else {
           setUser(null);
           setIsMaster(false);
+          setIsMarketing(false);
         }
       }) as any;
 
@@ -151,6 +157,7 @@ function App() {
     const fakeUser = { id: '1', email, name: name || email.split('@')[0] };
     setUser(fakeUser);
     setIsMaster(isMasterUser(email));
+    setIsMarketing(isMarketingUser(email));
     localStorage.setItem('stockvision_user', JSON.stringify(fakeUser));
   };
 
@@ -160,6 +167,7 @@ function App() {
     }
     setUser(null);
     setIsMaster(false);
+    setIsMarketing(false);
     localStorage.removeItem('stockvision_user');
   };
 
@@ -239,6 +247,12 @@ function App() {
       onClick: () => navigate('diretoria'),
       colorClass: 'bg-slate-600 hover:bg-slate-700',
     },
+    ...(isMarketing ? [{
+      label: 'Ecommerce SC',
+      icon: <ShoppingCart size={20} />,
+      onClick: () => navigate('marketing_sc'),
+      colorClass: 'bg-purple-600 hover:bg-purple-700',
+    }] : []),
     ...(isMaster ? [
       {
         label: 'Manutenção',
@@ -434,6 +448,7 @@ function App() {
           {activeTab === 'cotacao_frete' && <CotacaoFrete />}
           {activeTab === 'etiquetas' && <Etiquetas />}
           {activeTab === 'etiqueta_personalizada' && <EtiquetaPersonalizada />}
+          {activeTab === 'marketing_sc' && isMarketing && <MarketingSC />}
         </main>
       </div>
 
