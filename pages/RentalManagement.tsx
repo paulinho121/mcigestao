@@ -1,10 +1,54 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Calendar, DollarSign, User, Package, Trash2, CheckCircle, Edit } from 'lucide-react';
+import { Plus, Search, Calendar, DollarSign, User, Package, Trash2, CheckCircle, Edit, FileText, UserCheck, Phone, Mail } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Rental, RentalItem } from '../types';
+import { ContratoLocacaoForm } from './ContratoLocacaoForm';
+import { vendedorService, Vendedor } from '../services/vendedorService';
 
 export function RentalManagement() {
-    const [activeTab, setActiveTab] = useState<'rentals' | 'inventory'>('rentals');
+    const [showContratoForm, setShowContratoForm] = useState(false);
+    const [activeTab, setActiveTab] = useState<'rentals' | 'inventory' | 'vendedores'>('rentals');
+
+    // Vendedores state
+    const [vendedores, setVendedores] = useState<Vendedor[]>([]);
+    const [loadingVendedores, setLoadingVendedores] = useState(false);
+    const [showVendedorModal, setShowVendedorModal] = useState(false);
+    const [editingVendedor, setEditingVendedor] = useState<Vendedor | null>(null);
+    const [vendedorForm, setVendedorForm] = useState({ nome: '', email: '', telefone: '', ativo: true });
+
+    const fetchVendedores = async () => {
+        setLoadingVendedores(true);
+        const data = await vendedorService.listar();
+        setVendedores(data);
+        setLoadingVendedores(false);
+    };
+
+    const handleSaveVendedor = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (editingVendedor) {
+            await vendedorService.atualizar(editingVendedor.id, vendedorForm);
+            setVendedores(vs => vs.map(v => v.id === editingVendedor.id ? { ...v, ...vendedorForm } : v));
+        } else {
+            const { success } = await vendedorService.salvar(vendedorForm);
+            if (success) await fetchVendedores();
+        }
+        setShowVendedorModal(false);
+        setEditingVendedor(null);
+        setVendedorForm({ nome: '', email: '', telefone: '', ativo: true });
+    };
+
+    const openEditVendedor = (v: Vendedor) => {
+        setEditingVendedor(v);
+        setVendedorForm({ nome: v.nome, email: v.email, telefone: v.telefone, ativo: v.ativo });
+        setShowVendedorModal(true);
+    };
+
+    const handleDeleteVendedor = async (id: string) => {
+        if (!confirm('Excluir este vendedor?')) return;
+        await vendedorService.excluir(id);
+        setVendedores(vs => vs.filter(v => v.id !== id));
+    };
+
     const [rentals, setRentals] = useState<Rental[]>([]);
     const [rentalItems, setRentalItems] = useState<RentalItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -26,11 +70,9 @@ export function RentalManagement() {
     const [newItemDailyRate, setNewItemDailyRate] = useState('');
 
     useEffect(() => {
-        if (activeTab === 'rentals') {
-            fetchRentals();
-        } else {
-            fetchRentalItems();
-        }
+        if (activeTab === 'rentals') fetchRentals();
+        else if (activeTab === 'inventory') fetchRentalItems();
+        else if (activeTab === 'vendedores') fetchVendedores();
     }, [activeTab]);
 
     const fetchRentals = async () => {
@@ -247,6 +289,10 @@ export function RentalManagement() {
     const activeRentalsCount = rentals.filter(r => r.status === 'active').length;
     const totalRevenue = rentals.reduce((acc, curr) => acc + (curr.rental_value || 0), 0);
 
+    if (showContratoForm) {
+        return <ContratoLocacaoForm onBack={() => setShowContratoForm(false)} />;
+    }
+
     return (
         <div className="p-6 max-w-7xl mx-auto min-h-screen">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -255,21 +301,26 @@ export function RentalManagement() {
                     <p className="text-slate-500 dark:text-slate-400">Gerencie seus contratos e estoque de locação</p>
                 </div>
                 <div className="flex gap-2">
-                    {activeTab === 'rentals' ? (
-                        <button
-                            onClick={() => setShowAddRentalModal(true)}
-                            className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
-                        >
-                            <Plus className="w-5 h-5" />
-                            Nova Locação
+                    <button
+                        onClick={() => setShowContratoForm(true)}
+                        className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
+                    >
+                        <FileText className="w-5 h-5" />
+                        Redigir Contrato
+                    </button>
+                    {activeTab === 'rentals' && (
+                        <button onClick={() => setShowAddRentalModal(true)} className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
+                            <Plus className="w-5 h-5" />Nova Locação
                         </button>
-                    ) : (
-                        <button
-                            onClick={() => { resetItemForm(); setShowAddItemModal(true); }}
-                            className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
-                        >
-                            <Plus className="w-5 h-5" />
-                            Novo Item
+                    )}
+                    {activeTab === 'inventory' && (
+                        <button onClick={() => { resetItemForm(); setShowAddItemModal(true); }} className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
+                            <Plus className="w-5 h-5" />Novo Item
+                        </button>
+                    )}
+                    {activeTab === 'vendedores' && (
+                        <button onClick={() => { setEditingVendedor(null); setVendedorForm({ nome: '', email: '', telefone: '', ativo: true }); setShowVendedorModal(true); }} className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
+                            <Plus className="w-5 h-5" />Novo Vendedor
                         </button>
                     )}
                 </div>
@@ -277,24 +328,18 @@ export function RentalManagement() {
 
             {/* Tabs */}
             <div className="flex space-x-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl mb-6 w-fit transition-colors">
-                <button
-                    onClick={() => setActiveTab('rentals')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'rentals'
-                        ? 'bg-white text-brand-600 shadow-sm dark:bg-slate-700 dark:text-blue-400'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
-                        }`}
-                >
-                    Contratos
-                </button>
-                <button
-                    onClick={() => setActiveTab('inventory')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'inventory'
-                        ? 'bg-white text-brand-600 shadow-sm dark:bg-slate-700 dark:text-blue-400'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
-                        }`}
-                >
-                    Estoque
-                </button>
+                {(['rentals', 'inventory', 'vendedores'] as const).map(tab => (
+                    <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab
+                            ? 'bg-white text-brand-600 shadow-sm dark:bg-slate-700 dark:text-blue-400'
+                            : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
+                            }`}
+                    >
+                        {tab === 'rentals' ? 'Contratos' : tab === 'inventory' ? 'Estoque' : 'Vendedores'}
+                    </button>
+                ))}
             </div>
 
             {/* Stats Cards (Only for Rentals Tab) */}
@@ -463,6 +508,90 @@ export function RentalManagement() {
                     )}
                 </div>
             </div>
+
+            {/* Vendedores Tab Content */}
+            {activeTab === 'vendedores' && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
+                                <tr>
+                                    <th className="px-6 py-4">Nome</th>
+                                    <th className="px-6 py-4">E-mail</th>
+                                    <th className="px-6 py-4">Telefone</th>
+                                    <th className="px-6 py-4">Status</th>
+                                    <th className="px-6 py-4 text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                                {loadingVendedores ? (
+                                    <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500">Carregando...</td></tr>
+                                ) : vendedores.length === 0 ? (
+                                    <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500">Nenhum vendedor cadastrado.</td></tr>
+                                ) : vendedores.filter(v => v.nome.toLowerCase().includes(searchTerm.toLowerCase())).map(v => (
+                                    <tr key={v.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                                            <UserCheck className="w-4 h-4 text-teal-500" />{v.nome}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                                            <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" />{v.email || '-'}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                                            <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{v.telefone || '-'}</span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${v.ativo ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-slate-100 text-slate-500'}`}>
+                                                {v.ativo ? 'Ativo' : 'Inativo'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right space-x-2">
+                                            <button onClick={() => openEditVendedor(v)} className="text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-50 rounded" title="Editar">
+                                                <Edit className="w-5 h-5" />
+                                            </button>
+                                            <button onClick={() => handleDeleteVendedor(v.id)} className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded" title="Excluir">
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Vendedor Modal */}
+            {showVendedorModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">{editingVendedor ? 'Editar Vendedor' : 'Novo Vendedor'}</h2>
+                        </div>
+                        <form onSubmit={handleSaveVendedor} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nome *</label>
+                                <input required className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-brand-500 outline-none dark:bg-slate-700 dark:text-white" value={vendedorForm.nome} onChange={e => setVendedorForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome completo" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">E-mail</label>
+                                <input type="email" className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-brand-500 outline-none dark:bg-slate-700 dark:text-white" value={vendedorForm.email} onChange={e => setVendedorForm(f => ({ ...f, email: e.target.value }))} placeholder="email@empresa.com" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Telefone</label>
+                                <input className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-brand-500 outline-none dark:bg-slate-700 dark:text-white" value={vendedorForm.telefone} onChange={e => setVendedorForm(f => ({ ...f, telefone: e.target.value }))} placeholder="(00) 00000-0000" />
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <input type="checkbox" id="ativo-check" checked={vendedorForm.ativo} onChange={e => setVendedorForm(f => ({ ...f, ativo: e.target.checked }))} className="w-4 h-4 accent-brand-600" />
+                                <label htmlFor="ativo-check" className="text-sm text-slate-700 dark:text-slate-300">Vendedor ativo</label>
+                            </div>
+                            <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+                                <button type="button" onClick={() => setShowVendedorModal(false)} className="flex-1 px-4 py-2 text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 rounded-lg font-medium">Cancelar</button>
+                                <button type="submit" className="flex-1 px-4 py-2 text-white bg-brand-600 hover:bg-brand-700 rounded-lg font-medium">Salvar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Add Rental Modal */}
             {showAddRentalModal && (
