@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useId } from 'react';
 import { supabase } from '../lib/supabase';
 import {
     Upload, FileText, X, TrendingUp, DollarSign, Package,
@@ -219,6 +219,82 @@ function fmtDate(dateStr: string) {
 }
 
 // ─── Componente principal ───────────────────────────────────────────────────
+// ─── VendedorPicker ─────────────────────────────────────────────────────────
+function VendedorPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+    const id = useId();
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const cor = value && VENDEDOR_COLOR[value]
+        ? VENDEDOR_COLOR[value]
+        : { bg: '#f1f5f9', text: '#64748b', border: '#cbd5e1' };
+
+    return (
+        <div ref={ref} className="relative" id={id}>
+            <button
+                type="button"
+                onClick={() => setOpen(o => !o)}
+                className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold border whitespace-nowrap transition-all hover:opacity-80"
+                style={{ backgroundColor: cor.bg, color: cor.text, borderColor: cor.border }}
+            >
+                {value || '+ Vendedor'}
+                <svg className="w-3 h-3 opacity-60" viewBox="0 0 12 12" fill="none">
+                    <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+            </button>
+
+            {open && (
+                <div className="absolute z-50 top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden min-w-[170px]">
+                    {value && (
+                        <button
+                            type="button"
+                            onClick={() => { onChange(''); setOpen(false); }}
+                            className="w-full text-left px-3 py-2 text-xs text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-100 dark:border-slate-700"
+                        >
+                            — Remover vendedor
+                        </button>
+                    )}
+                    {VENDEDORES.map(v => {
+                        const c = VENDEDOR_COLOR[v];
+                        return (
+                            <button
+                                key={v}
+                                type="button"
+                                onClick={() => { onChange(v); setOpen(false); }}
+                                className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors"
+                            >
+                                <span
+                                    className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                                    style={{ backgroundColor: c.border }}
+                                />
+                                <span
+                                    className="text-xs font-semibold"
+                                    style={{ color: v === value ? c.text : undefined }}
+                                >
+                                    {v}
+                                </span>
+                                {v === value && (
+                                    <svg className="w-3 h-3 ml-auto" style={{ color: c.text }} viewBox="0 0 12 12" fill="none">
+                                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function FaturamentoXML() {
     const [notas, setNotas] = useState<NotaFiscal[]>([]);
     const [erros, setErros] = useState<string[]>([]);
@@ -822,18 +898,10 @@ export function FaturamentoXML() {
                                             </td>
                                             <td className="px-3 py-2 font-mono text-slate-500 dark:text-slate-400">{n.cfop || '—'}</td>
                                             <td className="px-3 py-2">
-                                                <select
+                                                <VendedorPicker
                                                     value={n.vendedor}
-                                                    onChange={e => atualizarVendedor(n.id, e.target.value)}
-                                                    className="rounded-full px-2 py-0.5 text-[11px] font-bold border cursor-pointer focus:outline-none"
-                                                    style={n.vendedor && VENDEDOR_COLOR[n.vendedor]
-                                                        ? { backgroundColor: VENDEDOR_COLOR[n.vendedor].bg, color: VENDEDOR_COLOR[n.vendedor].text, borderColor: VENDEDOR_COLOR[n.vendedor].border }
-                                                        : { backgroundColor: '#f1f5f9', color: '#64748b', borderColor: '#cbd5e1' }
-                                                    }
-                                                >
-                                                    <option value="">— Selecionar —</option>
-                                                    {VENDEDORES.map(v => <option key={v} value={v}>{v}</option>)}
-                                                </select>
+                                                    onChange={v => atualizarVendedor(n.id, v)}
+                                                />
                                             </td>
                                             <td className="px-3 py-2 text-right font-bold text-slate-800 dark:text-white whitespace-nowrap">{fmt(n.valorFaturamento)}</td>
                                             <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-300 whitespace-nowrap">{fmt(n.frete)}</td>
