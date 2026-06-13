@@ -116,6 +116,7 @@ import {
 import Papa from 'papaparse';
 import { boardService, AgingProduct, ExecutiveStats, DemandPoint, ABCItem } from '../services/boardService';
 import { supabase } from '../lib/supabase';
+import { FaturamentoXML } from './FaturamentoXML';
 
 const SC_API_BASE_URL = '/api/escalasoft';
 
@@ -123,7 +124,7 @@ export const Diretoria = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [activeAnalysis, setActiveAnalysis] = useState<'dashboard' | 'aging' | 'consultar' | 'precos' | 'clientes'>('dashboard');
+    const [activeAnalysis, setActiveAnalysis] = useState<'dashboard' | 'aging' | 'consultar' | 'precos' | 'clientes' | 'faturamento'>('dashboard');
 
     // Real Data States
     const [stats, setStats] = useState<ExecutiveStats | null>(null);
@@ -484,6 +485,14 @@ export const Diretoria = () => {
                         <Users className="w-5 h-5" />
                         Clientes
                     </button>
+
+                    <button
+                        onClick={() => setActiveAnalysis('faturamento')}
+                        className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all font-bold text-sm ${activeAnalysis === 'faturamento' ? 'bg-brand-600 text-white shadow-2xl shadow-brand-500/40' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                    >
+                        <TrendingUp className="w-5 h-5" />
+                        Faturamento XML
+                    </button>
                 </div>
 
                 <div className="mt-auto p-6 bg-slate-50 dark:bg-slate-950/50 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
@@ -509,6 +518,7 @@ export const Diretoria = () => {
                             {activeAnalysis === 'consultar' && "WMS Core Terminal"}
                             {activeAnalysis === 'precos' && "Gestão de Pricing"}
                             {activeAnalysis === 'clientes' && "Base de Clientes"}
+                            {activeAnalysis === 'faturamento' && "Faturamento XML"}
                             <span className="text-brand-600 text-[10px] font-black bg-brand-50 dark:bg-brand-900/20 px-3 py-1 rounded-full border border-brand-100 dark:border-brand-800 tracking-[0.2em] uppercase">Online</span>
                         </h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-2 font-semibold italic text-sm">
@@ -1214,6 +1224,9 @@ export const Diretoria = () => {
                             CSV esperado: separado por ponto-e-vírgula (;) · Colunas: CNPJ/CPF, Nome, Categoria, ..., UF, País, CEP, Cidade, Bairro, Tipo, Logradouro, Número, Complemento, ..., Telefone, ..., E-mail
                         </p>
                     </div>
+                )}
+                {activeAnalysis === 'faturamento' && (
+                    <FaturamentoXML />
                 )}
             </main>
         </div>
