@@ -4,7 +4,7 @@ import {
     Upload, FileText, X, TrendingUp, DollarSign, Package,
     Users, Truck, AlertCircle, Download, Search,
     BarChart2, PieChart as PieIcon, Calendar,
-    CheckCircle, RefreshCw
+    CheckCircle, RefreshCw, Printer
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -525,6 +525,239 @@ export function FaturamentoXML() {
         URL.revokeObjectURL(url);
     };
 
+    const handleImprimir = () => {
+        const dataAtual = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+        const horaAtual = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const periodo = filtroData1 || filtroData2
+            ? `${filtroData1 ? fmtDate(filtroData1) : '—'} a ${filtroData2 ? fmtDate(filtroData2) : '—'}`
+            : 'Todo o período importado';
+
+        const totalNotasFat = notasFat.length;
+        const totalNotasCompra = notasFiltradas.filter(n => n.modalidade === 'COMPRA').length;
+        const totalNotasTransf = notasFiltradas.filter(n => n.modalidade === 'TRANSFERÊNCIA').length;
+
+        const barMax = porVendedor.length > 0 ? porVendedor[0].valor : 1;
+
+        const vendedorRows = porVendedor.map((v, i) => {
+            const pct = Math.round((v.valor / barMax) * 100);
+            const ticketMedio = v.notas > 0 ? v.valor / v.notas : 0;
+            const participacao = totalFaturamento > 0 ? ((v.valor / totalFaturamento) * 100).toFixed(1) : '0.0';
+            return `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:10px 12px;font-weight:700;color:#374151;">${i + 1}º</td>
+                <td style="padding:10px 12px;font-weight:700;color:#111827;">${v.nome}</td>
+                <td style="padding:10px 12px;">
+                    <div style="background:#f1f5f9;border-radius:4px;height:10px;overflow:hidden;width:140px;">
+                        <div style="background:#6366f1;height:100%;width:${pct}%;border-radius:4px;"></div>
+                    </div>
+                </td>
+                <td style="padding:10px 12px;text-align:right;font-weight:800;color:#111827;font-size:14px;">${fmt(v.valor)}</td>
+                <td style="padding:10px 12px;text-align:right;color:#6b7280;">${participacao}%</td>
+                <td style="padding:10px 12px;text-align:right;color:#6b7280;">${v.notas} nota${v.notas !== 1 ? 's' : ''}</td>
+                <td style="padding:10px 12px;text-align:right;color:#6b7280;">${fmt(ticketMedio)}</td>
+            </tr>`;
+        }).join('');
+
+        const filialRows = porFilial.sort((a, b) => b.valor - a.valor).map(f => {
+            const pct = totalFaturamento > 0 ? ((f.valor / totalFaturamento) * 100).toFixed(1) : '0.0';
+            return `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:10px 12px;font-weight:700;color:#111827;">${f.filial}</td>
+                <td style="padding:10px 12px;text-align:right;font-weight:800;color:#111827;">${fmt(f.valor)}</td>
+                <td style="padding:10px 12px;text-align:right;color:#6b7280;">${pct}%</td>
+            </tr>`;
+        }).join('');
+
+        const modalidadeRows = porModalidade.sort((a, b) => b.value - a.value).map(m => {
+            const pct = totalFaturamento > 0 ? ((m.value / totalFaturamento) * 100).toFixed(1) : '0.0';
+            const cor = MODALIDADE_COLOR[m.name as Modalidade] ?? '#94a3b8';
+            return `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:10px 12px;">
+                    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cor};margin-right:8px;"></span>
+                    <span style="font-weight:700;color:#111827;">${m.name}</span>
+                </td>
+                <td style="padding:10px 12px;text-align:right;font-weight:800;color:#111827;">${fmt(m.value)}</td>
+                <td style="padding:10px 12px;text-align:right;color:#6b7280;">${pct}%</td>
+            </tr>`;
+        }).join('');
+
+        const diaRows = [...porDia].slice(-31).map(d => `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:8px 12px;color:#374151;">${d.data}</td>
+                <td style="padding:8px 12px;text-align:right;font-weight:700;color:#111827;">${fmt(d.valor)}</td>
+            </tr>`
+        ).join('');
+
+        const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Relatório Executivo de Faturamento — MCI</title>
+<style>
+    @page { size: A4; margin: 14mm 16mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #111827; background: #fff; }
+    @media print {
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .page-break { page-break-before: always; }
+    }
+    h2 { font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #6366f1; letter-spacing: .5px; text-transform: uppercase; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #f8fafc; }
+    th { padding: 9px 12px; text-align: left; font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; border-bottom: 2px solid #e2e8f0; }
+    th.right { text-align: right; }
+    .section { margin-bottom: 24px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
+    .kpi { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+    .kpi-label { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+    .kpi-value { font-size: 18px; font-weight: 900; color: #111827; line-height: 1.1; }
+    .kpi-value.green { color: #059669; }
+    .kpi-value.red { color: #dc2626; }
+    .kpi-value.indigo { color: #4f46e5; }
+    .kpi-sub { font-size: 9px; color: #94a3b8; margin-top: 4px; }
+    .badge { display:inline-block; padding: 2px 8px; border-radius: 20px; font-size: 9px; font-weight: 700; }
+    .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; color: #94a3b8; font-size: 9px; }
+</style>
+</head>
+<body>
+
+<!-- CABEÇALHO -->
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;padding-bottom:16px;border-bottom:3px solid #6366f1;">
+    <div>
+        <div style="font-size:9px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;">RELATÓRIO EXECUTIVO</div>
+        <div style="font-size:22px;font-weight:900;color:#111827;letter-spacing:-.5px;">Análise de Faturamento</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:4px;">Multi Comercial Importadora — MCI Store</div>
+    </div>
+    <div style="text-align:right;">
+        <div style="font-size:11px;font-weight:700;color:#374151;">Período: <span style="color:#6366f1;">${periodo}</span></div>
+        ${filtroFilial ? `<div style="font-size:10px;color:#6b7280;margin-top:2px;">Filial: <b>${filtroFilial}</b></div>` : ''}
+        ${filtroVendedor ? `<div style="font-size:10px;color:#6b7280;margin-top:2px;">Vendedor: <b>${filtroVendedor}</b></div>` : ''}
+        <div style="font-size:9px;color:#94a3b8;margin-top:6px;">Emitido em ${dataAtual} às ${horaAtual}</div>
+    </div>
+</div>
+
+<!-- KPIs PRINCIPAIS -->
+<div class="grid4">
+    <div class="kpi" style="border-top:3px solid #6366f1;">
+        <div class="kpi-label">Faturamento Total</div>
+        <div class="kpi-value indigo">${fmt(totalFaturamento)}</div>
+        <div class="kpi-sub">${totalNotasFat} nota${totalNotasFat !== 1 ? 's' : ''} de venda/serviço/locação</div>
+    </div>
+    <div class="kpi" style="border-top:3px solid ${lucroBruto >= 0 ? '#059669' : '#dc2626'};">
+        <div class="kpi-label">Lucro Bruto Estimado</div>
+        <div class="kpi-value ${lucroBruto >= 0 ? 'green' : 'red'}">${fmt(lucroBruto)}</div>
+        <div class="kpi-sub">Faturamento − custos operacionais</div>
+    </div>
+    <div class="kpi" style="border-top:3px solid #f59e0b;">
+        <div class="kpi-label">Custos Operacionais</div>
+        <div class="kpi-value" style="color:#b45309;">${fmt(totalGasto)}</div>
+        <div class="kpi-sub">Frete + DIFAL + Impostos</div>
+    </div>
+    <div class="kpi" style="border-top:3px solid #10b981;">
+        <div class="kpi-label">Clientes Atendidos</div>
+        <div class="kpi-value" style="color:#059669;">${clientesUnicos}</div>
+        <div class="kpi-sub">${notasFiltradas.length} notas no total importado</div>
+    </div>
+</div>
+
+<!-- KPIs SECUNDÁRIOS -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;">
+    <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:10px 14px;">
+        <div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">Total Fretes</div>
+        <div style="font-size:14px;font-weight:800;color:#5b21b6;">${fmt(totalFrete)}</div>
+    </div>
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;">
+        <div style="font-size:9px;font-weight:700;color:#ea580c;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">Total DIFAL</div>
+        <div style="font-size:14px;font-weight:800;color:#c2410c;">${fmt(totalDifal)}</div>
+    </div>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;">
+        <div style="font-size:9px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">Total Impostos</div>
+        <div style="font-size:14px;font-weight:800;color:#b91c1c;">${fmt(totalImpostos)}</div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;">
+        <div style="font-size:9px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;">Notas Excluídas</div>
+        <div style="font-size:14px;font-weight:800;color:#15803d;">${totalNotasCompra} compra${totalNotasCompra !== 1 ? 's' : ''} · ${totalNotasTransf} transf.</div>
+    </div>
+</div>
+
+<!-- RANKING VENDEDORES + FILIAIS LADO A LADO -->
+<div class="grid2">
+    <div class="section">
+        <h2>Ranking de Vendedores</h2>
+        ${porVendedor.length === 0
+            ? '<p style="color:#94a3b8;font-size:11px;padding:16px 0;">Nenhum vendedor atribuído</p>'
+            : `<table>
+                <thead><tr>
+                    <th style="width:32px;">#</th>
+                    <th>Vendedor</th>
+                    <th>Participação</th>
+                    <th class="right">Faturamento</th>
+                    <th class="right">%</th>
+                    <th class="right">Notas</th>
+                    <th class="right">Ticket Médio</th>
+                </tr></thead>
+                <tbody>${vendedorRows}</tbody>
+               </table>`
+        }
+    </div>
+    <div>
+        <div class="section">
+            <h2>Por Filial</h2>
+            ${porFilial.length === 0
+                ? '<p style="color:#94a3b8;font-size:11px;padding:16px 0;">Sem dados</p>'
+                : `<table>
+                    <thead><tr><th>Filial</th><th class="right">Faturamento</th><th class="right">%</th></tr></thead>
+                    <tbody>${filialRows}</tbody>
+                   </table>`
+            }
+        </div>
+        <div class="section" style="margin-top:20px;">
+            <h2>Por Modalidade</h2>
+            ${porModalidade.length === 0
+                ? '<p style="color:#94a3b8;font-size:11px;padding:16px 0;">Sem dados</p>'
+                : `<table>
+                    <thead><tr><th>Modalidade</th><th class="right">Faturamento</th><th class="right">%</th></tr></thead>
+                    <tbody>${modalidadeRows}</tbody>
+                   </table>`
+            }
+        </div>
+    </div>
+</div>
+
+<!-- EVOLUÇÃO DIÁRIA -->
+${porDia.length > 0 ? `
+<div class="section page-break">
+    <h2>Evolução Diária do Faturamento</h2>
+    <table>
+        <thead><tr><th>Data</th><th class="right">Faturamento do Dia</th></tr></thead>
+        <tbody>${diaRows}</tbody>
+        <tfoot>
+            <tr style="background:#f8fafc;border-top:2px solid #e2e8f0;">
+                <td style="padding:10px 12px;font-weight:800;color:#374151;">TOTAL</td>
+                <td style="padding:10px 12px;text-align:right;font-weight:900;color:#4f46e5;font-size:13px;">${fmt(totalFaturamento)}</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>` : ''}
+
+<div class="footer">
+    <span>MCI Store — Relatório gerado automaticamente pelo sistema StockVision</span>
+    <span>${dataAtual} · ${horaAtual}</span>
+</div>
+
+</body>
+</html>`;
+
+        const win = window.open('', '_blank');
+        if (!win) return;
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        setTimeout(() => win.print(), 500);
+    };
+
     return (
         <div className="space-y-6">
             {/* Header tabs */}
@@ -566,6 +799,12 @@ export function FaturamentoXML() {
                             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
                         >
                             <Download className="w-3 h-3" /> Exportar CSV
+                        </button>
+                        <button
+                            onClick={handleImprimir}
+                            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                        >
+                            <Printer className="w-3 h-3" /> Relatório CEO
                         </button>
                     </div>
                 )}
