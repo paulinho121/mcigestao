@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import {
     Upload, FileText, X, TrendingUp, DollarSign, Package,
     Users, Truck, AlertCircle, Download, Search,
@@ -195,6 +196,7 @@ export function FaturamentoXML() {
     const [dragging, setDragging] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [view, setView] = useState<'dashboard' | 'relatorio' | 'upload'>('upload');
+    const [loadingDB, setLoadingDB] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
 
     // Filtros
@@ -203,6 +205,77 @@ export function FaturamentoXML() {
     const [filtroFilial, setFiltroFilial] = useState('');
     const [filtroModalidade, setFiltroModalidade] = useState('');
     const [filtroSearch, setFiltroSearch] = useState('');
+
+    // Carrega histórico do Supabase ao montar
+    useEffect(() => {
+        if (!supabase) return;
+        setLoadingDB(true);
+        supabase
+            .from('notas_fiscais_xml')
+            .select('*')
+            .order('data_emissao', { ascending: false })
+            .limit(5000)
+            .then(({ data, error }) => {
+                if (!error && data && data.length > 0) {
+                    const fromDB: NotaFiscal[] = data.map((r: Record<string, unknown>) => ({
+                        id: r.id as string,
+                        chave: (r.chave as string) ?? '',
+                        numero: r.numero as string,
+                        tipo: r.tipo as 'NFe' | 'NFSe',
+                        dataEmissao: (r.data_emissao as string)?.substring(0, 10) ?? '',
+                        cnpjEmitente: r.cnpj_emitente as string,
+                        razaoSocialEmitente: r.razao_social_emitente as string,
+                        cliente: r.cliente as string,
+                        cnpjCliente: r.cnpj_cliente as string,
+                        municipio: r.municipio as string,
+                        uf: r.uf as string,
+                        cfop: r.cfop as string,
+                        modalidade: r.modalidade as Modalidade,
+                        valorFaturamento: Number(r.valor_faturamento),
+                        frete: Number(r.frete),
+                        difal: Number(r.difal),
+                        impostos: Number(r.impostos),
+                        gastoTotal: Number(r.gasto_total),
+                        formaPagamento: r.forma_pagamento as string,
+                        vendedor: r.vendedor as string,
+                        filial: r.filial as string,
+                    }));
+                    setNotas(fromDB);
+                    setView('dashboard');
+                }
+                setLoadingDB(false);
+            });
+    }, []);
+
+    const salvarNoBanco = async (novos: NotaFiscal[], existingChaves: Set<string>) => {
+        if (!supabase) return;
+        const paraInserir = novos
+            .filter(n => !n.chave || !existingChaves.has(n.chave))
+            .map(n => ({
+                chave: n.chave || null,
+                numero: n.numero,
+                tipo: n.tipo,
+                data_emissao: n.dataEmissao || null,
+                cnpj_emitente: n.cnpjEmitente,
+                razao_social_emitente: n.razaoSocialEmitente,
+                cliente: n.cliente,
+                cnpj_cliente: n.cnpjCliente,
+                municipio: n.municipio,
+                uf: n.uf,
+                cfop: n.cfop,
+                modalidade: n.modalidade,
+                valor_faturamento: n.valorFaturamento,
+                frete: n.frete,
+                difal: n.difal,
+                impostos: n.impostos,
+                gasto_total: n.gastoTotal,
+                forma_pagamento: n.formaPagamento,
+                vendedor: n.vendedor,
+                filial: n.filial,
+            }));
+        if (paraInserir.length === 0) return;
+        await supabase.from('notas_fiscais_xml').insert(paraInserir);
+    };
 
     const processFiles = useCallback(async (files: FileList | File[]) => {
         setProcessing(true);
@@ -226,6 +299,7 @@ export function FaturamentoXML() {
         setNotas(prev => {
             const existingChaves = new Set(prev.map(n => n.chave).filter(Boolean));
             const filtered = novos.filter(n => !n.chave || !existingChaves.has(n.chave));
+            salvarNoBanco(novos, existingChaves);
             return [...prev, ...filtered];
         });
         setErros(prev => [...prev, ...errosArr]);
@@ -342,10 +416,14 @@ export function FaturamentoXML() {
                             {notas.length} nota{notas.length !== 1 ? 's' : ''} importada{notas.length !== 1 ? 's' : ''}
                         </span>
                         <button
-                            onClick={() => { setNotas([]); setErros([]); setView('upload'); }}
+                            onClick={async () => {
+                                if (!confirm('Apagar todas as notas do histórico?')) return;
+                                if (supabase) await supabase.from('notas_fiscais_xml').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                                setNotas([]); setErros([]); setView('upload');
+                            }}
                             className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
                         >
-                            <RefreshCw className="w-3 h-3" /> Limpar
+                            <RefreshCw className="w-3 h-3" /> Limpar histórico
                         </button>
                         <button
                             onClick={exportCSV}
@@ -360,6 +438,12 @@ export function FaturamentoXML() {
             {/* ── UPLOAD ── */}
             {view === 'upload' && (
                 <div className="space-y-4">
+                    {loadingDB && (
+                        <div className="flex items-center gap-3 bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800 rounded-xl p-4 text-brand-700 dark:text-brand-400 text-sm font-semibold">
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            Carregando histórico do banco de dados...
+                        </div>
+                    )}
                     <div
                         onDragOver={e => { e.preventDefault(); setDragging(true); }}
                         onDragLeave={() => setDragging(false)}
