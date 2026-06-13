@@ -37,7 +37,18 @@ interface NotaFiscal {
     filial: string;
 }
 
-type Modalidade = 'VENDA' | 'LOCAÇÃO' | 'RETORNO' | 'TRANSFERÊNCIA' | 'SERVIÇO' | 'OUTROS';
+type Modalidade = 'VENDA' | 'LOCAÇÃO' | 'RETORNO' | 'TRANSFERÊNCIA' | 'SERVIÇO' | 'COMPRA' | 'OUTROS';
+
+// CFOPs de entrada (1xxx, 2xxx, 3xxx) nunca contam como faturamento
+const MODALIDADES_FATURAMENTO: Modalidade[] = ['VENDA', 'LOCAÇÃO', 'SERVIÇO'];
+
+function cfopParaModalidade(cfop: string): Modalidade {
+    if (!cfop) return 'OUTROS';
+    const mapeado = CFOP_MODALIDADE[cfop];
+    if (mapeado) return mapeado;
+    if (['1', '2', '3'].includes(cfop[0])) return 'COMPRA';
+    return 'OUTROS';
+}
 
 // ─── Mapeamentos ────────────────────────────────────────────────────────────
 const CFOP_MODALIDADE: Record<string, Modalidade> = {
@@ -63,7 +74,7 @@ const FORMA_PAGAMENTO: Record<string, string> = {
 
 const MODALIDADE_COLOR: Record<Modalidade, string> = {
     'VENDA': '#6366f1', 'LOCAÇÃO': '#10b981', 'RETORNO': '#f59e0b',
-    'TRANSFERÊNCIA': '#3b82f6', 'SERVIÇO': '#8b5cf6', 'OUTROS': '#94a3b8',
+    'TRANSFERÊNCIA': '#3b82f6', 'SERVIÇO': '#8b5cf6', 'COMPRA': '#ef4444', 'OUTROS': '#94a3b8',
 };
 
 // ─── Vendedores ─────────────────────────────────────────────────────────────
@@ -167,7 +178,7 @@ function parseXML(xmlText: string): NotaFiscal | null {
         const difal = vICMSUFDest + vFCP;
         const impostos = vTotTrib;
         const gastoTotal = vFrete + difal + impostos;
-        const modalidade = CFOP_MODALIDADE[cfop] ?? 'OUTROS';
+        const modalidade = cfopParaModalidade(cfop);
 
         return {
             id: crypto.randomUUID(),
@@ -442,32 +453,33 @@ export function FaturamentoXML() {
         return true;
     });
 
-    // Métricas
-    const totalFaturamento = notasFiltradas.reduce((s, n) => s + n.valorFaturamento, 0);
+    // Métricas — COMPRA não entra no faturamento
+    const notasFat = notasFiltradas.filter(n => MODALIDADES_FATURAMENTO.includes(n.modalidade));
+    const totalFaturamento = notasFat.reduce((s, n) => s + n.valorFaturamento, 0);
     const totalFrete = notasFiltradas.reduce((s, n) => s + n.frete, 0);
     const totalDifal = notasFiltradas.reduce((s, n) => s + n.difal, 0);
     const totalImpostos = notasFiltradas.reduce((s, n) => s + n.impostos, 0);
     const totalGasto = notasFiltradas.reduce((s, n) => s + n.gastoTotal, 0);
     const lucroBruto = totalFaturamento - totalGasto;
-    const clientesUnicos = new Set(notasFiltradas.map(n => n.cnpjCliente || n.cliente)).size;
+    const clientesUnicos = new Set(notasFat.map(n => n.cnpjCliente || n.cliente)).size;
 
-    // Dados para gráficos
+    // Dados para gráficos — usa apenas notas de faturamento (exclui COMPRA)
     const porFilial = Object.entries(
-        notasFiltradas.reduce((acc, n) => {
+        notasFat.reduce((acc, n) => {
             acc[n.filial] = (acc[n.filial] || 0) + n.valorFaturamento;
             return acc;
         }, {} as Record<string, number>)
     ).map(([filial, valor]) => ({ filial, valor }));
 
     const porModalidade = Object.entries(
-        notasFiltradas.reduce((acc, n) => {
+        notasFat.reduce((acc, n) => {
             acc[n.modalidade] = (acc[n.modalidade] || 0) + n.valorFaturamento;
             return acc;
         }, {} as Record<string, number>)
     ).map(([name, value]) => ({ name, value }));
 
     const porDia = Object.entries(
-        notasFiltradas.reduce((acc, n) => {
+        notasFat.reduce((acc, n) => {
             acc[n.dataEmissao] = (acc[n.dataEmissao] || 0) + n.valorFaturamento;
             return acc;
         }, {} as Record<string, number>)
@@ -475,7 +487,7 @@ export function FaturamentoXML() {
      .map(([data, valor]) => ({ data: fmtDate(data), valor }));
 
     const porFormaPag = Object.entries(
-        notasFiltradas.reduce((acc, n) => {
+        notasFat.reduce((acc, n) => {
             acc[n.formaPagamento] = (acc[n.formaPagamento] || 0) + n.valorFaturamento;
             return acc;
         }, {} as Record<string, number>)
