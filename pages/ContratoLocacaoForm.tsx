@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Printer, ArrowLeft, FileText, Search } from 'lucide-react';
+import { Plus, Trash2, Printer, ArrowLeft, FileText, Search, Save, CheckCircle } from 'lucide-react';
 import { clienteService, Cliente } from '../services/clienteService';
 import { vendedorService, Vendedor } from '../services/vendedorService';
 import { inventoryService } from '../services/inventoryService';
@@ -158,9 +158,12 @@ export function ContratoLocacaoForm({ onBack }: Props) {
     const [clienteSuggestions, setClienteSuggestions] = useState<Cliente[]>([]);
     const [showClienteDropdown, setShowClienteDropdown] = useState(false);
     const [clienteSearchTimeout, setClienteSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+    const [salvando, setSalvando] = useState(false);
+    const [savedId, setSavedId] = useState<string | null>(null);
 
     useEffect(() => {
         vendedorService.listar().then(setVendedores);
+        gerarNumeroContrato().then(numero => setContrato(prev => ({ ...prev, numero })));
     }, []);
 
     const handleClienteSearch = (value: string) => {
@@ -319,6 +322,55 @@ export function ContratoLocacaoForm({ onBack }: Props) {
     const valorTotalCalculado = totalDiaria * contrato.dias;
     const valorTotalContrato = valorTotalCalculado + contrato.valorFrete - contrato.desconto;
 
+    const handleSalvar = async () => {
+        setSalvando(true);
+        const result = await contratoLocacaoService.salvar({
+            numero: contrato.numero,
+            data: contrato.data,
+            vendedor: contrato.vendedor,
+            filial: contrato.filial,
+            locadora_nome: contrato.locadoraNome,
+            locadora_cnpj: contrato.locadoraCnpj,
+            locadora_endereco: contrato.locadoraEndereco,
+            locadora_bairro: contrato.locadoraBairro,
+            locadora_cidade: contrato.locadoraCidade,
+            locadora_uf: contrato.locadoraUf,
+            locadora_cep: contrato.locadoraCep,
+            locadora_telefone: contrato.locadoraTelefone,
+            locadora_email: contrato.locadoraEmail,
+            locataria_nome: contrato.locatariaNome,
+            locataria_cnpj: contrato.locatariaCnpj,
+            locataria_endereco: contrato.locatariaEndereco,
+            locataria_bairro: contrato.locatariaBairro,
+            locataria_cidade: contrato.locatariaCidade,
+            locataria_uf: contrato.locatariaUf,
+            locataria_cep: contrato.locatariaCep,
+            locataria_telefone: contrato.locatariaTelefone,
+            locataria_pessoa_contato: contrato.locatariaPessoaContato,
+            locataria_email: contrato.locatariaEmail,
+            locataria_insc_estadual: contrato.locatariaInscEstadual,
+            locataria_comp: contrato.locatariaComp,
+            data_inicio: contrato.dataInicio,
+            data_fim: contrato.dataFim,
+            dias: contrato.dias,
+            valor_venal: contrato.itens.reduce((s, it) => s + it.valorVenal * it.qtd, 0),
+            forma_pagamento: contrato.formaPagamento,
+            frete: contrato.frete,
+            valor_frete: contrato.valorFrete,
+            desconto: contrato.desconto,
+            transportadora: contrato.transportadora,
+            valor_total: valorTotalContrato,
+            total_diaria: totalDiaria,
+            responsavel_retirada: contrato.responsavelRetirada,
+            cpf_responsavel: contrato.cpfResponsavel,
+            data_retirada: contrato.dataRetirada,
+            observacoes: contrato.observacoes,
+            itens: contrato.itens,
+        });
+        setSalvando(false);
+        if (result.success) setSavedId(result.id ?? null);
+    };
+
     const handlePrint = async () => {
         // Converte o logo para base64 para funcionar na janela de impressão
         let logoDataUrl = '';
@@ -374,6 +426,14 @@ export function ContratoLocacaoForm({ onBack }: Props) {
                     >
                         <FileText className="w-4 h-4" />
                         Visualizar
+                    </button>
+                    <button
+                        onClick={handleSalvar}
+                        disabled={salvando}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${savedId ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
+                    >
+                        {savedId ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                        {salvando ? 'Salvando...' : savedId ? 'Salvo!' : 'Salvar'}
                     </button>
                     <button
                         onClick={handlePrint}
@@ -810,6 +870,14 @@ export function ContratoLocacaoForm({ onBack }: Props) {
                     >
                         <FileText className="w-5 h-5" />
                         Visualizar Contrato
+                    </button>
+                    <button
+                        onClick={handleSalvar}
+                        disabled={salvando}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-colors font-medium shadow-sm ${savedId ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`}
+                    >
+                        {savedId ? <CheckCircle className="w-5 h-5" /> : <Save className="w-5 h-5" />}
+                        {salvando ? 'Salvando...' : savedId ? 'Contrato Salvo!' : 'Salvar Contrato'}
                     </button>
                     <button
                         onClick={handlePrint}

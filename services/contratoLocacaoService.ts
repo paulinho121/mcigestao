@@ -71,36 +71,36 @@ function saveLocal(list: ContratoLocacao[]) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 }
 
-/** Gera número no formato YYYYMMNN — ex: 20260601 */
+/** Gera número no formato YYYYMMDD-N — ex: 20260613-1 */
 export async function gerarNumeroContrato(): Promise<string> {
     const now = new Date();
     const ano = now.getFullYear();
     const mes = String(now.getMonth() + 1).padStart(2, '0');
-    const prefixo = `${ano}${mes}`;
+    const dia = String(now.getDate()).padStart(2, '0');
+    const prefixo = `${ano}${mes}${dia}`;
 
-    // busca contratos do mês corrente para determinar próximo sequencial
     let seq = 1;
 
     if (supabase) {
         const { data } = await supabase
             .from('contratos_locacao')
             .select('numero')
-            .like('numero', `${prefixo}%`)
+            .like('numero', `${prefixo}-%`)
             .order('numero', { ascending: false })
             .limit(1);
         if (data && data.length > 0) {
-            const last = parseInt(data[0].numero.slice(6), 10);
+            const last = parseInt(data[0].numero.split('-')[1], 10);
             if (!isNaN(last)) seq = last + 1;
         }
     } else {
-        const local = loadLocal().filter(c => c.numero.startsWith(prefixo));
+        const local = loadLocal().filter(c => c.numero.startsWith(`${prefixo}-`));
         if (local.length > 0) {
-            const maxSeq = Math.max(...local.map(c => parseInt(c.numero.slice(6), 10) || 0));
+            const maxSeq = Math.max(...local.map(c => parseInt(c.numero.split('-')[1], 10) || 0));
             seq = maxSeq + 1;
         }
     }
 
-    return `${prefixo}${String(seq).padStart(2, '0')}`;
+    return `${prefixo}-${seq}`;
 }
 
 export const contratoLocacaoService = {
@@ -130,7 +130,7 @@ export const contratoLocacaoService = {
                 .select('*')
                 .order('created_at', { ascending: false });
             if (search) {
-                q = q.or(`numero.ilike.%${search}%,locataria_nome.ilike.%${search}%,vendedor.ilike.%${search}%`);
+                q = q.or(`numero.ilike.%${search}%,locataria_nome.ilike.%${search}%,locataria_cnpj.ilike.%${search}%,vendedor.ilike.%${search}%`);
             }
             const { data, error } = await q.limit(200);
             if (!error && data) {
@@ -143,6 +143,7 @@ export const contratoLocacaoService = {
         return local.filter(c =>
             c.numero.includes(s) ||
             c.locataria_nome.toLowerCase().includes(s) ||
+            c.locataria_cnpj.toLowerCase().includes(s) ||
             c.vendedor.toLowerCase().includes(s)
         );
     },

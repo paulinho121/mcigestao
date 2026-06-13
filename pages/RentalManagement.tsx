@@ -3,10 +3,13 @@ import { Plus, Search, Calendar, DollarSign, User, Package, Trash2, CheckCircle,
 import { supabase } from '../lib/supabase';
 import { Rental, RentalItem } from '../types';
 import { ContratoLocacaoForm } from './ContratoLocacaoForm';
+import { ContratoLocacaoList } from './ContratoLocacaoList';
 import { vendedorService, Vendedor } from '../services/vendedorService';
 
+type ContratoView = 'none' | 'list' | 'form';
+
 export function RentalManagement() {
-    const [showContratoForm, setShowContratoForm] = useState(false);
+    const [contratoView, setContratoView] = useState<ContratoView>('none');
     const [activeTab, setActiveTab] = useState<'rentals' | 'inventory' | 'vendedores'>('rentals');
 
     // Vendedores state
@@ -289,8 +292,17 @@ export function RentalManagement() {
     const activeRentalsCount = rentals.filter(r => r.status === 'active').length;
     const totalRevenue = rentals.reduce((acc, curr) => acc + (curr.rental_value || 0), 0);
 
-    if (showContratoForm) {
-        return <ContratoLocacaoForm onBack={() => setShowContratoForm(false)} />;
+    if (contratoView === 'form') {
+        return <ContratoLocacaoForm onBack={() => setContratoView('list')} />;
+    }
+
+    if (contratoView === 'list') {
+        return (
+            <ContratoLocacaoList
+                onNovo={() => setContratoView('form')}
+                onBack={() => setContratoView('none')}
+            />
+        );
     }
 
     return (
@@ -302,11 +314,11 @@ export function RentalManagement() {
                 </div>
                 <div className="flex gap-2">
                     <button
-                        onClick={() => setShowContratoForm(true)}
+                        onClick={() => setContratoView('list')}
                         className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
                     >
                         <FileText className="w-5 h-5" />
-                        Redigir Contrato
+                        Contratos
                     </button>
                     {activeTab === 'rentals' && (
                         <button onClick={() => setShowAddRentalModal(true)} className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm">

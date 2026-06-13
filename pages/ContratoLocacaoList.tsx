@@ -1,0 +1,171 @@
+import { useState, useEffect, useCallback } from 'react';
+import { Search, FileText, Trash2, Printer, ArrowLeft, Plus } from 'lucide-react';
+import { contratoLocacaoService, ContratoLocacao } from '../services/contratoLocacaoService';
+
+interface Props {
+    onNovo: () => void;
+    onBack: () => void;
+}
+
+function formatCurrency(value: number) {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+}
+
+function formatDate(dateStr: string) {
+    if (!dateStr) return '—';
+    const [y, m, d] = dateStr.split('-');
+    if (!y || !m || !d) return dateStr;
+    return `${d}/${m}/${y}`;
+}
+
+export function ContratoLocacaoList({ onNovo, onBack }: Props) {
+    const [contratos, setContratos] = useState<ContratoLocacao[]>([]);
+    const [search, setSearch] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [excluindo, setExcluindo] = useState<string | null>(null);
+
+    const carregar = useCallback(async (termo = '') => {
+        setLoading(true);
+        const data = await contratoLocacaoService.listar(termo);
+        setContratos(data);
+        setLoading(false);
+    }, []);
+
+    useEffect(() => {
+        carregar();
+    }, [carregar]);
+
+    // debounce na busca
+    useEffect(() => {
+        const t = setTimeout(() => carregar(search), 350);
+        return () => clearTimeout(t);
+    }, [search, carregar]);
+
+    const handleExcluir = async (id: string, numero: string) => {
+        if (!confirm(`Excluir contrato ${numero}?`)) return;
+        setExcluindo(id);
+        await contratoLocacaoService.excluir(id);
+        setExcluindo(null);
+        carregar(search);
+    };
+
+    return (
+        <div className="p-6 max-w-6xl mx-auto">
+            {/* Cabeçalho */}
+            <div className="flex items-center gap-4 mb-6">
+                <button
+                    onClick={onBack}
+                    className="flex items-center gap-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                >
+                    <ArrowLeft className="w-5 h-5" />
+                    Voltar
+                </button>
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Contratos de Locação</h1>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Busque por número, cliente ou CNPJ</p>
+                </div>
+                <button
+                    onClick={onNovo}
+                    className="ml-auto flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg transition-colors font-medium shadow-sm"
+                >
+                    <Plus className="w-4 h-4" />
+                    Novo Contrato
+                </button>
+            </div>
+
+            {/* Busca */}
+            <div className="relative mb-6">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm"
+                    placeholder="Buscar por número, nome do cliente ou CNPJ..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                />
+            </div>
+
+            {/* Tabela */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                {loading ? (
+                    <div className="p-12 text-center text-slate-400 dark:text-slate-500">Carregando...</div>
+                ) : contratos.length === 0 ? (
+                    <div className="p-12 text-center">
+                        <FileText className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                        <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhum contrato encontrado</p>
+                        {search && <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">Tente outra busca</p>}
+                    </div>
+                ) : (
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Nº Contrato</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Cliente</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">CNPJ / CPF</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Período</th>
+                                <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Valor Total</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Vendedor</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Filial</th>
+                                <th className="px-4 py-3 w-24"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                            {contratos.map(c => (
+                                <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                    <td className="px-4 py-3">
+                                        <span className="font-mono font-semibold text-brand-600 dark:text-brand-400">{c.numero}</span>
+                                        <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{formatDate(c.data)}</div>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <span className="font-medium text-slate-800 dark:text-white">{c.locataria_nome || '—'}</span>
+                                        {c.locataria_cidade && (
+                                            <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{c.locataria_cidade}/{c.locataria_uf}</div>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300 font-mono text-xs">{c.locataria_cnpj || '—'}</td>
+                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                                        {c.data_inicio ? (
+                                            <>
+                                                <div className="text-xs">{formatDate(c.data_inicio)} → {formatDate(c.data_fim)}</div>
+                                                <div className="text-xs text-slate-400 dark:text-slate-500">{c.dias} dias</div>
+                                            </>
+                                        ) : '—'}
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-semibold text-slate-800 dark:text-white">{formatCurrency(c.valor_total)}</td>
+                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{c.vendedor || '—'}</td>
+                                    <td className="px-4 py-3">
+                                        <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{c.filial}</span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <div className="flex items-center gap-2 justify-end">
+                                            <button
+                                                title="Reimprimir"
+                                                onClick={() => alert('Em breve: abrir contrato para reimprimir')}
+                                                className="text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                                            >
+                                                <Printer className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                title="Excluir"
+                                                onClick={() => handleExcluir(c.id, c.numero)}
+                                                disabled={excluindo === c.id}
+                                                className="text-slate-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+
+                {contratos.length > 0 && (
+                    <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-700 text-xs text-slate-400 dark:text-slate-500">
+                        {contratos.length} contrato{contratos.length !== 1 ? 's' : ''} encontrado{contratos.length !== 1 ? 's' : ''}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
