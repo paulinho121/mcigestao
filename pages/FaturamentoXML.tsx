@@ -40,7 +40,8 @@ interface NotaFiscal {
 type Modalidade = 'VENDA' | 'LOCAÇÃO' | 'RETORNO' | 'TRANSFERÊNCIA' | 'SERVIÇO' | 'COMPRA' | 'OUTROS';
 
 // CFOPs de entrada (1xxx, 2xxx, 3xxx) nunca contam como faturamento
-const MODALIDADES_FATURAMENTO: Modalidade[] = ['VENDA', 'LOCAÇÃO', 'SERVIÇO'];
+// Apenas essas modalidades entram no faturamento — COMPRA, TRANSFERÊNCIA e RETORNO são excluídas
+const MODALIDADES_FATURAMENTO: Modalidade[] = ['VENDA', 'LOCAÇÃO', 'SERVIÇO', 'OUTROS'];
 
 function cfopParaModalidade(cfop: string): Modalidade {
     if (!cfop) return 'OUTROS';
