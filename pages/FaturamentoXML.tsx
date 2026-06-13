@@ -66,6 +66,35 @@ const MODALIDADE_COLOR: Record<Modalidade, string> = {
     'TRANSFERÊNCIA': '#3b82f6', 'SERVIÇO': '#8b5cf6', 'OUTROS': '#94a3b8',
 };
 
+// ─── Vendedores ─────────────────────────────────────────────────────────────
+const VENDEDORES = [
+    'Vinicius Lando',
+    'João Sousa',
+    'João Gomes',
+    'Geremias Wendel',
+    'Sarah',
+    'Francisco Jhon',
+    'Paulinho',
+    'Jonathan',
+    'Isaac Viudez',
+    'Felipe Aguiar',
+    'Bianca Façanha',
+] as const;
+
+const VENDEDOR_COLOR: Record<string, { bg: string; text: string; border: string }> = {
+    'Vinicius Lando':   { bg: '#ede9fe', text: '#5b21b6', border: '#c4b5fd' },
+    'João Sousa':       { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' },
+    'João Gomes':       { bg: '#dcfce7', text: '#166534', border: '#86efac' },
+    'Geremias Wendel':  { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+    'Sarah':            { bg: '#fce7f3', text: '#9d174d', border: '#f9a8d4' },
+    'Francisco Jhon':   { bg: '#ffedd5', text: '#9a3412', border: '#fdba74' },
+    'Paulinho':         { bg: '#cffafe', text: '#155e75', border: '#67e8f9' },
+    'Jonathan':         { bg: '#f0fdf4', text: '#14532d', border: '#4ade80' },
+    'Isaac Viudez':     { bg: '#fdf2f8', text: '#701a75', border: '#e879f9' },
+    'Felipe Aguiar':    { bg: '#fff1f2', text: '#9f1239', border: '#fda4af' },
+    'Bianca Façanha':   { bg: '#f0f9ff', text: '#0c4a6e', border: '#38bdf8' },
+};
+
 // ─── Parser XML ─────────────────────────────────────────────────────────────
 function parseXML(xmlText: string): NotaFiscal | null {
     try {
@@ -204,6 +233,7 @@ export function FaturamentoXML() {
     const [filtroData2, setFiltroData2] = useState('');
     const [filtroFilial, setFiltroFilial] = useState('');
     const [filtroModalidade, setFiltroModalidade] = useState('');
+    const [filtroVendedor, setFiltroVendedor] = useState('');
     const [filtroSearch, setFiltroSearch] = useState('');
 
     // Carrega histórico do Supabase ao montar
@@ -307,6 +337,13 @@ export function FaturamentoXML() {
         if (novos.length > 0) setView('dashboard');
     }, []);
 
+    const atualizarVendedor = async (id: string, vendedor: string) => {
+        setNotas(prev => prev.map(n => n.id === id ? { ...n, vendedor } : n));
+        if (supabase) {
+            await supabase.from('notas_fiscais_xml').update({ vendedor }).eq('id', id);
+        }
+    };
+
     const onDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setDragging(false);
@@ -319,6 +356,7 @@ export function FaturamentoXML() {
         if (filtroData2 && n.dataEmissao > filtroData2) return false;
         if (filtroFilial && n.filial !== filtroFilial) return false;
         if (filtroModalidade && n.modalidade !== filtroModalidade) return false;
+        if (filtroVendedor && n.vendedor !== filtroVendedor) return false;
         if (filtroSearch) {
             const s = filtroSearch.toLowerCase();
             if (!n.cliente.toLowerCase().includes(s) &&
@@ -367,14 +405,23 @@ export function FaturamentoXML() {
         }, {} as Record<string, number>)
     ).map(([name, value]) => ({ name, value }));
 
+    const porVendedor = VENDEDORES
+        .map(nome => ({
+            nome,
+            valor: notasFiltradas.filter(n => n.vendedor === nome).reduce((s, n) => s + n.valorFaturamento, 0),
+            notas: notasFiltradas.filter(n => n.vendedor === nome).length,
+        }))
+        .filter(v => v.valor > 0)
+        .sort((a, b) => b.valor - a.valor);
+
     const filiais = [...new Set(notas.map(n => n.filial))];
     const modalidades = [...new Set(notas.map(n => n.modalidade))] as Modalidade[];
 
     const exportCSV = () => {
-        const headers = ['Número', 'Tipo', 'Data', 'Cliente', 'CNPJ', 'Filial', 'Modalidade', 'CFOP', 'Faturamento', 'Frete', 'DIFAL', 'Impostos', 'Gasto Total', 'Forma Pagamento', 'Município', 'UF'];
+        const headers = ['Número', 'Tipo', 'Data', 'Cliente', 'CNPJ', 'Filial', 'Modalidade', 'CFOP', 'Vendedor', 'Faturamento', 'Frete', 'DIFAL', 'Impostos', 'Gasto Total', 'Forma Pagamento', 'Município', 'UF'];
         const rows = notasFiltradas.map(n => [
             n.numero, n.tipo, n.dataEmissao, `"${n.cliente}"`, n.cnpjCliente,
-            n.filial, n.modalidade, n.cfop,
+            n.filial, n.modalidade, n.cfop, `"${n.vendedor}"`,
             n.valorFaturamento.toFixed(2), n.frete.toFixed(2), n.difal.toFixed(2),
             n.impostos.toFixed(2), n.gastoTotal.toFixed(2), `"${n.formaPagamento}"`,
             `"${n.municipio}"`, n.uf
@@ -540,7 +587,15 @@ export function FaturamentoXML() {
                                     {modalidades.map(m => <option key={m} value={m}>{m}</option>)}
                                 </select>
                             </div>
-                            <button onClick={() => { setFiltroData1(''); setFiltroData2(''); setFiltroFilial(''); setFiltroModalidade(''); setFiltroSearch(''); }}
+                            <div>
+                                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">Vendedor</label>
+                                <select value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)}
+                                    className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-sm">
+                                    <option value="">Todos</option>
+                                    {VENDEDORES.map(v => <option key={v} value={v}>{v}</option>)}
+                                </select>
+                            </div>
+                            <button onClick={() => { setFiltroData1(''); setFiltroData2(''); setFiltroFilial(''); setFiltroModalidade(''); setFiltroVendedor(''); setFiltroSearch(''); }}
                                 className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 transition-colors">
                                 <X className="w-3 h-3" /> Limpar filtros
                             </button>
@@ -658,6 +713,44 @@ export function FaturamentoXML() {
                             )}
                         </div>
                     </div>
+
+                    {/* Ranking vendedores — full width */}
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                            <Users className="w-4 h-4 text-brand-500" /> Ranking de Vendedores
+                        </h3>
+                        {porVendedor.length === 0 ? (
+                            <div className="py-8 text-center text-slate-400 text-sm">Nenhuma nota com vendedor atribuído</div>
+                        ) : (
+                            <div className="space-y-3">
+                                {porVendedor.map((v, i) => {
+                                    const cor = VENDEDOR_COLOR[v.nome] ?? { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+                                    const maxValor = porVendedor[0].valor;
+                                    const pct = maxValor > 0 ? (v.valor / maxValor) * 100 : 0;
+                                    return (
+                                        <div key={v.nome} className="flex items-center gap-4">
+                                            <span className="w-5 text-xs font-black text-slate-400 text-right">{i + 1}</span>
+                                            <button
+                                                onClick={() => setFiltroVendedor(filtroVendedor === v.nome ? '' : v.nome)}
+                                                className="px-3 py-1 rounded-full text-xs font-bold border transition-all"
+                                                style={{ backgroundColor: cor.bg, color: cor.text, borderColor: cor.border }}
+                                            >
+                                                {v.nome}
+                                            </button>
+                                            <div className="flex-1 bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                                                <div
+                                                    className="h-full rounded-full transition-all duration-500"
+                                                    style={{ width: `${pct}%`, backgroundColor: cor.border }}
+                                                />
+                                            </div>
+                                            <span className="text-sm font-bold text-slate-700 dark:text-slate-200 w-36 text-right">{fmt(v.valor)}</span>
+                                            <span className="text-xs text-slate-400 w-16 text-right">{v.notas} nota{v.notas !== 1 ? 's' : ''}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -685,6 +778,11 @@ export function FaturamentoXML() {
                             <option value="">Todas as modalidades</option>
                             {modalidades.map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
+                        <select value={filtroVendedor} onChange={e => setFiltroVendedor(e.target.value)}
+                            className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm">
+                            <option value="">Todos os vendedores</option>
+                            {VENDEDORES.map(v => <option key={v} value={v}>{v}</option>)}
+                        </select>
                         <span className="text-xs text-slate-400 dark:text-slate-500">{notasFiltradas.length} registro{notasFiltradas.length !== 1 ? 's' : ''}</span>
                     </div>
 
@@ -694,7 +792,7 @@ export function FaturamentoXML() {
                             <table className="w-full text-xs">
                                 <thead>
                                     <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
-                                        {['Nº', 'Tipo', 'Data', 'Cliente', 'Filial', 'Modalidade', 'CFOP', 'Faturamento', 'Frete', 'DIFAL', 'Impostos', 'Gasto Total', 'Forma Pag.', 'Município/UF'].map(h => (
+                                        {['Nº', 'Tipo', 'Data', 'Cliente', 'Filial', 'Modalidade', 'CFOP', 'Vendedor', 'Faturamento', 'Frete', 'DIFAL', 'Impostos', 'Gasto Total', 'Forma Pag.', 'Município/UF'].map(h => (
                                             <th key={h} className="px-3 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                                         ))}
                                     </tr>
@@ -723,6 +821,20 @@ export function FaturamentoXML() {
                                                 </span>
                                             </td>
                                             <td className="px-3 py-2 font-mono text-slate-500 dark:text-slate-400">{n.cfop || '—'}</td>
+                                            <td className="px-3 py-2">
+                                                <select
+                                                    value={n.vendedor}
+                                                    onChange={e => atualizarVendedor(n.id, e.target.value)}
+                                                    className="rounded-full px-2 py-0.5 text-[11px] font-bold border cursor-pointer focus:outline-none"
+                                                    style={n.vendedor && VENDEDOR_COLOR[n.vendedor]
+                                                        ? { backgroundColor: VENDEDOR_COLOR[n.vendedor].bg, color: VENDEDOR_COLOR[n.vendedor].text, borderColor: VENDEDOR_COLOR[n.vendedor].border }
+                                                        : { backgroundColor: '#f1f5f9', color: '#64748b', borderColor: '#cbd5e1' }
+                                                    }
+                                                >
+                                                    <option value="">— Selecionar —</option>
+                                                    {VENDEDORES.map(v => <option key={v} value={v}>{v}</option>)}
+                                                </select>
+                                            </td>
                                             <td className="px-3 py-2 text-right font-bold text-slate-800 dark:text-white whitespace-nowrap">{fmt(n.valorFaturamento)}</td>
                                             <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-300 whitespace-nowrap">{fmt(n.frete)}</td>
                                             <td className="px-3 py-2 text-right text-orange-600 dark:text-orange-400 whitespace-nowrap">{fmt(n.difal)}</td>
@@ -736,7 +848,7 @@ export function FaturamentoXML() {
                                 {notasFiltradas.length > 0 && (
                                     <tfoot>
                                         <tr className="bg-slate-50 dark:bg-slate-900/50 border-t-2 border-slate-300 dark:border-slate-600 font-bold text-xs">
-                                            <td colSpan={7} className="px-3 py-3 text-slate-500 dark:text-slate-400">TOTAL ({notasFiltradas.length} notas)</td>
+                                            <td colSpan={8} className="px-3 py-3 text-slate-500 dark:text-slate-400">TOTAL ({notasFiltradas.length} notas)</td>
                                             <td className="px-3 py-3 text-right text-slate-800 dark:text-white whitespace-nowrap">{fmt(totalFaturamento)}</td>
                                             <td className="px-3 py-3 text-right text-slate-700 dark:text-slate-300 whitespace-nowrap">{fmt(totalFrete)}</td>
                                             <td className="px-3 py-3 text-right text-orange-600 dark:text-orange-400 whitespace-nowrap">{fmt(totalDifal)}</td>
