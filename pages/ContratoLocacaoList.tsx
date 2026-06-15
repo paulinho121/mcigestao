@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, FileText, Trash2, Printer, ArrowLeft, Plus, Eye, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Search, FileText, Trash2, Printer, ArrowLeft, Plus, Eye, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
 import { contratoLocacaoService, ContratoLocacao } from '../services/contratoLocacaoService';
 import { generateContratoHtml, imprimirContratoHtml, ContratoData, ContratoPreview } from './ContratoLocacaoForm';
 
@@ -109,8 +109,9 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
 
     const handleStatus = async (id: string, atual: ContratoLocacao['status']) => {
         const proximo: ContratoLocacao['status'] =
-            atual === 'aprovado' ? 'negado' :
-            atual === 'negado'   ? 'pendente' : 'aprovado';
+            atual === 'aprovado'  ? 'negado' :
+            atual === 'negado'    ? 'incorreto' :
+            atual === 'incorreto' ? 'pendente' : 'aprovado';
         await contratoLocacaoService.atualizarStatus(id, proximo!);
         setContratos(prev => prev.map(c => c.id === id ? { ...c, status: proximo } : c));
     };
@@ -234,16 +235,19 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
                                             title="Clique para alternar status"
                                             className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full transition-colors whitespace-nowrap"
                                             style={
-                                                c.status === 'aprovado' ? { background: 'rgba(34,197,94,0.15)', color: '#16a34a' } :
-                                                c.status === 'negado'   ? { background: 'rgba(239,68,68,0.15)', color: '#dc2626' } :
-                                                                           { background: 'rgba(148,163,184,0.15)', color: '#64748b' }
+                                                c.status === 'aprovado'  ? { background: 'rgba(34,197,94,0.15)',  color: '#16a34a' } :
+                                                c.status === 'negado'    ? { background: 'rgba(239,68,68,0.15)',  color: '#dc2626' } :
+                                                c.status === 'incorreto' ? { background: 'rgba(249,115,22,0.15)', color: '#ea580c' } :
+                                                                            { background: 'rgba(148,163,184,0.15)', color: '#64748b' }
                                             }
                                         >
-                                            {c.status === 'aprovado' ? <CheckCircle size={12} /> :
-                                             c.status === 'negado'   ? <XCircle size={12} /> :
-                                                                        <Clock size={12} />}
-                                            {c.status === 'aprovado' ? 'Aprovado' :
-                                             c.status === 'negado'   ? 'Negado' : 'Pendente'}
+                                            {c.status === 'aprovado'  ? <CheckCircle size={12} /> :
+                                             c.status === 'negado'    ? <XCircle size={12} /> :
+                                             c.status === 'incorreto' ? <AlertCircle size={12} /> :
+                                                                         <Clock size={12} />}
+                                            {c.status === 'aprovado'  ? 'Aprovado' :
+                                             c.status === 'negado'    ? 'Negado' :
+                                             c.status === 'incorreto' ? 'Incorreto' : 'Pendente'}
                                         </button>
                                     </td>
                                     <td className="px-4 py-3">
