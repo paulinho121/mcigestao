@@ -101,7 +101,9 @@ const LOCADORA_POR_FILIAL: Record<string, Partial<ContratoData>> = {
     },
 };
 
-const LOCADORA_DEFAULT = LOCADORA_POR_FILIAL.SC;
+const LOCADORA_DEFAULT = LOCADORA_POR_FILIAL.SC as Required<Pick<ContratoData,
+    'locadoraNome'|'locadoraCnpj'|'locadoraEndereco'|'locadoraBairro'|
+    'locadoraCidade'|'locadoraUf'|'locadoraCep'|'locadoraTelefone'|'locadoraEmail'>>;
 
 const ITEM_VAZIO: ItemLocado = {
     equipamento: '',
