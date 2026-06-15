@@ -65,17 +65,43 @@ interface ContratoData {
     observacoes: string;
 }
 
-const LOCADORA_DEFAULT = {
-    locadoraNome: 'MULTI COMERCIAL IMPORTADORA LTDA',
-    locadoraCnpj: '05.502.390/0002-00',
-    locadoraEndereco: 'RUA ODILIO GARCIA, 1369',
-    locadoraBairro: 'CORDEIROS',
-    locadoraCidade: 'ITAJAI',
-    locadoraUf: 'SC',
-    locadoraCep: '88310-180',
-    locadoraTelefone: '(85) 3254-4700',
-    locadoraEmail: 'FINANCEIRO@MCISTORE.COM.BR',
+const LOCADORA_POR_FILIAL: Record<string, Partial<ContratoData>> = {
+    SC: {
+        locadoraNome: 'MULTI COMERCIAL IMPORTADORA LTDA',
+        locadoraCnpj: '05.502.390/0002-00',
+        locadoraEndereco: 'RUA ODILIO GARCIA, 1369',
+        locadoraBairro: 'CORDEIROS',
+        locadoraCidade: 'ITAJAI',
+        locadoraUf: 'SC',
+        locadoraCep: '88310-180',
+        locadoraTelefone: '(47) 3254-4700',
+        locadoraEmail: 'FINANCEIRO@MCISTORE.COM.BR',
+    },
+    SP: {
+        locadoraNome: 'MCI SP - MULTI COMERCIAL IMPORTADORA LTDA',
+        locadoraCnpj: '05.502.390/0003-83',
+        locadoraEndereco: 'AVENIDA IMPERATRIZ LEOPOLDINA, 1718 - SALA 2 3 4 E 5',
+        locadoraBairro: 'VILA LEOPOLDINA',
+        locadoraCidade: 'SAO PAULO',
+        locadoraUf: 'SP',
+        locadoraCep: '05305-003',
+        locadoraTelefone: '(85) 3254-4700',
+        locadoraEmail: 'FINANCEIRO@MCISTORE.COM.BR',
+    },
+    CE: {
+        locadoraNome: 'MCI CE - MULTI COMERCIAL IMPORTADORA LTDA',
+        locadoraCnpj: '05.502.390/0001-11',
+        locadoraEndereco: 'RUA SENADOR POMPEU, 1547',
+        locadoraBairro: 'CENTRO',
+        locadoraCidade: 'FORTALEZA',
+        locadoraUf: 'CE',
+        locadoraCep: '60025-001',
+        locadoraTelefone: '(85) 3208-2721',
+        locadoraEmail: 'FINANCEIRO@MCISTORE.COM.BR',
+    },
 };
+
+const LOCADORA_DEFAULT = LOCADORA_POR_FILIAL.SC;
 
 const ITEM_VAZIO: ItemLocado = {
     equipamento: '',
@@ -774,7 +800,11 @@ export function ContratoLocacaoForm({ onBack }: Props) {
                         </div>
                         <div>
                             <label className="label-form">Filial</label>
-                            <select className="input-form" value={contrato.filial} onChange={e => set('filial', e.target.value)}>
+                            <select className="input-form" value={contrato.filial} onChange={e => {
+                                const filial = e.target.value;
+                                const dadosLocadora = LOCADORA_POR_FILIAL[filial];
+                                setContrato(prev => ({ ...prev, filial, ...(dadosLocadora ?? {}) }));
+                            }}>
                                 <option value="SC">SC</option>
                                 <option value="SP">SP</option>
                                 <option value="CE">CE</option>
