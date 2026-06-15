@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ShoppingCart, XCircle, CheckCircle, Clock, Copy, Check, RefreshCw, Search, Package } from 'lucide-react';
+import { ShoppingCart, XCircle, CheckCircle, Clock, Copy, Check, RefreshCw, Search, Package, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { scStockService } from '../services/scStockService';
 
@@ -81,18 +81,20 @@ function ProductRow({ product, showQty = false, showZeroedAt = false }: { produc
 export function MarketingSC() {
   const [inStock, setInStock] = useState<SCProduct[]>([]);
   const [outOfStock, setOutOfStock] = useState<SCProduct[]>([]);
+  const [lowStock, setLowStock] = useState<SCProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
   const [searchIn, setSearchIn] = useState('');
   const [searchOut, setSearchOut] = useState('');
+  const [searchLow, setSearchLow] = useState('');
   const [lastSync, setLastSync] = useState('');
 
   const fetchData = async () => {
     if (!supabase) return;
     setLoading(true);
     try {
-      const [inRes, outRes] = await Promise.all([
+      const [inRes, outRes, lowRes] = await Promise.all([
         supabase
           .from('products')
           .select('id, name, brand, stock_sc, image_url, price, updated_at')
@@ -105,10 +107,18 @@ export function MarketingSC() {
           .eq('stock_sc', 0)
           .not('id', 'like', '%.0')
           .order('updated_at', { ascending: false }),
+        supabase
+          .from('products')
+          .select('id, name, brand, stock_sc, image_url, price, updated_at')
+          .gte('stock_sc', 1)
+          .lte('stock_sc', 3)
+          .not('id', 'like', '%.0')
+          .order('stock_sc', { ascending: true }),
       ]);
 
       if (inRes.data) setInStock(inRes.data as SCProduct[]);
       if (outRes.data) setOutOfStock(outRes.data as SCProduct[]);
+      if (lowRes.data) setLowStock(lowRes.data as SCProduct[]);
       setLastSync(new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }));
     } finally {
       setLoading(false);
@@ -146,6 +156,12 @@ export function MarketingSC() {
       p.name.toLowerCase().includes(searchOut.toLowerCase()) ||
       p.id.includes(searchOut)
     ), [outOfStock, searchOut]);
+
+  const filteredLow = useMemo(() =>
+    lowStock.filter(p =>
+      p.name.toLowerCase().includes(searchLow.toLowerCase()) ||
+      p.id.includes(searchLow)
+    ), [lowStock, searchLow]);
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -188,9 +204,13 @@ export function MarketingSC() {
           <XCircle size={14} className="text-red-500" />
           <span className="text-xs font-medium text-red-700 dark:text-red-400">{loading ? '...' : `${outOfStock.length} sem estoque`}</span>
         </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800">
+          <AlertTriangle size={14} className="text-amber-500" />
+          <span className="text-xs font-medium text-amber-700 dark:text-amber-400">{loading ? '...' : `${lowStock.length} atenção`}</span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex-wrap gap-2">
@@ -271,6 +291,61 @@ export function MarketingSC() {
             ))}
           </div>
         </div>
+
+        {/* ── Atenção (1–3 un.) ── */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-800/60 overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-amber-100 dark:border-amber-800/40 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={15} className="text-amber-500" />
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Atenção</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 font-medium">{filteredLow.length}</span>
+            </div>
+            <CopyButton ids={filteredLow.map(p => p.id)} />
+          </div>
+          <div className="px-3 py-2 border-b border-amber-50 dark:border-amber-800/20">
+            <div className="flex items-center gap-2 px-2 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <Search size={13} className="text-slate-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Buscar por nome ou código..."
+                value={searchLow}
+                onChange={e => setSearchLow(e.target.value)}
+                className="bg-transparent text-sm text-slate-600 dark:text-slate-300 placeholder-slate-400 outline-none w-full"
+              />
+            </div>
+          </div>
+          <div className="p-3 space-y-1.5 overflow-y-auto max-h-[500px]">
+            {loading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 animate-pulse">
+                  <div className="w-12 h-12 rounded-lg bg-slate-200 dark:bg-slate-700 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+                    <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-1/2" />
+                  </div>
+                </div>
+              ))
+            ) : filteredLow.length === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-6">Nenhum produto em atenção</p>
+            ) : filteredLow.map(p => (
+              <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-amber-50/60 dark:bg-amber-900/10 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors border border-amber-100 dark:border-amber-800/30">
+                <ProductImage src={p.image_url} name={p.name} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-slate-700 dark:text-slate-200 truncate font-medium">{p.name}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                    <span className="font-mono">{p.id}</span>
+                    {p.brand && p.brand !== 'SC API' && <> · {p.brand}</>}
+                    {p.price ? <> · R$ {p.price.toFixed(2)}</> : null}
+                  </p>
+                </div>
+                <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 rounded-full shrink-0">
+                  {p.stock_sc} un.
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
 
       <p className="text-xs text-center text-slate-400 dark:text-slate-600">
