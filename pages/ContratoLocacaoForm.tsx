@@ -17,7 +17,7 @@ interface ItemLocado {
     image_url?: string;
 }
 
-interface ContratoData {
+export interface ContratoData {
     numero: string;
     data: string;
     vendedor: string;
@@ -63,6 +63,21 @@ interface ContratoData {
     cpfResponsavel: string;
     dataRetirada: string;
     observacoes: string;
+}
+
+export async function imprimirContratoHtml(html: string) {
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    if (!doc) { document.body.removeChild(iframe); return; }
+    doc.open();
+    doc.write(html);
+    doc.close();
+    setTimeout(() => {
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 1000);
+    }, 600);
 }
 
 const LOCADORA_POR_FILIAL: Record<string, Partial<ContratoData>> = {
@@ -452,20 +467,7 @@ export function ContratoLocacaoForm({ onBack }: Props) {
         } catch { /* logo não encontrado, continua sem */ }
 
         const html = generateContratoHtml(contrato, totalDiaria, valorTotalContrato, logoDataUrl);
-
-        // Usa iframe oculto para evitar popup bloqueado pelo navegador
-        const iframe = document.createElement('iframe');
-        iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;';
-        document.body.appendChild(iframe);
-        const doc = iframe.contentWindow?.document;
-        if (!doc) { document.body.removeChild(iframe); return; }
-        doc.open();
-        doc.write(html);
-        doc.close();
-        setTimeout(() => {
-            iframe.contentWindow?.print();
-            setTimeout(() => document.body.removeChild(iframe), 1000);
-        }, 600);
+        await imprimirContratoHtml(html);
     };
 
     if (showPreview) {
@@ -1307,7 +1309,7 @@ function getContratoBody(c: ContratoData, totalDiaria: number, valorTotal: numbe
     `;
 }
 
-function generateContratoHtml(c: ContratoData, totalDiaria: number, valorTotal: number, logoDataUrl = ''): string {
+export function generateContratoHtml(c: ContratoData, totalDiaria: number, valorTotal: number, logoDataUrl = ''): string {
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, FileText, Trash2, Printer, ArrowLeft, Plus } from 'lucide-react';
 import { contratoLocacaoService, ContratoLocacao } from '../services/contratoLocacaoService';
+import { generateContratoHtml, imprimirContratoHtml, ContratoData } from './ContratoLocacaoForm';
 
 interface Props {
     onNovo: () => void;
@@ -23,6 +24,7 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
     const [excluindo, setExcluindo] = useState<string | null>(null);
+    const [imprimindo, setImprimindo] = useState<string | null>(null);
 
     const carregar = useCallback(async (termo = '') => {
         setLoading(true);
@@ -40,6 +42,52 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
         const t = setTimeout(() => carregar(search), 350);
         return () => clearTimeout(t);
     }, [search, carregar]);
+
+    const handleReimprimir = async (id: string) => {
+        setImprimindo(id);
+        try {
+            const c = await contratoLocacaoService.buscarPorId(id);
+            if (!c) { alert('Contrato não encontrado.'); return; }
+
+            let logoDataUrl = '';
+            try {
+                const resp = await fetch('/logo.png');
+                const blob = await resp.blob();
+                logoDataUrl = await new Promise<string>(resolve => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.readAsDataURL(blob);
+                });
+            } catch { /* sem logo */ }
+
+            // Mapeia ContratoLocacao → ContratoData
+            const dados: ContratoData = {
+                numero: c.numero, data: c.data, vendedor: c.vendedor, filial: c.filial,
+                locadoraNome: c.locadora_nome, locadoraCnpj: c.locadora_cnpj,
+                locadoraEndereco: c.locadora_endereco, locadoraBairro: c.locadora_bairro,
+                locadoraCidade: c.locadora_cidade, locadoraUf: c.locadora_uf,
+                locadoraCep: c.locadora_cep, locadoraTelefone: c.locadora_telefone,
+                locadoraEmail: c.locadora_email,
+                locatariaNome: c.locataria_nome, locatariaCnpj: c.locataria_cnpj,
+                locatariaEndereco: c.locataria_endereco, locatariaBairro: c.locataria_bairro,
+                locatariaCidade: c.locataria_cidade, locatariaUf: c.locataria_uf,
+                locatariaCep: c.locataria_cep, locatariaTelefone: c.locataria_telefone,
+                locatariaPessoaContato: c.locataria_pessoa_contato, locatariaEmail: c.locataria_email,
+                locatariaInscEstadual: c.locataria_insc_estadual, locatariaComp: c.locataria_comp,
+                itens: c.itens,
+                dataInicio: c.data_inicio, dataFim: c.data_fim, dias: c.dias,
+                valorVenal: c.valor_venal, formaPagamento: c.forma_pagamento,
+                frete: c.frete, valorFrete: c.valor_frete, desconto: c.desconto,
+                transportadora: c.transportadora, valorTotal: c.valor_total,
+                responsavelRetirada: c.responsavel_retirada, cpfResponsavel: c.cpf_responsavel,
+                dataRetirada: c.data_retirada, observacoes: c.observacoes,
+            };
+            const html = generateContratoHtml(dados, c.total_diaria, c.valor_total, logoDataUrl);
+            await imprimirContratoHtml(html);
+        } finally {
+            setImprimindo(null);
+        }
+    };
 
     const handleExcluir = async (id: string, numero: string) => {
         if (!confirm(`Excluir contrato ${numero}?`)) return;
@@ -139,10 +187,14 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
                                         <div className="flex items-center gap-2 justify-end">
                                             <button
                                                 title="Reimprimir"
-                                                onClick={() => alert('Em breve: abrir contrato para reimprimir')}
-                                                className="text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                                                onClick={() => handleReimprimir(c.id)}
+                                                disabled={imprimindo === c.id}
+                                                className="text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors disabled:opacity-40"
                                             >
-                                                <Printer className="w-4 h-4" />
+                                                {imprimindo === c.id
+                                                    ? <div className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                                                    : <Printer className="w-4 h-4" />
+                                                }
                                             </button>
                                             <button
                                                 title="Excluir"
