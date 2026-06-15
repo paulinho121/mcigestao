@@ -632,6 +632,34 @@ export function FaturamentoXML() {
             </tr>`
         ).join('');
 
+        // Clientes atendidos: agrupa por cliente, soma faturamento, coleta cidade/UF
+        type ClienteRow = { nome: string; cnpj: string; cidade: string; uf: string; valor: number; notas: number };
+        const clienteMap = new Map<string, ClienteRow>();
+        for (const n of notasFat) {
+            const key = n.cnpjCliente || n.cliente;
+            if (!clienteMap.has(key)) {
+                clienteMap.set(key, { nome: n.cliente, cnpj: n.cnpjCliente, cidade: n.municipio, uf: n.uf, valor: 0, notas: 0 });
+            }
+            const c = clienteMap.get(key)!;
+            c.valor += n.valorFaturamento;
+            c.notas += 1;
+        }
+        const clienteRows = [...clienteMap.values()]
+            .sort((a, b) => b.valor - a.valor)
+            .map((c, i) => {
+                const pct = totalFaturamento > 0 ? ((c.valor / totalFaturamento) * 100).toFixed(1) : '0.0';
+                return `<tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:8px 12px;font-weight:700;color:#374151;">${i + 1}º</td>
+                    <td style="padding:8px 12px;font-weight:600;color:#111827;">${c.nome || '—'}</td>
+                    <td style="padding:8px 12px;font-family:monospace;font-size:11px;color:#6b7280;">${c.cnpj || '—'}</td>
+                    <td style="padding:8px 12px;color:#374151;">${c.cidade || '—'}</td>
+                    <td style="padding:8px 12px;font-weight:700;color:#374151;">${c.uf || '—'}</td>
+                    <td style="padding:8px 12px;text-align:right;font-weight:800;color:#111827;">${fmt(c.valor)}</td>
+                    <td style="padding:8px 12px;text-align:right;color:#6b7280;">${pct}%</td>
+                    <td style="padding:8px 12px;text-align:right;color:#6b7280;">${c.notas}</td>
+                </tr>`;
+            }).join('');
+
         const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -780,6 +808,34 @@ ${porDia.length > 0 ? `
             <tr style="background:#f8fafc;border-top:2px solid #e2e8f0;">
                 <td style="padding:10px 12px;font-weight:800;color:#374151;">TOTAL</td>
                 <td style="padding:10px 12px;text-align:right;font-weight:900;color:#4f46e5;font-size:13px;">${fmt(totalFaturamento)}</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>` : ''}
+
+<!-- CLIENTES ATENDIDOS -->
+${clienteMap.size > 0 ? `
+<div class="section page-break">
+    <h2>Clientes Atendidos (${clienteMap.size})</h2>
+    <table>
+        <thead>
+            <tr>
+                <th style="width:32px;">#</th>
+                <th>Cliente</th>
+                <th>CNPJ / CPF</th>
+                <th>Cidade</th>
+                <th style="width:50px;">UF</th>
+                <th class="right">Faturamento</th>
+                <th class="right">%</th>
+                <th class="right">Notas</th>
+            </tr>
+        </thead>
+        <tbody>${clienteRows}</tbody>
+        <tfoot>
+            <tr style="background:#f8fafc;border-top:2px solid #e2e8f0;">
+                <td colspan="5" style="padding:10px 12px;font-weight:800;color:#374151;">TOTAL</td>
+                <td style="padding:10px 12px;text-align:right;font-weight:900;color:#4f46e5;font-size:13px;">${fmt(totalFaturamento)}</td>
+                <td colspan="2"></td>
             </tr>
         </tfoot>
     </table>
