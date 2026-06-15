@@ -188,15 +188,55 @@ export function ContratoLocacaoForm({ onBack }: Props) {
     const [clienteSearchTimeout, setClienteSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
     const [salvando, setSalvando] = useState(false);
     const [savedId, setSavedId] = useState<string | null>(null);
+    const [buscandoCnpj, setBuscandoCnpj] = useState(false);
+    const [erroCnpj, setErroCnpj] = useState('');
 
     useEffect(() => {
         vendedorService.listar().then(setVendedores);
         gerarNumeroContrato().then(numero => setContrato(prev => ({ ...prev, numero })));
     }, []);
 
+    const buscarCnpj = async (cnpj: string) => {
+        const digits = cnpj.replace(/\D/g, '');
+        if (digits.length !== 14) return;
+        setBuscandoCnpj(true);
+        setErroCnpj('');
+        try {
+            const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
+            if (!res.ok) { setErroCnpj('CNPJ não encontrado.'); return; }
+            const d = await res.json();
+            setContrato(prev => ({
+                ...prev,
+                locatariaNome: d.razao_social || d.nome_fantasia || '',
+                locatariaCnpj: cnpj,
+                locatariaEndereco: `${d.logradouro || ''}${d.numero ? ', ' + d.numero : ''}`,
+                locatariaComp: d.complemento || '',
+                locatariaBairro: d.bairro || '',
+                locatariaCidade: d.municipio || '',
+                locatariaUf: d.uf || '',
+                locatariaCep: d.cep ? d.cep.replace(/\D/g, '').replace(/(\d{5})(\d{3})/, '$1-$2') : '',
+                locatariaTelefone: d.ddd_telefone_1 || '',
+                locatariaEmail: d.email || '',
+            }));
+            setClienteSearch(d.razao_social || d.nome_fantasia || cnpj);
+            setShowClienteDropdown(false);
+        } catch {
+            setErroCnpj('Erro ao consultar CNPJ.');
+        } finally {
+            setBuscandoCnpj(false);
+        }
+    };
+
     const handleClienteSearch = (value: string) => {
         setClienteSearch(value);
+        setErroCnpj('');
         if (clienteSearchTimeout) clearTimeout(clienteSearchTimeout);
+        const digits = value.replace(/\D/g, '');
+        if (digits.length === 14) {
+            const t = setTimeout(() => buscarCnpj(value), 400);
+            setClienteSearchTimeout(t);
+            return;
+        }
         if (value.length < 2) { setClienteSuggestions([]); setShowClienteDropdown(false); return; }
         const t = setTimeout(async () => {
             const results = await clienteService.listar(value);
@@ -482,11 +522,24 @@ export function ContratoLocacaoForm({ onBack }: Props) {
                     </div>
                     {/* Busca rápida */}
                     <div className="mb-4 relative">
-                        <label className="label-form">Buscar cliente cadastrado</label>
+                        <label className="label-form">Buscar cliente cadastrado ou digitar CNPJ</label>
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                            <input className="input-form pl-9" value={clienteSearch} onChange={e => handleClienteSearch(e.target.value)} onFocus={() => clienteSuggestions.length > 0 && setShowClienteDropdown(true)} placeholder="Nome, CNPJ ou cidade..." />
+                            <input
+                                className="input-form pl-9 pr-10"
+                                value={clienteSearch}
+                                onChange={e => handleClienteSearch(e.target.value)}
+                                onFocus={() => clienteSuggestions.length > 0 && setShowClienteDropdown(true)}
+                                placeholder="Nome, cidade ou CNPJ (14 dígitos)..."
+                            />
+                            {buscandoCnpj && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                            )}
                         </div>
+                        {erroCnpj && <p className="text-xs text-red-500 mt-1">{erroCnpj}</p>}
+                        {!erroCnpj && clienteSearch.replace(/\D/g, '').length === 14 && !buscandoCnpj && (
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">CNPJ detectado — campos preenchidos automaticamente.</p>
+                        )}
                         {showClienteDropdown && (
                             <div className="absolute z-20 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg max-h-56 overflow-y-auto">
                                 {clienteSuggestions.map(c => (
