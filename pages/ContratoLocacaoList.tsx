@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, FileText, Trash2, Printer, ArrowLeft, Plus } from 'lucide-react';
+import { Search, FileText, Trash2, Printer, ArrowLeft, Plus, Eye } from 'lucide-react';
 import { contratoLocacaoService, ContratoLocacao } from '../services/contratoLocacaoService';
-import { generateContratoHtml, imprimirContratoHtml, ContratoData } from './ContratoLocacaoForm';
+import { generateContratoHtml, imprimirContratoHtml, ContratoData, ContratoPreview } from './ContratoLocacaoForm';
 
 interface Props {
     onNovo: () => void;
@@ -25,6 +25,7 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
     const [loading, setLoading] = useState(true);
     const [excluindo, setExcluindo] = useState<string | null>(null);
     const [imprimindo, setImprimindo] = useState<string | null>(null);
+    const [preview, setPreview] = useState<{ dados: ContratoData; totalDiaria: number; valorTotal: number } | null>(null);
 
     const carregar = useCallback(async (termo = '') => {
         setLoading(true);
@@ -43,12 +44,44 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
         return () => clearTimeout(t);
     }, [search, carregar]);
 
+    const carregarDadosContrato = async (id: string): Promise<{ dados: ContratoData; totalDiaria: number; valorTotal: number } | null> => {
+        const c = await contratoLocacaoService.buscarPorId(id);
+        if (!c) return null;
+        const dados: ContratoData = {
+            numero: c.numero, data: c.data, vendedor: c.vendedor, filial: c.filial,
+            locadoraNome: c.locadora_nome, locadoraCnpj: c.locadora_cnpj,
+            locadoraEndereco: c.locadora_endereco, locadoraBairro: c.locadora_bairro,
+            locadoraCidade: c.locadora_cidade, locadoraUf: c.locadora_uf,
+            locadoraCep: c.locadora_cep, locadoraTelefone: c.locadora_telefone,
+            locadoraEmail: c.locadora_email,
+            locatariaNome: c.locataria_nome, locatariaCnpj: c.locataria_cnpj,
+            locatariaEndereco: c.locataria_endereco, locatariaBairro: c.locataria_bairro,
+            locatariaCidade: c.locataria_cidade, locatariaUf: c.locataria_uf,
+            locatariaCep: c.locataria_cep, locatariaTelefone: c.locataria_telefone,
+            locatariaPessoaContato: c.locataria_pessoa_contato, locatariaEmail: c.locataria_email,
+            locatariaInscEstadual: c.locataria_insc_estadual, locatariaComp: c.locataria_comp,
+            itens: c.itens,
+            dataInicio: c.data_inicio, dataFim: c.data_fim, dias: c.dias,
+            valorVenal: c.valor_venal, formaPagamento: c.forma_pagamento,
+            frete: c.frete, valorFrete: c.valor_frete, desconto: c.desconto,
+            transportadora: c.transportadora, valorTotal: c.valor_total,
+            responsavelRetirada: c.responsavel_retirada, cpfResponsavel: c.cpf_responsavel,
+            dataRetirada: c.data_retirada, observacoes: c.observacoes,
+        };
+        return { dados, totalDiaria: c.total_diaria, valorTotal: c.valor_total };
+    };
+
+    const handleVisualizar = async (id: string) => {
+        const resultado = await carregarDadosContrato(id);
+        if (!resultado) { alert('Contrato não encontrado.'); return; }
+        setPreview(resultado);
+    };
+
     const handleReimprimir = async (id: string) => {
         setImprimindo(id);
         try {
-            const c = await contratoLocacaoService.buscarPorId(id);
-            if (!c) { alert('Contrato não encontrado.'); return; }
-
+            const resultado = await carregarDadosContrato(id);
+            if (!resultado) { alert('Contrato não encontrado.'); return; }
             let logoDataUrl = '';
             try {
                 const resp = await fetch('/logo.png');
@@ -59,30 +92,7 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
                     reader.readAsDataURL(blob);
                 });
             } catch { /* sem logo */ }
-
-            // Mapeia ContratoLocacao → ContratoData
-            const dados: ContratoData = {
-                numero: c.numero, data: c.data, vendedor: c.vendedor, filial: c.filial,
-                locadoraNome: c.locadora_nome, locadoraCnpj: c.locadora_cnpj,
-                locadoraEndereco: c.locadora_endereco, locadoraBairro: c.locadora_bairro,
-                locadoraCidade: c.locadora_cidade, locadoraUf: c.locadora_uf,
-                locadoraCep: c.locadora_cep, locadoraTelefone: c.locadora_telefone,
-                locadoraEmail: c.locadora_email,
-                locatariaNome: c.locataria_nome, locatariaCnpj: c.locataria_cnpj,
-                locatariaEndereco: c.locataria_endereco, locatariaBairro: c.locataria_bairro,
-                locatariaCidade: c.locataria_cidade, locatariaUf: c.locataria_uf,
-                locatariaCep: c.locataria_cep, locatariaTelefone: c.locataria_telefone,
-                locatariaPessoaContato: c.locataria_pessoa_contato, locatariaEmail: c.locataria_email,
-                locatariaInscEstadual: c.locataria_insc_estadual, locatariaComp: c.locataria_comp,
-                itens: c.itens,
-                dataInicio: c.data_inicio, dataFim: c.data_fim, dias: c.dias,
-                valorVenal: c.valor_venal, formaPagamento: c.forma_pagamento,
-                frete: c.frete, valorFrete: c.valor_frete, desconto: c.desconto,
-                transportadora: c.transportadora, valorTotal: c.valor_total,
-                responsavelRetirada: c.responsavel_retirada, cpfResponsavel: c.cpf_responsavel,
-                dataRetirada: c.data_retirada, observacoes: c.observacoes,
-            };
-            const html = generateContratoHtml(dados, c.total_diaria, c.valor_total, logoDataUrl);
+            const html = generateContratoHtml(resultado.dados, resultado.totalDiaria, resultado.valorTotal, logoDataUrl);
             await imprimirContratoHtml(html);
         } finally {
             setImprimindo(null);
@@ -96,6 +106,32 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
         setExcluindo(null);
         carregar(search);
     };
+
+    if (preview) {
+        const handlePrintPreview = async () => {
+            let logoDataUrl = '';
+            try {
+                const resp = await fetch('/logo.png');
+                const blob = await resp.blob();
+                logoDataUrl = await new Promise<string>(resolve => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.readAsDataURL(blob);
+                });
+            } catch { /* sem logo */ }
+            const html = generateContratoHtml(preview.dados, preview.totalDiaria, preview.valorTotal, logoDataUrl);
+            await imprimirContratoHtml(html);
+        };
+        return (
+            <ContratoPreview
+                contrato={preview.dados}
+                totalDiaria={preview.totalDiaria}
+                valorTotalContrato={preview.valorTotal}
+                onBack={() => setPreview(null)}
+                onPrint={handlePrintPreview}
+            />
+        );
+    }
 
     return (
         <div className="p-6 max-w-6xl mx-auto">
@@ -185,6 +221,13 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-2 justify-end">
+                                            <button
+                                                title="Visualizar contrato"
+                                                onClick={() => handleVisualizar(c.id)}
+                                                className="text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
                                             <button
                                                 title="Reimprimir"
                                                 onClick={() => handleReimprimir(c.id)}

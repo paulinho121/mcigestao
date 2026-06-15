@@ -1008,7 +1008,7 @@ export function ContratoLocacaoForm({ onBack }: Props) {
 }
 
 // ---- Preview Component ----
-interface PreviewProps {
+export interface PreviewProps {
     contrato: ContratoData;
     totalDiaria: number;
     valorTotalContrato: number;
@@ -1016,7 +1016,7 @@ interface PreviewProps {
     onPrint: () => void;
 }
 
-function ContratoPreview({ contrato, totalDiaria, valorTotalContrato, onBack, onPrint }: PreviewProps) {
+export function ContratoPreview({ contrato, totalDiaria, valorTotalContrato, onBack, onPrint }: PreviewProps) {
     return (
         <div className="min-h-screen bg-slate-100 dark:bg-slate-900 p-4">
             <div className="max-w-4xl mx-auto">
