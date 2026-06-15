@@ -355,7 +355,7 @@ export function FaturamentoXML() {
                         impostos: Number(r.impostos),
                         gastoTotal: Number(r.gasto_total),
                         formaPagamento: r.forma_pagamento as string,
-                        vendedor: r.vendedor as string,
+                        vendedor: (r.vendedor as string) || localStorage.getItem(`nfe_vendedor_${r.id}`) || '',
                         filial: r.filial as string,
                     }));
                     setNotas(fromDB);
@@ -427,8 +427,17 @@ export function FaturamentoXML() {
 
     const atualizarVendedor = async (id: string, vendedor: string) => {
         setNotas(prev => prev.map(n => n.id === id ? { ...n, vendedor } : n));
+
+        // Persiste no localStorage como fallback imediato
+        try {
+            const chave = `nfe_vendedor_${id}`;
+            if (vendedor) localStorage.setItem(chave, vendedor);
+            else localStorage.removeItem(chave);
+        } catch { /* ignore */ }
+
         if (supabase) {
-            await supabase.from('notas_fiscais_xml').update({ vendedor }).eq('id', id);
+            const { error } = await supabase.from('notas_fiscais_xml').update({ vendedor }).eq('id', id);
+            if (error) console.error('Erro ao salvar vendedor:', error.message);
         }
     };
 
