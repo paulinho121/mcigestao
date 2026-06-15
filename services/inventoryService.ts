@@ -866,7 +866,7 @@ export const inventoryService = {
           stock_sp: newStockSp,
           total: newTotal
         })
-        .in('id', [productId, `${productId}.0`]);
+        .eq('id', productId);
 
       if (updateError) {
         throw new Error(`Erro ao ajustar estoque do produto ${productId}: ${updateError.message}`);

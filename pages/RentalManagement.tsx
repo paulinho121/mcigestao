@@ -4,9 +4,10 @@ import { supabase } from '../lib/supabase';
 import { Rental, RentalItem } from '../types';
 import { ContratoLocacaoForm } from './ContratoLocacaoForm';
 import { ContratoLocacaoList } from './ContratoLocacaoList';
+import { ControleFinanceiro } from './ControleFinanceiro';
 import { vendedorService, Vendedor } from '../services/vendedorService';
 
-type ContratoView = 'none' | 'list' | 'form';
+type ContratoView = 'none' | 'list' | 'form' | 'financeiro';
 
 export function RentalManagement() {
     const [contratoView, setContratoView] = useState<ContratoView>('none');
@@ -296,6 +297,10 @@ export function RentalManagement() {
         return <ContratoLocacaoForm onBack={() => setContratoView('list')} />;
     }
 
+    if (contratoView === 'financeiro') {
+        return <ControleFinanceiro onBack={() => setContratoView('none')} />;
+    }
+
     if (contratoView === 'list') {
         return (
             <ContratoLocacaoList
@@ -313,6 +318,13 @@ export function RentalManagement() {
                     <p className="text-slate-500 dark:text-slate-400">Gerencie seus contratos e estoque de locação</p>
                 </div>
                 <div className="flex gap-2">
+                    <button
+                        onClick={() => setContratoView('financeiro')}
+                        className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
+                    >
+                        <DollarSign className="w-5 h-5" />
+                        Financeiro
+                    </button>
                     <button
                         onClick={() => setContratoView('list')}
                         className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
