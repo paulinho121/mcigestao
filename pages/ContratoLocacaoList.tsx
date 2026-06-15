@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, FileText, Trash2, Printer, ArrowLeft, Plus, Eye } from 'lucide-react';
+import { Search, FileText, Trash2, Printer, ArrowLeft, Plus, Eye, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { contratoLocacaoService, ContratoLocacao } from '../services/contratoLocacaoService';
 import { generateContratoHtml, imprimirContratoHtml, ContratoData, ContratoPreview } from './ContratoLocacaoForm';
 
@@ -107,6 +107,14 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
         carregar(search);
     };
 
+    const handleStatus = async (id: string, atual: ContratoLocacao['status']) => {
+        const proximo: ContratoLocacao['status'] =
+            atual === 'aprovado' ? 'negado' :
+            atual === 'negado'   ? 'pendente' : 'aprovado';
+        await contratoLocacaoService.atualizarStatus(id, proximo!);
+        setContratos(prev => prev.map(c => c.id === id ? { ...c, status: proximo } : c));
+    };
+
     if (preview) {
         const handlePrintPreview = async () => {
             let logoDataUrl = '';
@@ -189,7 +197,8 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
                                 <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Valor Total</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Vendedor</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Filial</th>
-                                <th className="px-4 py-3 w-24"></th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Status</th>
+                                <th className="px-4 py-3 w-28"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -218,6 +227,24 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
                                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{c.vendedor || '—'}</td>
                                     <td className="px-4 py-3">
                                         <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{c.filial}</span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <button
+                                            onClick={() => handleStatus(c.id, c.status)}
+                                            title="Clique para alternar status"
+                                            className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full transition-colors whitespace-nowrap"
+                                            style={
+                                                c.status === 'aprovado' ? { background: 'rgba(34,197,94,0.15)', color: '#16a34a' } :
+                                                c.status === 'negado'   ? { background: 'rgba(239,68,68,0.15)', color: '#dc2626' } :
+                                                                           { background: 'rgba(148,163,184,0.15)', color: '#64748b' }
+                                            }
+                                        >
+                                            {c.status === 'aprovado' ? <CheckCircle size={12} /> :
+                                             c.status === 'negado'   ? <XCircle size={12} /> :
+                                                                        <Clock size={12} />}
+                                            {c.status === 'aprovado' ? 'Aprovado' :
+                                             c.status === 'negado'   ? 'Negado' : 'Pendente'}
+                                        </button>
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-2 justify-end">

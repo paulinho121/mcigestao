@@ -60,6 +60,7 @@ export interface ContratoLocacao {
     // Itens
     itens: ItemContratoSalvo[];
     created_at: string;
+    status?: 'pendente' | 'aprovado' | 'negado';
 }
 
 const STORAGE_KEY = 'mci_contratos_locacao';
@@ -159,5 +160,12 @@ export const contratoLocacaoService = {
     async excluir(id: string): Promise<void> {
         if (supabase) await supabase.from('contratos_locacao').delete().eq('id', id);
         saveLocal(loadLocal().filter(c => c.id !== id));
+    },
+
+    async atualizarStatus(id: string, status: 'pendente' | 'aprovado' | 'negado'): Promise<void> {
+        if (supabase) await supabase.from('contratos_locacao').update({ status }).eq('id', id);
+        const local = loadLocal();
+        const idx = local.findIndex(c => c.id === id);
+        if (idx !== -1) { local[idx].status = status; saveLocal(local); }
     },
 };
