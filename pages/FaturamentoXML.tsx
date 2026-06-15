@@ -37,11 +37,28 @@ interface NotaFiscal {
     filial: string;
 }
 
-type Modalidade = 'VENDA' | 'LOCAÇÃO' | 'RETORNO' | 'TRANSFERÊNCIA' | 'SERVIÇO' | 'COMPRA' | 'OUTROS';
+type Modalidade =
+    | 'VENDA' | 'LOCAÇÃO'
+    | 'DEMO' | 'RETORNO DE DEMO' | 'RETORNO DE LOCAÇÃO' | 'TRANSFERÊNCIA' | 'COMODATO'
+    | 'RETORNO' | 'SERVIÇO' | 'COMPRA' | 'OUTROS';
 
-// CFOPs de entrada (1xxx, 2xxx, 3xxx) nunca contam como faturamento
-// Apenas essas modalidades entram no faturamento — COMPRA, TRANSFERÊNCIA e RETORNO são excluídas
-const MODALIDADES_FATURAMENTO: Modalidade[] = ['VENDA', 'LOCAÇÃO', 'SERVIÇO', 'OUTROS'];
+// Apenas VENDA e LOCAÇÃO somam no faturamento
+const MODALIDADES_FATURAMENTO: Modalidade[] = ['VENDA', 'LOCAÇÃO'];
+
+// Todas as modalidades disponíveis para seleção manual
+const TODAS_MODALIDADES: { value: Modalidade; label: string; receita: boolean }[] = [
+    { value: 'VENDA',             label: 'Venda',              receita: true  },
+    { value: 'LOCAÇÃO',           label: 'Locação',            receita: true  },
+    { value: 'DEMO',              label: 'Demo',               receita: false },
+    { value: 'RETORNO DE DEMO',   label: 'Retorno de Demo',    receita: false },
+    { value: 'RETORNO DE LOCAÇÃO',label: 'Retorno de Locação', receita: false },
+    { value: 'TRANSFERÊNCIA',     label: 'Transferência',      receita: false },
+    { value: 'COMODATO',          label: 'Comodato',           receita: false },
+    { value: 'RETORNO',           label: 'Retorno',            receita: false },
+    { value: 'SERVIÇO',           label: 'Serviço',            receita: false },
+    { value: 'COMPRA',            label: 'Compra',             receita: false },
+    { value: 'OUTROS',            label: 'Outros',             receita: false },
+];
 
 function cfopParaModalidade(cfop: string): Modalidade {
     if (!cfop) return 'OUTROS';
@@ -74,8 +91,17 @@ const FORMA_PAGAMENTO: Record<string, string> = {
 };
 
 const MODALIDADE_COLOR: Record<Modalidade, string> = {
-    'VENDA': '#6366f1', 'LOCAÇÃO': '#10b981', 'RETORNO': '#f59e0b',
-    'TRANSFERÊNCIA': '#3b82f6', 'SERVIÇO': '#8b5cf6', 'COMPRA': '#ef4444', 'OUTROS': '#94a3b8',
+    'VENDA':              '#6366f1',
+    'LOCAÇÃO':            '#10b981',
+    'DEMO':               '#f97316',
+    'RETORNO DE DEMO':    '#fb923c',
+    'RETORNO DE LOCAÇÃO': '#fbbf24',
+    'TRANSFERÊNCIA':      '#3b82f6',
+    'COMODATO':           '#8b5cf6',
+    'RETORNO':            '#f59e0b',
+    'SERVIÇO':            '#06b6d4',
+    'COMPRA':             '#ef4444',
+    'OUTROS':             '#94a3b8',
 };
 
 // ─── Vendedores ─────────────────────────────────────────────────────────────
@@ -348,7 +374,7 @@ export function FaturamentoXML() {
                         municipio: r.municipio as string,
                         uf: r.uf as string,
                         cfop: r.cfop as string,
-                        modalidade: r.modalidade as Modalidade,
+                        modalidade: ((r.modalidade as string) || localStorage.getItem(`nfe_modalidade_${r.id}`) || 'OUTROS') as Modalidade,
                         valorFaturamento: Number(r.valor_faturamento),
                         frete: Number(r.frete),
                         difal: Number(r.difal),
@@ -427,17 +453,25 @@ export function FaturamentoXML() {
 
     const atualizarVendedor = async (id: string, vendedor: string) => {
         setNotas(prev => prev.map(n => n.id === id ? { ...n, vendedor } : n));
-
-        // Persiste no localStorage como fallback imediato
         try {
             const chave = `nfe_vendedor_${id}`;
             if (vendedor) localStorage.setItem(chave, vendedor);
             else localStorage.removeItem(chave);
         } catch { /* ignore */ }
-
         if (supabase) {
             const { error } = await supabase.from('notas_fiscais_xml').update({ vendedor }).eq('id', id);
             if (error) console.error('Erro ao salvar vendedor:', error.message);
+        }
+    };
+
+    const atualizarModalidade = async (id: string, modalidade: Modalidade) => {
+        setNotas(prev => prev.map(n => n.id === id ? { ...n, modalidade } : n));
+        try {
+            localStorage.setItem(`nfe_modalidade_${id}`, modalidade);
+        } catch { /* ignore */ }
+        if (supabase) {
+            const { error } = await supabase.from('notas_fiscais_xml').update({ modalidade }).eq('id', id);
+            if (error) console.error('Erro ao salvar modalidade:', error.message);
         }
     };
 
@@ -1153,9 +1187,17 @@ ${porDia.length > 0 ? `
                                                 <span className="inline-block px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-[10px]">{n.filial}</span>
                                             </td>
                                             <td className="px-3 py-2">
-                                                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ backgroundColor: MODALIDADE_COLOR[n.modalidade] + '20', color: MODALIDADE_COLOR[n.modalidade] }}>
-                                                    {n.modalidade}
-                                                </span>
+                                                <select
+                                                    value={n.modalidade}
+                                                    onChange={e => atualizarModalidade(n.id, e.target.value as Modalidade)}
+                                                    className="text-[10px] font-bold px-1.5 py-0.5 rounded border-0 outline-none cursor-pointer"
+                                                    style={{ backgroundColor: MODALIDADE_COLOR[n.modalidade] + '20', color: MODALIDADE_COLOR[n.modalidade] }}
+                                                    title="Clique para alterar a modalidade"
+                                                >
+                                                    {TODAS_MODALIDADES.map(m => (
+                                                        <option key={m.value} value={m.value}>{m.label}{m.receita ? ' ✓' : ''}</option>
+                                                    ))}
+                                                </select>
                                             </td>
                                             <td className="px-3 py-2 font-mono text-slate-500 dark:text-slate-400">{n.cfop || '—'}</td>
                                             <td className="px-3 py-2">
