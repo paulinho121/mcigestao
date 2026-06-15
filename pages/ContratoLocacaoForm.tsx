@@ -63,6 +63,7 @@ export interface ContratoData {
     cpfResponsavel: string;
     dataRetirada: string;
     observacoes: string;
+    status?: 'pendente' | 'aprovado' | 'negado' | 'incorreto';
 }
 
 export async function imprimirContratoHtml(html: string) {
@@ -1073,6 +1074,14 @@ const ACCENT2      = '#A1D976';  // verde-limão secundário da logo
 const BORDER       = '#b2e4de';  // borda teal suave
 
 function getContratoBody(c: ContratoData, totalDiaria: number, valorTotal: number, logoDataUrl = ''): string {
+    const cancelado = c.status === 'negado' || c.status === 'incorreto';
+    const carimboCancelado = cancelado ? `
+        <div style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:flex;align-items:center;justify-content:center;">
+            <div style="transform:rotate(-45deg);font-size:96pt;font-weight:900;color:rgba(220,38,38,0.18);letter-spacing:8px;white-space:nowrap;user-select:none;font-family:Arial,sans-serif;">
+                CANCELADO
+            </div>
+        </div>` : '';
+
     const itensPreenchidos = c.itens.filter(it => it.equipamento);
     const totalLinhas = Math.max(itensPreenchidos.length, 8);
 
@@ -1114,6 +1123,7 @@ function getContratoBody(c: ContratoData, totalDiaria: number, valorTotal: numbe
     const totalVenal = c.itens.reduce((s, it) => s + it.valorVenal * it.qtd, 0);
 
     return `
+    ${carimboCancelado}
     <div style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;font-size:9pt;color:#1a1a1a;max-width:210mm;margin:0 auto;background:#fff;">
 
         <!-- ══ CABEÇALHO ══ -->

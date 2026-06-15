@@ -67,6 +67,7 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
             transportadora: c.transportadora, valorTotal: c.valor_total,
             responsavelRetirada: c.responsavel_retirada, cpfResponsavel: c.cpf_responsavel,
             dataRetirada: c.data_retirada, observacoes: c.observacoes,
+            status: c.status,
         };
         return { dados, totalDiaria: c.total_diaria, valorTotal: c.valor_total };
     };
