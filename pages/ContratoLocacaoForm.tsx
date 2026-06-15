@@ -440,7 +440,6 @@ export function ContratoLocacaoForm({ onBack }: Props) {
     };
 
     const handlePrint = async () => {
-        // Converte o logo para base64 para funcionar na janela de impressão
         let logoDataUrl = '';
         try {
             const resp = await fetch('/logo.png');
@@ -452,13 +451,21 @@ export function ContratoLocacaoForm({ onBack }: Props) {
             });
         } catch { /* logo não encontrado, continua sem */ }
 
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) return;
         const html = generateContratoHtml(contrato, totalDiaria, valorTotalContrato, logoDataUrl);
-        printWindow.document.write(html);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => printWindow.print(), 600);
+
+        // Usa iframe oculto para evitar popup bloqueado pelo navegador
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;';
+        document.body.appendChild(iframe);
+        const doc = iframe.contentWindow?.document;
+        if (!doc) { document.body.removeChild(iframe); return; }
+        doc.open();
+        doc.write(html);
+        doc.close();
+        setTimeout(() => {
+            iframe.contentWindow?.print();
+            setTimeout(() => document.body.removeChild(iframe), 1000);
+        }, 600);
     };
 
     if (showPreview) {
