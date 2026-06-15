@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { ParcelaContrato } from '../pages/ContratoLocacaoForm';
 
 export interface ItemContratoSalvo {
     equipamento: string;
@@ -59,6 +60,7 @@ export interface ContratoLocacao {
     observacoes: string;
     // Itens
     itens: ItemContratoSalvo[];
+    parcelas?: ParcelaContrato[];
     created_at: string;
     status?: 'pendente' | 'aprovado' | 'negado' | 'incorreto';
 }
@@ -111,10 +113,10 @@ export const contratoLocacaoService = {
         const registro: ContratoLocacao = { ...contrato, id, created_at };
 
         if (supabase) {
-            const { itens, ...campos } = registro;
+            const { itens, parcelas, ...campos } = registro;
             const { error } = await supabase
                 .from('contratos_locacao')
-                .insert([{ ...campos, itens: JSON.stringify(itens) }]);
+                .insert([{ ...campos, itens: JSON.stringify(itens), parcelas: JSON.stringify(parcelas || []) }]);
             if (!error) return { success: true, id };
         }
 
@@ -135,7 +137,11 @@ export const contratoLocacaoService = {
             }
             const { data, error } = await q.limit(200);
             if (!error && data) {
-                return data.map(r => ({ ...r, itens: typeof r.itens === 'string' ? JSON.parse(r.itens) : r.itens }));
+                return data.map(r => ({
+                    ...r,
+                    itens: typeof r.itens === 'string' ? JSON.parse(r.itens) : r.itens,
+                    parcelas: typeof r.parcelas === 'string' ? JSON.parse(r.parcelas) : (r.parcelas || []),
+                }));
             }
         }
         const local = loadLocal();
@@ -152,7 +158,11 @@ export const contratoLocacaoService = {
     async buscarPorId(id: string): Promise<ContratoLocacao | null> {
         if (supabase) {
             const { data } = await supabase.from('contratos_locacao').select('*').eq('id', id).single();
-            if (data) return { ...data, itens: typeof data.itens === 'string' ? JSON.parse(data.itens) : data.itens };
+            if (data) return {
+                ...data,
+                itens: typeof data.itens === 'string' ? JSON.parse(data.itens) : data.itens,
+                parcelas: typeof data.parcelas === 'string' ? JSON.parse(data.parcelas) : (data.parcelas || []),
+            };
         }
         return loadLocal().find(c => c.id === id) ?? null;
     },

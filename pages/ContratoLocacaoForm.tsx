@@ -1,10 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Printer, ArrowLeft, FileText, Search, Save, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Printer, ArrowLeft, FileText, Search, Save, CheckCircle, DollarSign, X } from 'lucide-react';
 import { clienteService, Cliente } from '../services/clienteService';
 import { vendedorService, Vendedor } from '../services/vendedorService';
 import { inventoryService } from '../services/inventoryService';
 import { contratoLocacaoService, gerarNumeroContrato } from '../services/contratoLocacaoService';
 import { Product } from '../types';
+
+export interface ParcelaContrato {
+    id: string;
+    tipo: string;
+    numero_nf?: string;
+    numero: number;
+    valor: number;
+    vencimento: string;
+    data_pagamento?: string;
+    juros?: number;
+    multa?: number;
+    observacao?: string;
+}
 
 interface ItemLocado {
     equipamento: string;
@@ -64,6 +77,7 @@ export interface ContratoData {
     dataRetirada: string;
     observacoes: string;
     status?: 'pendente' | 'aprovado' | 'negado' | 'incorreto';
+    parcelas?: ParcelaContrato[];
 }
 
 export async function imprimirContratoHtml(html: string) {
@@ -131,6 +145,111 @@ const ITEM_VAZIO: ItemLocado = {
     valorTotal: 0,
 };
 
+const TIPOS_NF_PARCELA = [
+    'NF LOCAÇÃO SP', 'NF LOCAÇÃO SC', 'NF LOCAÇÃO CE',
+    'NF VENDA SP', 'NF VENDA SC', 'NF VENDA CE',
+    'CONTR LOC SP', 'CONTR LOC SC', 'CONTR LOC CE',
+    'NF DE DEVOLUÇÃO', 'DESCONTO DIFAL', 'PRÉ VENDA', 'OUTRO',
+];
+
+function diasEmAtraso(vencimento: string, dataPgto?: string): number {
+    if (!vencimento) return 0;
+    const ref = dataPgto ? new Date(dataPgto) : new Date();
+    const venc = new Date(vencimento);
+    ref.setHours(0, 0, 0, 0); venc.setHours(0, 0, 0, 0);
+    const diff = Math.floor((ref.getTime() - venc.getTime()) / 86400000);
+    return diff > 0 ? diff : 0;
+}
+
+export function gerarHtmlFinanceiro(c: ContratoData, valorTotalContrato: number, logoDataUrl = ''): string {
+    const parcelas = c.parcelas || [];
+    const fmtD = (s: string) => { if (!s) return '—'; const [y, m, d] = s.split('-'); return d && m && y ? `${d}/${m}/${y}` : s; };
+    const fmtV = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+
+    // Agrupar parcelas por tipo+nf
+    const grupos: Map<string, ParcelaContrato[]> = new Map();
+    for (const p of parcelas) {
+        const key = `${p.tipo}||${p.numero_nf || ''}`;
+        if (!grupos.has(key)) grupos.set(key, []);
+        grupos.get(key)!.push(p);
+    }
+
+    const emAberto = parcelas.filter(p => !p.data_pagamento && diasEmAtraso(p.vencimento) > 0)
+        .reduce((s, p) => s + (p.valor || 0) + (p.juros || 0) + (p.multa || 0), 0);
+
+    const logoTag = logoDataUrl
+        ? `<img src="${logoDataUrl}" alt="MCI" style="height:40px;max-width:140px;object-fit:contain;display:block;" />`
+        : `<span style="font-size:14pt;font-weight:900;color:#00B099;">MCI Store</span>`;
+
+    const gruposHtml = Array.from(grupos.entries()).map(([key, ps]) => {
+        const [tipo, nf] = key.split('||');
+        const sortedPs = [...ps].sort((a, b) => a.numero - b.numero);
+        const totalGrupo = sortedPs.reduce((s, p) => s + (p.valor || 0), 0);
+        const linhas = sortedPs.map(p => {
+            const atraso = diasEmAtraso(p.vencimento, p.data_pagamento || undefined);
+            const valorDevido = (p.valor || 0) + (p.juros || 0) + (p.multa || 0);
+            const cor = p.data_pagamento ? '#16a34a' : atraso > 0 ? '#dc2626' : '#111';
+            return `<tr style="color:${cor}">
+                <td style="border:1px solid #ccc;padding:3px 5px;text-align:center;font-size:8pt;">${p.numero}</td>
+                <td style="border:1px solid #ccc;padding:3px 5px;text-align:right;font-size:8pt;">${fmtV(p.valor)}</td>
+                <td style="border:1px solid #ccc;padding:3px 5px;text-align:center;font-size:8pt;">${fmtD(p.vencimento)}</td>
+                <td style="border:1px solid #ccc;padding:3px 5px;text-align:center;font-size:8pt;">${p.data_pagamento ? fmtD(p.data_pagamento) : ''}</td>
+                <td style="border:1px solid #ccc;padding:3px 5px;text-align:center;font-size:8pt;">${atraso > 0 && !p.data_pagamento ? atraso : ''}</td>
+                <td style="border:1px solid #ccc;padding:3px 5px;text-align:right;font-size:8pt;">${p.juros ? fmtV(p.juros) : ''}</td>
+                <td style="border:1px solid #ccc;padding:3px 5px;text-align:right;font-size:8pt;">${p.multa ? fmtV(p.multa) : ''}</td>
+                <td style="border:1px solid #ccc;padding:3px 5px;text-align:right;font-size:8.5pt;font-weight:700;">${p.data_pagamento ? fmtV(p.valor) : fmtV(valorDevido)}</td>
+            </tr>`;
+        }).join('');
+        return `<div style="margin-bottom:14px">
+            <table style="width:100%;border-collapse:collapse;font-size:9pt">
+                <thead>
+                    <tr style="background:#00B099;color:#fff">
+                        <th colspan="8" style="text-align:left;padding:5px 8px;font-size:9pt;">${tipo}${nf ? ` — ${nf}` : ''}</th>
+                    </tr>
+                    <tr style="background:#e8faf8;font-size:7.5pt">
+                        <th style="border:1px solid #ccc;padding:3px 5px;text-align:center;width:50px">PARCELA</th>
+                        <th style="border:1px solid #ccc;padding:3px 5px;text-align:right">VALOR</th>
+                        <th style="border:1px solid #ccc;padding:3px 5px;text-align:center">VENCIMENTO</th>
+                        <th style="border:1px solid #ccc;padding:3px 5px;text-align:center">DATA PGT</th>
+                        <th style="border:1px solid #ccc;padding:3px 5px;text-align:center">DIAS ATRASO</th>
+                        <th style="border:1px solid #ccc;padding:3px 5px;text-align:right">JUROS</th>
+                        <th style="border:1px solid #ccc;padding:3px 5px;text-align:right">MULTA</th>
+                        <th style="border:1px solid #ccc;padding:3px 5px;text-align:right">VALOR DEVIDO</th>
+                    </tr>
+                </thead>
+                <tbody>${linhas}</tbody>
+                <tfoot>
+                    <tr style="background:#f0f9ff;font-weight:700;font-size:8pt">
+                        <td colspan="7" style="border:1px solid #ccc;padding:3px 5px;">TOTAL ${tipo}${nf ? ` ${nf}` : ''}</td>
+                        <td style="border:1px solid #ccc;padding:3px 5px;text-align:right;">${fmtV(totalGrupo)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>`;
+    }).join('');
+
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Controle Financeiro — ${c.locatariaNome} — Contrato ${c.numero}</title>
+    <style>* { box-sizing:border-box;margin:0;padding:0; } body { font-family:'Segoe UI',Arial,sans-serif;font-size:9pt;color:#111;padding:16px; } @media print { @page { margin:10mm; } }</style>
+    </head><body>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;border-bottom:2px solid #00B099;padding-bottom:10px">
+            <div>${logoTag}</div>
+            <div style="text-align:right">
+                <div style="font-size:13pt;font-weight:700;color:#00B099">CONTROLE FINANCEIRO</div>
+                <div style="font-size:8pt;color:#555">Contrato Nº ${c.numero} · ${fmtD(c.data)}</div>
+            </div>
+        </div>
+        <div style="border:1.5px solid #00B099;border-radius:4px;padding:8px 12px;margin-bottom:12px">
+            <div style="font-size:12pt;font-weight:700;color:#00B099">${c.locatariaNome}</div>
+            ${c.locatariaCnpj ? `<div style="font-size:8.5pt;color:#555">CNPJ: ${c.locatariaCnpj}</div>` : ''}
+            <div style="font-size:8pt;color:#555;margin-top:2px">Valor do Contrato: <strong>${fmtV(valorTotalContrato)}</strong> · Período: ${fmtD(c.dataInicio)} a ${fmtD(c.dataFim)} (${c.dias} dias)</div>
+        </div>
+        ${emAberto > 0 ? `<div style="background:#dc2626;color:#fff;text-align:center;font-weight:700;font-size:11pt;padding:6px;margin-bottom:12px;border-radius:4px">VALOR EM ABERTO: ${fmtV(emAberto)}</div>` : ''}
+        ${parcelas.length === 0 ? '<p style="color:#888;text-align:center;padding:20px">Nenhuma parcela cadastrada.</p>' : gruposHtml}
+        <div style="text-align:right;font-size:7.5pt;color:#aaa;margin-top:8px">Emitido em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</div>
+    </body></html>`;
+}
+
 /** Distribui o valor total do contrato pelos itens proporcionalmente ao valor venal */
 function distribuirValor(itens: ItemLocado[], valorTotalDesejado: number, dias: number): ItemLocado[] {
     const totalVenal = itens.reduce((s, it) => s + it.valorVenal * it.qtd, 0);
@@ -197,6 +316,7 @@ export function ContratoLocacaoForm({ onBack }: Props) {
     });
 
     const [showPreview, setShowPreview] = useState(false);
+    const [parcelas, setParcelas] = useState<ParcelaContrato[]>([]);
     const [vendedores, setVendedores] = useState<Vendedor[]>([]);
     const [clienteSearch, setClienteSearch] = useState('');
     const [clienteSuggestions, setClienteSuggestions] = useState<Cliente[]>([]);
@@ -450,26 +570,57 @@ export function ContratoLocacaoForm({ onBack }: Props) {
             data_retirada: contrato.dataRetirada,
             observacoes: contrato.observacoes,
             itens: contrato.itens,
+            parcelas: parcelas,
         });
         setSalvando(false);
         if (result.success) setSavedId(result.id ?? null);
     };
 
-    const handlePrint = async () => {
-        let logoDataUrl = '';
+    const fetchLogo = async (): Promise<string> => {
         try {
             const resp = await fetch('/logo.png');
             const blob = await resp.blob();
-            logoDataUrl = await new Promise<string>(resolve => {
+            return await new Promise<string>(resolve => {
                 const reader = new FileReader();
                 reader.onload = () => resolve(reader.result as string);
                 reader.readAsDataURL(blob);
             });
-        } catch { /* logo não encontrado, continua sem */ }
+        } catch { return ''; }
+    };
 
-        const html = generateContratoHtml(contrato, totalDiaria, valorTotalContrato, logoDataUrl);
+    const handlePrint = async () => {
+        const logoDataUrl = await fetchLogo();
+        const html = generateContratoHtml({ ...contrato, parcelas }, totalDiaria, valorTotalContrato, logoDataUrl);
         await imprimirContratoHtml(html);
     };
+
+    const handlePrintFinanceiro = async () => {
+        const logoDataUrl = await fetchLogo();
+        const html = gerarHtmlFinanceiro({ ...contrato, parcelas }, valorTotalContrato, logoDataUrl);
+        await imprimirContratoHtml(html);
+    };
+
+    const addParcela = () => {
+        const maxNum = parcelas.reduce((m, p) => Math.max(m, p.numero), 0);
+        setParcelas(prev => [...prev, {
+            id: crypto.randomUUID(),
+            tipo: 'NF LOCAÇÃO SP',
+            numero_nf: '',
+            numero: maxNum + 1,
+            valor: 0,
+            vencimento: '',
+            data_pagamento: '',
+            juros: 0,
+            multa: 0,
+            observacao: '',
+        }]);
+    };
+
+    const updateParcela = (id: string, field: keyof ParcelaContrato, value: unknown) =>
+        setParcelas(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+
+    const removeParcela = (id: string) =>
+        setParcelas(prev => prev.filter(p => p.id !== id));
 
     if (showPreview) {
         return (
@@ -512,6 +663,13 @@ export function ContratoLocacaoForm({ onBack }: Props) {
                     >
                         {savedId ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
                         {salvando ? 'Salvando...' : savedId ? 'Salvo!' : 'Salvar'}
+                    </button>
+                    <button
+                        onClick={handlePrintFinanceiro}
+                        className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition-colors"
+                    >
+                        <DollarSign className="w-4 h-4" />
+                        Imprimir Financeiro
                     </button>
                     <button
                         onClick={handlePrint}
@@ -955,6 +1113,163 @@ export function ContratoLocacaoForm({ onBack }: Props) {
                         onChange={e => set('observacoes', e.target.value)}
                         placeholder="Observações adicionais sobre o contrato..."
                     />
+                </section>
+
+                {/* ── Controle Financeiro / Parcelas ───────────────────────── */}
+                <section className="bg-white dark:bg-slate-800 rounded-xl border border-emerald-200 dark:border-emerald-800 p-6">
+                    <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">
+                        <div className="flex items-center gap-3">
+                            <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                            <h2 className="text-base font-semibold text-slate-700 dark:text-slate-200">Controle Financeiro / Parcelas</h2>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={addParcela}
+                            className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 font-medium"
+                        >
+                            <Plus className="w-4 h-4" /> Adicionar Parcela
+                        </button>
+                    </div>
+
+                    {parcelas.length === 0 ? (
+                        <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-4">
+                            Nenhuma parcela. Clique em "Adicionar Parcela" para começar.
+                        </p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="border-b border-slate-200 dark:border-slate-700">
+                                        <th className="text-left pb-2 text-slate-500 dark:text-slate-400 font-medium pr-2">Tipo</th>
+                                        <th className="text-left pb-2 text-slate-500 dark:text-slate-400 font-medium pr-2">Nº NF</th>
+                                        <th className="text-center pb-2 text-slate-500 dark:text-slate-400 font-medium pr-2 w-12">Nº</th>
+                                        <th className="text-right pb-2 text-slate-500 dark:text-slate-400 font-medium pr-2">Valor (R$)</th>
+                                        <th className="text-center pb-2 text-slate-500 dark:text-slate-400 font-medium pr-2">Vencimento</th>
+                                        <th className="text-center pb-2 text-slate-500 dark:text-slate-400 font-medium pr-2">Data Pgt</th>
+                                        <th className="text-center pb-2 text-slate-500 dark:text-slate-400 font-medium pr-2 w-20">Atraso</th>
+                                        <th className="text-right pb-2 text-slate-500 dark:text-slate-400 font-medium pr-2">Juros (R$)</th>
+                                        <th className="text-right pb-2 text-slate-500 dark:text-slate-400 font-medium pr-2">Multa (R$)</th>
+                                        <th className="w-5"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                    {parcelas.map(p => {
+                                        const atraso = diasEmAtraso(p.vencimento, p.data_pagamento || undefined);
+                                        const pago = !!p.data_pagamento;
+                                        return (
+                                            <tr key={p.id} className={pago ? 'opacity-60' : atraso > 0 ? 'bg-red-50/40 dark:bg-red-900/10' : ''}>
+                                                <td className="py-1.5 pr-2">
+                                                    <select
+                                                        value={p.tipo}
+                                                        onChange={e => updateParcela(p.id, 'tipo', e.target.value)}
+                                                        className="input-form-sm"
+                                                    >
+                                                        {TIPOS_NF_PARCELA.map(t => <option key={t} value={t}>{t}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td className="py-1.5 pr-2">
+                                                    <input
+                                                        value={p.numero_nf || ''}
+                                                        onChange={e => updateParcela(p.id, 'numero_nf', e.target.value)}
+                                                        placeholder="Nº NF"
+                                                        className="input-form-sm w-24"
+                                                    />
+                                                </td>
+                                                <td className="py-1.5 pr-2">
+                                                    <input
+                                                        type="number"
+                                                        value={p.numero}
+                                                        onChange={e => updateParcela(p.id, 'numero', parseInt(e.target.value) || 1)}
+                                                        className="input-form-sm w-12 text-center"
+                                                    />
+                                                </td>
+                                                <td className="py-1.5 pr-2">
+                                                    <input
+                                                        type="number"
+                                                        value={p.valor || ''}
+                                                        onChange={e => updateParcela(p.id, 'valor', parseFloat(e.target.value) || 0)}
+                                                        placeholder="0,00"
+                                                        className="input-form-sm w-28 text-right"
+                                                    />
+                                                </td>
+                                                <td className="py-1.5 pr-2">
+                                                    <input
+                                                        type="date"
+                                                        value={p.vencimento}
+                                                        onChange={e => updateParcela(p.id, 'vencimento', e.target.value)}
+                                                        className="input-form-sm"
+                                                    />
+                                                </td>
+                                                <td className="py-1.5 pr-2">
+                                                    <input
+                                                        type="date"
+                                                        value={p.data_pagamento || ''}
+                                                        onChange={e => updateParcela(p.id, 'data_pagamento', e.target.value)}
+                                                        className="input-form-sm"
+                                                    />
+                                                </td>
+                                                <td className="py-1.5 pr-2 text-center">
+                                                    {atraso > 0 && !pago
+                                                        ? <span className="text-red-600 dark:text-red-400 font-semibold">{atraso}d</span>
+                                                        : pago ? <span className="text-green-600 dark:text-green-400">Pago</span> : '—'
+                                                    }
+                                                </td>
+                                                <td className="py-1.5 pr-2">
+                                                    <input
+                                                        type="number"
+                                                        value={p.juros || ''}
+                                                        onChange={e => updateParcela(p.id, 'juros', parseFloat(e.target.value) || 0)}
+                                                        placeholder="0,00"
+                                                        className="input-form-sm w-24 text-right"
+                                                    />
+                                                </td>
+                                                <td className="py-1.5 pr-2">
+                                                    <input
+                                                        type="number"
+                                                        value={p.multa || ''}
+                                                        onChange={e => updateParcela(p.id, 'multa', parseFloat(e.target.value) || 0)}
+                                                        placeholder="0,00"
+                                                        className="input-form-sm w-24 text-right"
+                                                    />
+                                                </td>
+                                                <td className="py-1.5">
+                                                    <button onClick={() => removeParcela(p.id)} className="text-slate-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 transition-colors">
+                                                        <X className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                                {parcelas.length > 0 && (
+                                    <tfoot>
+                                        <tr className="border-t-2 border-slate-200 dark:border-slate-600">
+                                            <td colSpan={8} className="pt-2 text-xs font-semibold text-slate-600 dark:text-slate-300">Total Parcelas</td>
+                                            <td className="pt-2 text-right text-xs font-semibold text-slate-800 dark:text-white pr-2">
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                                                    parcelas.reduce((s, p) => s + (p.valor || 0), 0)
+                                                )}
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                )}
+                            </table>
+                        </div>
+                    )}
+
+                    {/* Botão de impressão do financeiro dentro da seção */}
+                    {parcelas.length > 0 && (
+                        <div className="mt-4 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={handlePrintFinanceiro}
+                                className="flex items-center gap-2 text-sm border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 px-4 py-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                            >
+                                <Printer className="w-4 h-4" /> Imprimir Controle Financeiro
+                            </button>
+                        </div>
+                    )}
                 </section>
 
                 {/* Ações finais */}
