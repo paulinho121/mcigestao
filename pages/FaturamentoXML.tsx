@@ -506,8 +506,8 @@ export function FaturamentoXML() {
     const porVendedor = VENDEDORES
         .map(nome => ({
             nome,
-            valor: notasFiltradas.filter(n => n.vendedor === nome).reduce((s, n) => s + n.valorFaturamento, 0),
-            notas: notasFiltradas.filter(n => n.vendedor === nome).length,
+            valor: notasFat.filter(n => n.vendedor === nome).reduce((s, n) => s + n.valorFaturamento, 0),
+            notas: notasFat.filter(n => n.vendedor === nome).length,
         }))
         .filter(v => v.valor > 0)
         .sort((a, b) => b.valor - a.valor);
@@ -1177,7 +1177,11 @@ ${porDia.length > 0 ? `
                                 {notasFiltradas.length > 0 && (
                                     <tfoot>
                                         <tr className="bg-slate-50 dark:bg-slate-900/50 border-t-2 border-slate-300 dark:border-slate-600 font-bold text-xs">
-                                            <td colSpan={8} className="px-3 py-3 text-slate-500 dark:text-slate-400">TOTAL ({notasFiltradas.length} notas)</td>
+                                            <td colSpan={8} className="px-3 py-3 text-slate-500 dark:text-slate-400">
+                                                TOTAL ({notasFat.length} notas de receita
+                                                {notasFiltradas.length - notasFat.length > 0 && ` · ${notasFiltradas.length - notasFat.length} excluída${notasFiltradas.length - notasFat.length !== 1 ? 's' : ''} (compra/transf.)`}
+                                                )
+                                            </td>
                                             <td className="px-3 py-3 text-right text-slate-800 dark:text-white whitespace-nowrap">{fmt(totalFaturamento)}</td>
                                             <td className="px-3 py-3 text-right text-slate-700 dark:text-slate-300 whitespace-nowrap">{fmt(totalFrete)}</td>
                                             <td className="px-3 py-3 text-right text-orange-600 dark:text-orange-400 whitespace-nowrap">{fmt(totalDifal)}</td>
