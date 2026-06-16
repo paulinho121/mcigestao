@@ -22,12 +22,11 @@ const cleanAndDeduplicate = (items: any[]): Product[] => {
     const reserved = Number(item.reserved || 0);
 
     if (existing) {
-      // If product already exists in map, sum the stocks
-      existing.stock_ce += stock_ce;
-      existing.stock_sc += stock_sc;
-      existing.stock_sp += stock_sp;
-      existing.reserved += reserved;
-      // Recalculate total to ensure consistency
+      // Duplicate (.0 variant): take MAX to avoid doubling stock that was written to both rows
+      existing.stock_ce = Math.max(existing.stock_ce, stock_ce);
+      existing.stock_sc = Math.max(existing.stock_sc, stock_sc);
+      existing.stock_sp = Math.max(existing.stock_sp, stock_sp);
+      existing.reserved = Math.max(existing.reserved, reserved);
       existing.total = existing.stock_ce + existing.stock_sc + existing.stock_sp;
     } else {
       // If new, create entry
