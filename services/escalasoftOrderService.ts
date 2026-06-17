@@ -1,18 +1,11 @@
 import { supabase } from '../lib/supabase';
 
 // ─── Configuração ─────────────────────────────────────────────────────────────
-// Credenciais fornecidas pela Escalasoft — configure no .env:
-//   VITE_ESCALASOFT_USER=seu_usuario
-//   VITE_ESCALASOFT_PASS=sua_senha
-const OMS_USER = import.meta.env.VITE_ESCALASOFT_USER || '';
-const OMS_PASS = import.meta.env.VITE_ESCALASOFT_PASS || '';
-
-// Proxy Vite/Vercel → https://api.escalasoft.com.br
-const OMS_BASE = '/api/escalasoft-oms';
+// WMS local do CD — proxy Vite: /api/escalasoft → http://170.82.192.22:9999/escalasoft
+const WMS_BASE = '/api/escalasoft';
 
 // CNPJ da filial (Sanco CD)
 const CNPJ_CD = '05502390000200';
-const FILIAL_CNPJ = 5502390000200; // sem formatação, como integer
 
 // ─── Status ───────────────────────────────────────────────────────────────────
 
@@ -97,56 +90,12 @@ export interface PedidoPendenteCD {
     numeros_serie: string | null;
 }
 
-// ─── Token Bearer (cache 23h) ─────────────────────────────────────────────────
+// ─── Headers WMS local (sem autenticação) ────────────────────────────────────
 
-let _token: string | null = null;
-let _tokenExp = 0;
-
-async function getAuthToken(): Promise<string | null> {
-    if (!OMS_USER || !OMS_PASS) {
-        console.warn('[Escalasoft] Credenciais não configuradas. Defina VITE_ESCALASOFT_USER e VITE_ESCALASOFT_PASS no .env');
-        return null;
-    }
-    if (_token && Date.now() < _tokenExp) return _token;
-
-    try {
-        const credentials = btoa(`${OMS_USER}:${OMS_PASS}`);
-        const res = await fetch(`${OMS_BASE}/Authorization`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Basic ${credentials}`,
-                'Accept': 'application/json',
-            },
-        });
-
-        const text = await res.text();
-        if (!res.ok) {
-            console.error(`[Escalasoft] Auth falhou (${res.status}):`, text);
-            return null;
-        }
-
-        // Token pode vir como JSON ou string pura
-        try {
-            const data = JSON.parse(text);
-            _token = data.token || data.Token || data.access_token || data.AccessToken || text.trim();
-        } catch {
-            _token = text.trim();
-        }
-
-        _tokenExp = Date.now() + 23 * 60 * 60 * 1000; // 23h
-        console.log('[Escalasoft] Token obtido com sucesso.');
-        return _token;
-    } catch (e: any) {
-        console.error('[Escalasoft] Erro ao obter token:', e?.message);
-        return null;
-    }
-}
-
-function authHeaders(token: string): Record<string, string> {
+function wmsHeaders(): Record<string, string> {
     return {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
     };
 }
 
@@ -179,7 +128,7 @@ function formatDataBR(date: Date): string {
 
 export const escalasoftOrderService = {
 
-    // ── 1. Enviar pedido ao CD via API OMS ────────────────────────────────────
+    // ── 1. Enviar pedido ao CD via WMS local ─────────────────────────────────
     async sendOrder(params: {
         cliente_nome: string;
         cliente_cpf: string;
@@ -202,85 +151,109 @@ export const escalasoftOrderService = {
         const valorTotal = params.produtos.reduce((sum, p) => sum + p.valor_total, 0);
         const clienteCnpj = parseInt(params.cliente_cpf.replace(/\D/g, '') || '0', 10);
 
-        let pedidoIdApi: number | null = null;
         let apiSuccess = false;
         let apiError = '';
+        let wmsResponseId: number | null = null;
 
-        const token = await getAuthToken();
+        // ── Payload conforme schema /armazem/ordem/cadastrar ─────────────────
+        const payload = {
+            Lista: {
+                Ordem: [
+                    {
+                        Filial: 5502390000200,
+                        Tipo: 0,
+                        Cliente: clienteCnpj || 5502390000200,
+                        NaturezaOperacao: 0,
+                        Solicitante: 0,
+                        Deposito: 0,
+                        Observacao: [
+                            params.observacao || '',
+                            params.vendedor_nome ? `Vendedor: ${params.vendedor_nome}` : '',
+                            params.vendedor_email ? `E-mail: ${params.vendedor_email}` : '',
+                        ].filter(Boolean).join(' | '),
+                        Solicitacao: dataFormatada,
+                        Previsao: dataFormatada,
+                        Data: dataFormatada,
+                        NumeroPedido: numeroPedido,
+                        NumeroControle: numeroPedido,
+                        RealizaRetrabalho: 'N',
+                        CompoeRetrabalho: 'N',
+                        NaturezaFiscal: 1,
+                        Saida: {
+                            TipoTransporte: 1,
+                            Transportadora: '0',
+                            ClienteFinal: String(clienteCnpj || 5502390000200),
+                            NomeClienteFinal: params.cliente_nome,
+                            UF: params.uf || '',
+                            Municipio: params.municipio || '',
+                            LocalEntrega: {
+                                Cep: params.cep ? String(params.cep).padStart(8, '0') : '',
+                                Estado: params.uf || '',
+                                Bairro: params.bairro || '',
+                                Logradouro: params.logradouro || '',
+                                Numero: String(params.numero_endereco || ''),
+                            },
+                            Programacao: params.produtos.map((p, i) => ({
+                                Produto: p.codigo_referencia,
+                                UnidadeMedida: 'UN',
+                                Quantidade: p.quantidade,
+                                SequencialPedido: i + 1,
+                                Observacao: p.nome,
+                            })),
+                        },
+                    },
+                ],
+            },
+        };
 
-        if (token) {
-            // ── Payload conforme schema OrdemPost da API Escalasoft ──────────
-            const payload = {
-                Filial: FILIAL_CNPJ,
-                Tipo: 0,                          // Ajustar conforme tabela do cliente Escalasoft
-                Cliente: clienteCnpj,
-                ClienteFaturamento: FILIAL_CNPJ,  // Faturamento pela própria filial
-                Solicitacao: dataFormatada,
-                Data: dataFormatada,
-                Previsao: dataFormatada,
-                NaturezaFiscal: 2,                // 2 = Venda
-                NaturezaOperacao: 0,
-                Deposito: 0,
-                Observacao: params.observacao || '',
-                NumeroPedido: numeroPedido,
-                NumeroControle: numeroPedido,
-                RealizaRetrabalho: 'N',
-                CompoeRetrabalho: 'N',
-                Saida: {
-                    TipoTransporte: 1,            // 1 = Transportadora
-                    Transportadora: 0,            // ID da transportadora na Escalasoft (0 = sem definir)
-                    ClienteFinal: clienteCnpj,
-                    NomeClienteFinal: params.cliente_nome,
-                    Ordem: 0,
-                },
-            };
+        try {
+            const url = `${WMS_BASE}/armazem/ordem/cadastrar`;
+            console.log('[WMS-CD] POST', url, JSON.stringify(payload, null, 2));
 
-            try {
-                const url = `${OMS_BASE}/armazem/ordem/cadastrar`;
-                console.log('[Escalasoft] POST', url, JSON.stringify(payload, null, 2));
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: wmsHeaders(),
+                body: JSON.stringify(payload),
+            });
 
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: authHeaders(token),
-                    body: JSON.stringify(payload),
-                });
+            const text = await res.text();
+            console.log(`[WMS-CD] Resposta ${res.status}:`, text);
 
-                const text = await res.text();
-                console.log(`[Escalasoft] Resposta ${res.status}:`, text);
-
-                if (res.ok) {
-                    try {
-                        const data = JSON.parse(text);
-                        // Resposta: { Lista: [{ NumeroOrdem, NumeroPedido, Registro }] }
-                        const registro = data.Lista?.[0];
-                        pedidoIdApi = registro?.NumeroOrdem ?? registro?.Registro ?? null;
-                    } catch { /* body não-JSON */ }
-
-                    apiSuccess = true;
-
-                    // ── Adiciona itens via endpoint de programação ───────────
-                    if (pedidoIdApi) {
-                        await this._adicionarItens(token, pedidoIdApi, params.produtos);
+            if (res.ok) {
+                apiSuccess = true;
+                try {
+                    const data = JSON.parse(text);
+                    // Resposta: { Lista: [{ Registro, NumeroOrdem, NumeroPedido }] }
+                    const item = data.Lista?.[0];
+                    wmsResponseId = item?.NumeroOrdem ?? item?.Registro ?? null;
+                    if (item?.Erro) {
+                        // WMS retorna 200 mas com campo Erro no body
+                        apiSuccess = false;
+                        apiError = item.Erro;
+                        console.warn('[WMS-CD] Erro WMS no body:', item.Erro);
                     }
-                } else {
-                    apiError = `HTTP ${res.status}: ${text.slice(0, 300)}`;
-                    console.warn('[Escalasoft] Falha ao criar ordem:', apiError);
-                }
-            } catch (e: any) {
-                apiError = e?.message || 'Erro de conexão com a API';
-                console.warn('[Escalasoft] Exceção:', apiError);
+                } catch { /* body não-JSON */ }
+            } else {
+                apiError = `HTTP ${res.status}: ${text.slice(0, 300)}`;
+                console.warn('[WMS-CD] Falha ao criar ordem:', apiError);
             }
-        } else {
-            apiError = 'Credenciais não configuradas (VITE_ESCALASOFT_USER / VITE_ESCALASOFT_PASS)';
+        } catch (e: any) {
+            apiError = e?.message || 'Erro de conexão com o WMS';
+            console.warn('[WMS-CD] Exceção:', apiError);
+        }
+
+        // ── Se obteve NumeroOrdem, registra o anexo com os dados do pedido ───
+        if (wmsResponseId) {
+            await this._enviarAnexo(wmsResponseId, numeroPedido, params, valorTotal).catch(() => {});
         }
 
         // ── Salva pedido no Supabase / localStorage ──────────────────────────
         const newOrder: CDOrder = {
             id: crypto.randomUUID(),
             numero_pedido: numeroPedido,
-            pedido_id_api: pedidoIdApi,
+            pedido_id_api: wmsResponseId,
             status: 'enviado',
-            status_wms: null,
+            status_wms: apiSuccess ? 'Enviado' : null,
             created_at: now.toISOString(),
             updated_at: now.toISOString(),
             cliente_nome: params.cliente_nome,
@@ -313,46 +286,49 @@ export const escalasoftOrderService = {
 
         return {
             success: true,
-            pedido_id: pedidoIdApi ?? undefined,
+            pedido_id: wmsResponseId ?? undefined,
             numero_pedido: numeroPedido,
             message: apiSuccess
                 ? 'Pedido enviado ao CD com sucesso!'
-                : `Pedido salvo localmente (API: ${apiError || 'indisponível'}).`,
+                : `Pedido salvo localmente (WMS indisponível: ${apiError || 'sem resposta'}).`,
         };
     },
 
-    // ── Adiciona itens à ordem via /programacao/cadastrar ────────────────────
-    async _adicionarItens(token: string, numeroOrdem: number, produtos: OrderProduct[]): Promise<void> {
-        const url = `${OMS_BASE}/armazem/ordem/programacao/cadastrar?numeroOrdem=${numeroOrdem}`;
-
-        for (let i = 0; i < produtos.length; i++) {
-            const p = produtos[i];
-            const itemPayload = {
-                Produto: p.codigo_referencia,
-                UnidadeMedida: 'UN',
+    // ── Envia anexo JSON à ordem criada via /armazem/ordem/anexo/cadastrar ───
+    async _enviarAnexo(
+        numeroOrdem: number,
+        numeroPedido: string,
+        params: { cliente_nome: string; cliente_cpf: string; observacao?: string; vendedor_nome?: string; vendedor_email?: string; produtos: OrderProduct[] },
+        valorTotal: number,
+    ): Promise<void> {
+        const url = `${WMS_BASE}/armazem/ordem/anexo/cadastrar?numeroOrdem=${numeroOrdem}`;
+        const body = {
+            NumeroPedido: numeroPedido,
+            ClienteNome: params.cliente_nome,
+            ClienteCpfCnpj: params.cliente_cpf.replace(/\D/g, ''),
+            Observacao: params.observacao || '',
+            VendedorNome: params.vendedor_nome || '',
+            VendedorEmail: params.vendedor_email || '',
+            ValorTotal: valorTotal,
+            Itens: params.produtos.map((p, i) => ({
+                Sequencia: i + 1,
+                CodigoProduto: p.codigo_referencia,
+                NomeProduto: p.nome,
                 Quantidade: p.quantidade,
-                SequencialPedido: i + 1,
-                Observacao: p.nome,
-            };
-            try {
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: authHeaders(token),
-                    body: JSON.stringify(itemPayload),
-                });
-                if (!res.ok) {
-                    const t = await res.text();
-                    console.warn(`[Escalasoft] Item ${p.codigo_referencia} não adicionado (${res.status}):`, t);
-                } else {
-                    console.log(`[Escalasoft] Item ${p.codigo_referencia} adicionado à ordem ${numeroOrdem}`);
-                }
-            } catch (e: any) {
-                console.warn(`[Escalasoft] Exceção ao adicionar item ${p.codigo_referencia}:`, e?.message);
-            }
+                ValorUnitario: p.valor_unitario,
+                ValorTotal: p.valor_total,
+            })),
+        };
+        try {
+            const res = await fetch(url, { method: 'POST', headers: wmsHeaders(), body: JSON.stringify(body) });
+            if (!res.ok) console.warn(`[WMS-CD] Anexo não registrado (${res.status}):`, await res.text());
+            else console.log(`[WMS-CD] Anexo registrado na ordem ${numeroOrdem}`);
+        } catch (e: any) {
+            console.warn('[WMS-CD] Exceção ao registrar anexo:', e?.message);
         }
     },
 
-    // ── 2. Consultar ordem no WMS e retornar campos do painel ────────────────
+    // ── 2. Consultar ordem no WMS local ──────────────────────────────────────
     async consultarOrdem(numeroPedido: string): Promise<{
         situacao?: string;
         numeroOrdem?: number;
@@ -363,17 +339,12 @@ export const escalasoftOrderService = {
         valor_nota_fiscal?: number;
         numeros_serie?: string;
     } | null> {
-        const token = await getAuthToken();
-        if (!token) return null;
-
         try {
-            const url = `${OMS_BASE}/armazem/ordem/consultar?numeroPedido=${encodeURIComponent(numeroPedido)}&cnpj=${CNPJ_CD}`;
-            const res = await fetch(url, { headers: authHeaders(token) });
+            const url = `${WMS_BASE}/armazem/ordem/consultar?numeroPedido=${encodeURIComponent(numeroPedido)}&cnpj=${CNPJ_CD}`;
+            const res = await fetch(url, { headers: wmsHeaders() });
             if (!res.ok) return null;
 
             const data = await res.json();
-
-            // Normaliza campos — a API pode retornar em diferentes formatos
             const ordem = data.Lista?.[0] ?? data;
             return {
                 situacao:          ordem.Situacao          ?? ordem.situacao          ?? ordem.Status,
@@ -386,7 +357,7 @@ export const escalasoftOrderService = {
                 numeros_serie:     ordem.NumeroSerie       ?? ordem.numeroSerie       ?? ordem['Numero de Série'],
             };
         } catch (e: any) {
-            console.warn('[Escalasoft] Erro ao consultar ordem:', e?.message);
+            console.warn('[WMS-CD] Erro ao consultar ordem:', e?.message);
             return null;
         }
     },
