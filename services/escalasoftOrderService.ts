@@ -156,23 +156,22 @@ export const escalasoftOrderService = {
 
         const payload = {
             Lista: {
-                Ordem: [
-                    {
-                        Tipo: 11,
-                        NumeroPedido: numeroPedido,
-                        Observacao: observacao,
-                        Saida: {
-                            Transportadora: CNPJ_CD,
-                            NomeClienteFinal: params.cliente_nome,
-                            Programacao: params.produtos.map((p, i) => ({
-                                Produto: p.codigo_referencia,
-                                UnidadeMedida: 'PC',
-                                Quantidade: p.quantidade,
-                                SequencialPedido: i + 1,
-                            })),
-                        },
+                Anexo: {
+                    Tipo: 11,
+                    Nome: numeroPedido,
+                    NumeroPedido: numeroPedido,
+                    Observacao: observacao,
+                    Saida: {
+                        Transportadora: CNPJ_CD,
+                        NomeClienteFinal: params.cliente_nome,
+                        Programacao: params.produtos.map((p, i) => ({
+                            Produto: p.codigo_referencia,
+                            UnidadeMedida: 'PC',
+                            Quantidade: p.quantidade,
+                            SequencialPedido: i + 1,
+                        })),
                     },
-                ],
+                },
             },
         };
 
