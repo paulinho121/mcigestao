@@ -155,32 +155,34 @@ export const escalasoftOrderService = {
 
         // ── Payload para /armazem/ordem/anexo/cadastrar ──────────────────────
         const payload = {
-            NumeroPedido: numeroPedido,
-            DataPedido: dataFormatada,
-            CnpjFilial: CNPJ_CD,
-            ClienteNome: params.cliente_nome,
-            ClienteCpfCnpj: params.cliente_cpf.replace(/\D/g, ''),
-            Cep: params.cep ? String(params.cep).padStart(8, '0') : '',
-            Uf: params.uf || '',
-            Municipio: params.municipio || '',
-            Bairro: params.bairro || '',
-            Logradouro: params.logradouro || '',
-            Observacao: [
-                params.observacao || '',
-                params.vendedor_nome ? `Vendedor: ${params.vendedor_nome}` : '',
-                params.vendedor_email ? `Email: ${params.vendedor_email}` : '',
-            ].filter(Boolean).join(' | '),
-            ValorTotal: valorTotal,
-            Itens: params.produtos.map((p, i) => ({
-                Sequencia: i + 1,
-                CodigoProduto: p.codigo_referencia,
-                NomeProduto: p.nome,
-                Quantidade: p.quantidade,
-                ValorUnitario: p.valor_unitario,
-                ValorTotal: p.valor_total,
-                Bonificacao: p.bonificacao,
-                UnidadeMedida: 'UN',
-            })),
+            Lista: {
+                NumeroPedido: numeroPedido,
+                DataPedido: dataFormatada,
+                CnpjFilial: CNPJ_CD,
+                ClienteNome: params.cliente_nome,
+                ClienteCpfCnpj: params.cliente_cpf.replace(/\D/g, ''),
+                Cep: params.cep ? String(params.cep).padStart(8, '0') : '',
+                Uf: params.uf || '',
+                Municipio: params.municipio || '',
+                Bairro: params.bairro || '',
+                Logradouro: params.logradouro || '',
+                Observacao: [
+                    params.observacao || '',
+                    params.vendedor_nome ? `Vendedor: ${params.vendedor_nome}` : '',
+                    params.vendedor_email ? `Email: ${params.vendedor_email}` : '',
+                ].filter(Boolean).join(' | '),
+                ValorTotal: valorTotal,
+                Itens: params.produtos.map((p, i) => ({
+                    Sequencia: i + 1,
+                    CodigoProduto: p.codigo_referencia,
+                    NomeProduto: p.nome,
+                    Quantidade: p.quantidade,
+                    ValorUnitario: p.valor_unitario,
+                    ValorTotal: p.valor_total,
+                    Bonificacao: p.bonificacao,
+                    UnidadeMedida: 'UN',
+                })),
+            },
         };
 
         try {
