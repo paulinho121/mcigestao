@@ -154,11 +154,38 @@ export const escalasoftOrderService = {
             params.vendedor_email ? `Email: ${params.vendedor_email}` : '',
         ].filter(Boolean).join(' | ');
 
+        // Conteúdo do pedido em base64 (campo Arquivo obrigatório na tabela AM_ORDEMANEXO)
+        const conteudoPedido = JSON.stringify({
+            NumeroPedido: numeroPedido,
+            Data: new Date().toLocaleDateString('pt-BR'),
+            ClienteNome: params.cliente_nome,
+            ClienteCpfCnpj: params.cliente_cpf.replace(/\D/g, ''),
+            Observacao: observacao,
+            Endereco: {
+                Cep: params.cep ? String(params.cep).padStart(8, '0') : '',
+                Uf: params.uf || '',
+                Municipio: params.municipio || '',
+                Bairro: params.bairro || '',
+                Logradouro: params.logradouro || '',
+            },
+            Itens: params.produtos.map((p, i) => ({
+                Sequencia: i + 1,
+                Produto: p.codigo_referencia,
+                Nome: p.nome,
+                Quantidade: p.quantidade,
+                ValorUnitario: p.valor_unitario,
+                ValorTotal: p.valor_total,
+            })),
+            ValorTotal: valorTotal,
+        });
+        const arquivoBase64 = btoa(unescape(encodeURIComponent(conteudoPedido)));
+
         const payload = {
             Lista: {
                 Anexo: {
                     Tipo: 11,
                     Nome: numeroPedido,
+                    Arquivo: arquivoBase64,
                     NumeroPedido: numeroPedido,
                     Observacao: observacao,
                     Saida: {
