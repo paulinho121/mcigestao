@@ -156,6 +156,7 @@ export const escalasoftOrderService = {
         // ── Payload para /armazem/ordem/anexo/cadastrar ──────────────────────
         const payload = {
             Lista: {
+                Anexo: {
                 NumeroPedido: numeroPedido,
                 DataPedido: dataFormatada,
                 CnpjFilial: CNPJ_CD,
@@ -182,6 +183,7 @@ export const escalasoftOrderService = {
                     Bonificacao: p.bonificacao,
                     UnidadeMedida: 'UN',
                 })),
+                },
             },
         };
 
