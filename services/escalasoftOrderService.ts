@@ -149,65 +149,42 @@ export const escalasoftOrderService = {
         const now = new Date();
         const dataFormatada = formatDataBR(now);
         const valorTotal = params.produtos.reduce((sum, p) => sum + p.valor_total, 0);
-        const clienteCnpj = parseInt(params.cliente_cpf.replace(/\D/g, '') || '0', 10);
-
         let apiSuccess = false;
         let apiError = '';
         let wmsResponseId: number | null = null;
 
-        // ── Payload conforme schema /armazem/ordem/cadastrar ─────────────────
+        // ── Payload para /armazem/ordem/anexo/cadastrar ──────────────────────
         const payload = {
-            Lista: {
-                Ordem: [
-                    {
-                        Filial: 5502390000200,
-                        Tipo: 0,
-                        Cliente: clienteCnpj || 5502390000200,
-                        NaturezaOperacao: 0,
-                        Solicitante: 0,
-                        Deposito: 0,
-                        Observacao: [
-                            params.observacao || '',
-                            params.vendedor_nome ? `Vendedor: ${params.vendedor_nome}` : '',
-                            params.vendedor_email ? `E-mail: ${params.vendedor_email}` : '',
-                        ].filter(Boolean).join(' | '),
-                        Solicitacao: dataFormatada,
-                        Previsao: dataFormatada,
-                        Data: dataFormatada,
-                        NumeroPedido: numeroPedido,
-                        NumeroControle: numeroPedido,
-                        RealizaRetrabalho: 'N',
-                        CompoeRetrabalho: 'N',
-                        NaturezaFiscal: 1,
-                        Saida: {
-                            TipoTransporte: 1,
-                            Transportadora: '0',
-                            ClienteFinal: String(clienteCnpj || 5502390000200),
-                            NomeClienteFinal: params.cliente_nome,
-                            UF: params.uf || '',
-                            Municipio: params.municipio || '',
-                            LocalEntrega: {
-                                Cep: params.cep ? String(params.cep).padStart(8, '0') : '',
-                                Estado: params.uf || '',
-                                Bairro: params.bairro || '',
-                                Logradouro: params.logradouro || '',
-                                Numero: String(params.numero_endereco || ''),
-                            },
-                            Programacao: params.produtos.map((p, i) => ({
-                                Produto: p.codigo_referencia,
-                                UnidadeMedida: 'UN',
-                                Quantidade: p.quantidade,
-                                SequencialPedido: i + 1,
-                                Observacao: p.nome,
-                            })),
-                        },
-                    },
-                ],
-            },
+            NumeroPedido: numeroPedido,
+            DataPedido: dataFormatada,
+            CnpjFilial: CNPJ_CD,
+            ClienteNome: params.cliente_nome,
+            ClienteCpfCnpj: params.cliente_cpf.replace(/\D/g, ''),
+            Cep: params.cep ? String(params.cep).padStart(8, '0') : '',
+            Uf: params.uf || '',
+            Municipio: params.municipio || '',
+            Bairro: params.bairro || '',
+            Logradouro: params.logradouro || '',
+            Observacao: [
+                params.observacao || '',
+                params.vendedor_nome ? `Vendedor: ${params.vendedor_nome}` : '',
+                params.vendedor_email ? `Email: ${params.vendedor_email}` : '',
+            ].filter(Boolean).join(' | '),
+            ValorTotal: valorTotal,
+            Itens: params.produtos.map((p, i) => ({
+                Sequencia: i + 1,
+                CodigoProduto: p.codigo_referencia,
+                NomeProduto: p.nome,
+                Quantidade: p.quantidade,
+                ValorUnitario: p.valor_unitario,
+                ValorTotal: p.valor_total,
+                Bonificacao: p.bonificacao,
+                UnidadeMedida: 'UN',
+            })),
         };
 
         try {
-            const url = `${WMS_BASE}/armazem/ordem/cadastrar`;
+            const url = `${WMS_BASE}/armazem/ordem/anexo/cadastrar?numeroOrdem=${encodeURIComponent(numeroPedido)}`;
             console.log('[WMS-CD] POST', url, JSON.stringify(payload, null, 2));
 
             const res = await fetch(url, {
@@ -223,28 +200,20 @@ export const escalasoftOrderService = {
                 apiSuccess = true;
                 try {
                     const data = JSON.parse(text);
-                    // Resposta: { Lista: [{ Registro, NumeroOrdem, NumeroPedido }] }
-                    const item = data.Lista?.[0];
-                    wmsResponseId = item?.NumeroOrdem ?? item?.Registro ?? null;
-                    if (item?.Erro) {
-                        // WMS retorna 200 mas com campo Erro no body
+                    wmsResponseId = data.NumeroOrdem ?? data.numeroOrdem ?? data.Id ?? data.id ?? null;
+                    if (data.Erro) {
                         apiSuccess = false;
-                        apiError = item.Erro;
-                        console.warn('[WMS-CD] Erro WMS no body:', item.Erro);
+                        apiError = data.Erro;
+                        console.warn('[WMS-CD] Erro WMS no body:', data.Erro);
                     }
-                } catch { /* body não-JSON */ }
+                } catch { /* body não-JSON — ok */ }
             } else {
                 apiError = `HTTP ${res.status}: ${text.slice(0, 300)}`;
-                console.warn('[WMS-CD] Falha ao criar ordem:', apiError);
+                console.warn('[WMS-CD] Falha ao enviar pedido:', apiError);
             }
         } catch (e: any) {
             apiError = e?.message || 'Erro de conexão com o WMS';
             console.warn('[WMS-CD] Exceção:', apiError);
-        }
-
-        // ── Se obteve NumeroOrdem, registra o anexo com os dados do pedido ───
-        if (wmsResponseId) {
-            await this._enviarAnexo(wmsResponseId, numeroPedido, params, valorTotal).catch(() => {});
         }
 
         // ── Salva pedido no Supabase / localStorage ──────────────────────────
@@ -292,40 +261,6 @@ export const escalasoftOrderService = {
                 ? 'Pedido enviado ao CD com sucesso!'
                 : `Pedido salvo localmente (WMS indisponível: ${apiError || 'sem resposta'}).`,
         };
-    },
-
-    // ── Envia anexo JSON à ordem criada via /armazem/ordem/anexo/cadastrar ───
-    async _enviarAnexo(
-        numeroOrdem: number,
-        numeroPedido: string,
-        params: { cliente_nome: string; cliente_cpf: string; observacao?: string; vendedor_nome?: string; vendedor_email?: string; produtos: OrderProduct[] },
-        valorTotal: number,
-    ): Promise<void> {
-        const url = `${WMS_BASE}/armazem/ordem/anexo/cadastrar?numeroOrdem=${numeroOrdem}`;
-        const body = {
-            NumeroPedido: numeroPedido,
-            ClienteNome: params.cliente_nome,
-            ClienteCpfCnpj: params.cliente_cpf.replace(/\D/g, ''),
-            Observacao: params.observacao || '',
-            VendedorNome: params.vendedor_nome || '',
-            VendedorEmail: params.vendedor_email || '',
-            ValorTotal: valorTotal,
-            Itens: params.produtos.map((p, i) => ({
-                Sequencia: i + 1,
-                CodigoProduto: p.codigo_referencia,
-                NomeProduto: p.nome,
-                Quantidade: p.quantidade,
-                ValorUnitario: p.valor_unitario,
-                ValorTotal: p.valor_total,
-            })),
-        };
-        try {
-            const res = await fetch(url, { method: 'POST', headers: wmsHeaders(), body: JSON.stringify(body) });
-            if (!res.ok) console.warn(`[WMS-CD] Anexo não registrado (${res.status}):`, await res.text());
-            else console.log(`[WMS-CD] Anexo registrado na ordem ${numeroOrdem}`);
-        } catch (e: any) {
-            console.warn('[WMS-CD] Exceção ao registrar anexo:', e?.message);
-        }
     },
 
     // ── 2. Consultar ordem no WMS local ──────────────────────────────────────
