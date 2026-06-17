@@ -118,11 +118,6 @@ function generateNumeroPedido(): string {
     return `PED${date}${rand}`;
 }
 
-function formatDataBR(date: Date): string {
-    const d = date.toLocaleDateString('pt-BR');
-    const t = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    return `${d} ${t}`;
-}
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -147,50 +142,42 @@ export const escalasoftOrderService = {
 
         const numeroPedido = generateNumeroPedido();
         const now = new Date();
-        const dataFormatada = formatDataBR(now);
         const valorTotal = params.produtos.reduce((sum, p) => sum + p.valor_total, 0);
         let apiSuccess = false;
         let apiError = '';
         let wmsResponseId: number | null = null;
 
-        // ── Payload para /armazem/ordem/anexo/cadastrar ──────────────────────
+        // ── Payload conforme exemplo real do WMS local ────────────────────────
+        const observacao = [
+            params.observacao || '',
+            params.vendedor_nome ? `Vendedor: ${params.vendedor_nome}` : '',
+            params.vendedor_email ? `Email: ${params.vendedor_email}` : '',
+        ].filter(Boolean).join(' | ');
+
         const payload = {
             Lista: {
-                Anexo: {
-                Tipo: 1,
-                Nome: numeroPedido,
-                NumeroPedido: numeroPedido,
-                DataPedido: dataFormatada,
-                CnpjFilial: CNPJ_CD,
-                ClienteNome: params.cliente_nome,
-                ClienteCpfCnpj: params.cliente_cpf.replace(/\D/g, ''),
-                Cep: params.cep ? String(params.cep).padStart(8, '0') : '',
-                Uf: params.uf || '',
-                Municipio: params.municipio || '',
-                Bairro: params.bairro || '',
-                Logradouro: params.logradouro || '',
-                Observacao: [
-                    params.observacao || '',
-                    params.vendedor_nome ? `Vendedor: ${params.vendedor_nome}` : '',
-                    params.vendedor_email ? `Email: ${params.vendedor_email}` : '',
-                ].filter(Boolean).join(' | '),
-                ValorTotal: valorTotal,
-                Itens: params.produtos.map((p, i) => ({
-                    Sequencia: i + 1,
-                    CodigoProduto: p.codigo_referencia,
-                    NomeProduto: p.nome,
-                    Quantidade: p.quantidade,
-                    ValorUnitario: p.valor_unitario,
-                    ValorTotal: p.valor_total,
-                    Bonificacao: p.bonificacao,
-                    UnidadeMedida: 'UN',
-                })),
-                },
+                Ordem: [
+                    {
+                        Tipo: 11,
+                        NumeroPedido: numeroPedido,
+                        Observacao: observacao,
+                        Saida: {
+                            Transportadora: CNPJ_CD,
+                            NomeClienteFinal: params.cliente_nome,
+                            Programacao: params.produtos.map((p, i) => ({
+                                Produto: p.codigo_referencia,
+                                UnidadeMedida: 'PC',
+                                Quantidade: p.quantidade,
+                                SequencialPedido: i + 1,
+                            })),
+                        },
+                    },
+                ],
             },
         };
 
         try {
-            const url = `${WMS_BASE}/armazem/ordem/anexo/cadastrar?numeroOrdem=${encodeURIComponent(numeroPedido)}`;
+            const url = `${WMS_BASE}/armazem/ordem/cadastrar`;
             console.log('[WMS-CD] POST', url, JSON.stringify(payload, null, 2));
 
             const res = await fetch(url, {
@@ -206,11 +193,13 @@ export const escalasoftOrderService = {
                 apiSuccess = true;
                 try {
                     const data = JSON.parse(text);
-                    wmsResponseId = data.NumeroOrdem ?? data.numeroOrdem ?? data.Id ?? data.id ?? null;
-                    if (data.Erro) {
+                    // Resposta: { Lista: [{ Registro, NumeroOrdem, NumeroPedido, Erro? }] }
+                    const item = data.Lista?.[0];
+                    wmsResponseId = item?.NumeroOrdem ?? item?.Registro ?? null;
+                    if (item?.Erro) {
                         apiSuccess = false;
-                        apiError = data.Erro;
-                        console.warn('[WMS-CD] Erro WMS no body:', data.Erro);
+                        apiError = item.Erro;
+                        console.warn('[WMS-CD] Erro WMS no body:', item.Erro);
                     }
                 } catch { /* body não-JSON — ok */ }
             } else {
