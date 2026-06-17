@@ -177,7 +177,7 @@ export const escalasoftOrderService = {
         };
 
         try {
-            const url = `${WMS_BASE}/armazem/ordem/cadastrar`;
+            const url = `${WMS_BASE}/armazem/ordem/anexo/cadastrar?numeroOrdem=${encodeURIComponent(numeroPedido)}`;
             console.log('[WMS-CD] POST', url, JSON.stringify(payload, null, 2));
 
             const res = await fetch(url, {
