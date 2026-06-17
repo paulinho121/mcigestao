@@ -157,6 +157,7 @@ export const escalasoftOrderService = {
         const payload = {
             Lista: {
                 Anexo: {
+                Tipo: 1,
                 NumeroPedido: numeroPedido,
                 DataPedido: dataFormatada,
                 CnpjFilial: CNPJ_CD,
