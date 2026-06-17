@@ -158,6 +158,7 @@ export const escalasoftOrderService = {
             Lista: {
                 Anexo: {
                 Tipo: 1,
+                Nome: numeroPedido,
                 NumeroPedido: numeroPedido,
                 DataPedido: dataFormatada,
                 CnpjFilial: CNPJ_CD,
