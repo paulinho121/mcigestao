@@ -832,8 +832,6 @@ export function PedidosCD({ isMaster = false, userEmail = '' }: { isMaster?: boo
 
     const handleSend = async () => {
         if (!clienteNome.trim()) { setSendResult({ type: 'error', msg: 'Informe o nome do destinatário.' }); return; }
-        if (!cep.trim()) { setSendResult({ type: 'error', msg: 'CEP é obrigatório para enviar o pedido.' }); return; }
-        if (!uf.trim()) { setSendResult({ type: 'error', msg: 'UF é obrigatório.' }); return; }
         if (cart.length === 0) { setSendResult({ type: 'error', msg: 'Adicione pelo menos um produto ao pedido.' }); return; }
 
         setSending(true);
@@ -1018,12 +1016,12 @@ export function PedidosCD({ isMaster = false, userEmail = '' }: { isMaster?: boo
                             {/* Campos de endereço — obrigatórios pela API */}
                             <div className="pt-1 pb-1">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                                    <span className="text-red-400">*</span> Endereço de Entrega (obrigatório)
+                                    Endereço de Entrega (opcional)
                                 </p>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">CEP <span className="text-red-400">*</span></label>
+                                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">CEP</label>
                                     <input value={cep} onChange={e => {
                                         const v = e.target.value.replace(/\D/g, '').slice(0, 8);
                                         setCep(v);
@@ -1037,7 +1035,7 @@ export function PedidosCD({ isMaster = false, userEmail = '' }: { isMaster?: boo
                                         className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40" />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">UF <span className="text-red-400">*</span></label>
+                                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">UF</label>
                                     <input value={uf} onChange={e => setUf(e.target.value.toUpperCase().slice(0, 2))} placeholder="SC"
                                         className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40" />
                                 </div>

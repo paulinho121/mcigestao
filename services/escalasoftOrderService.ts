@@ -164,6 +164,16 @@ export const escalasoftOrderService = {
                     Saida: {
                         Transportadora: CNPJ_CD,
                         NomeClienteFinal: params.cliente_nome,
+                        UF: params.uf || '',
+                        Municipio: params.municipio || '',
+                        LocalEntrega: {
+                            Cep: params.cep ? String(params.cep).padStart(8, '0') : '',
+                            Estado: params.uf || '',
+                            Municipio: params.codigo_municipio || 0,
+                            Bairro: params.bairro || '',
+                            Logradouro: params.logradouro || '',
+                            Numero: String(params.numero_endereco || ''),
+                        },
                         Programacao: params.produtos.map((p, i) => ({
                             Produto: p.codigo_referencia,
                             UnidadeMedida: 'PC',
