@@ -1,11 +1,34 @@
 import { supabase } from '../lib/supabase';
 
 // ─── Configuração ─────────────────────────────────────────────────────────────
-// WMS local do CD — proxy Vite: /api/escalasoft → http://170.82.192.22:9999/escalasoft
+// WMS local do CD — proxy Vite/Vercel: /api/escalasoft → http://170.82.192.22:9999/escalasoft
 const WMS_BASE = '/api/escalasoft';
+const WMS_USER = import.meta.env.VITE_WMS_USER || 'mci';
+const WMS_PASS = import.meta.env.VITE_WMS_PASS || 'clientemci';
 
 // CNPJ da filial (Sanco CD)
 const CNPJ_CD = '05502390000200';
+
+// ─── Auth token WMS (cache 23h) ───────────────────────────────────────────────
+let _wmsToken: string | null = null;
+let _wmsTokenExp = 0;
+
+async function getWmsToken(): Promise<string | null> {
+    if (_wmsToken && Date.now() < _wmsTokenExp) return _wmsToken;
+    try {
+        const credentials = btoa(`${WMS_USER}:${WMS_PASS}`);
+        const res = await fetch(`${WMS_BASE}/Authorization`, {
+            headers: { 'Authorization': `Basic ${credentials}`, 'Accept': 'application/json' },
+        });
+        const data = await res.json();
+        _wmsToken = data?.retorno?.[0]?.token ?? null;
+        _wmsTokenExp = Date.now() + 23 * 60 * 60 * 1000;
+        return _wmsToken;
+    } catch (e: any) {
+        console.warn('[WMS-CD] Falha ao obter token:', e?.message);
+        return null;
+    }
+}
 
 // ─── Status ───────────────────────────────────────────────────────────────────
 
@@ -90,13 +113,15 @@ export interface PedidoPendenteCD {
     numeros_serie: string | null;
 }
 
-// ─── Headers WMS local (sem autenticação) ────────────────────────────────────
+function wmsHeaders(token?: string | null): Record<string, string> {
+    const h: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    if (token) h['Authorization'] = `Bearer ${token}`;
+    return h;
+}
 
-function wmsHeaders(): Record<string, string> {
-    return {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-    };
+// Gera um numeroOrdem numérico baseado nos últimos 8 dígitos do timestamp
+function gerarNumeroOrdem(): number {
+    return parseInt(Date.now().toString().slice(-8), 10);
 }
 
 // ─── Helpers locais ───────────────────────────────────────────────────────────
@@ -143,9 +168,12 @@ export const escalasoftOrderService = {
         const numeroPedido = generateNumeroPedido();
         const now = new Date();
         const valorTotal = params.produtos.reduce((sum, p) => sum + p.valor_total, 0);
+        const numeroOrdemWms = gerarNumeroOrdem();
         let apiSuccess = false;
         let apiError = '';
         let wmsResponseId: number | null = null;
+
+        const token = await getWmsToken();
 
         // ── Payload conforme exemplo real do WMS local ────────────────────────
         const observacao = [
@@ -183,7 +211,7 @@ export const escalasoftOrderService = {
         const payload = {
             Lista: {
                 Anexo: {
-                    Tipo: 11,
+                    Tipo: 1,
                     Nome: numeroPedido,
                     Arquivo: arquivoBase64,
                     NumeroPedido: numeroPedido,
@@ -213,12 +241,12 @@ export const escalasoftOrderService = {
         };
 
         try {
-            const url = `${WMS_BASE}/armazem/ordem/anexo/cadastrar?numeroOrdem=${encodeURIComponent(numeroPedido)}`;
+            const url = `${WMS_BASE}/armazem/ordem/anexo/cadastrar?numeroOrdem=${numeroOrdemWms}`;
             console.log('[WMS-CD] POST', url, JSON.stringify(payload, null, 2));
 
             const res = await fetch(url, {
                 method: 'POST',
-                headers: wmsHeaders(),
+                headers: wmsHeaders(token),
                 body: JSON.stringify(payload),
             });
 
