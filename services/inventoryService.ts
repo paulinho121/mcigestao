@@ -7,43 +7,30 @@ import { preSaleService } from './preSaleService';
 // In-memory reservation storage
 let reservations: Reservation[] = [];
 
-// Helper to clean IDs (remove .0 suffix) and deduplicate
+// Helper to normalize product items (strip accidental .0 suffix from IDs)
 const cleanAndDeduplicate = (items: any[]): Product[] => {
   const map = new Map<string, Product>();
 
   for (const item of items) {
-    // Remove .0 suffix if present
     const cleanId = item.id.endsWith('.0') ? item.id.slice(0, -2) : item.id;
-    const existing = map.get(cleanId);
+    if (map.has(cleanId)) continue; // skip duplicates, first wins
 
     const stock_ce = Number(item.stock_ce || 0);
     const stock_sc = Number(item.stock_sc || 0);
     const stock_sp = Number(item.stock_sp || 0);
-    const reserved = Number(item.reserved || 0);
 
-    if (existing) {
-      // Duplicate (.0 variant): take MAX to avoid doubling stock that was written to both rows
-      existing.stock_ce = Math.max(existing.stock_ce, stock_ce);
-      existing.stock_sc = Math.max(existing.stock_sc, stock_sc);
-      existing.stock_sp = Math.max(existing.stock_sp, stock_sp);
-      existing.reserved = Math.max(existing.reserved, reserved);
-      existing.total = existing.stock_ce + existing.stock_sc + existing.stock_sp;
-    } else {
-      // If new, create entry
-      map.set(cleanId, {
-        ...item,
-        id: cleanId,
-        stock_ce,
-        stock_sc,
-        stock_sp,
-        reserved,
-        // Always calculate total from branch stocks for accuracy
-        total: stock_ce + stock_sc + stock_sp,
-        image_url: item.image_url ?? item.imageUrl,
-        importQuantity: item.import_quantity ?? item.importQuantity,
-        expectedRestockDate: item.expected_restock_date ?? item.expectedRestockDate
-      });
-    }
+    map.set(cleanId, {
+      ...item,
+      id: cleanId,
+      stock_ce,
+      stock_sc,
+      stock_sp,
+      reserved: Number(item.reserved || 0),
+      total: stock_ce + stock_sc + stock_sp,
+      image_url: item.image_url ?? item.imageUrl,
+      importQuantity: item.import_quantity ?? item.importQuantity,
+      expectedRestockDate: item.expected_restock_date ?? item.expectedRestockDate
+    });
   }
   return Array.from(map.values());
 };
@@ -86,9 +73,10 @@ export const inventoryService = {
     const { data, error } = await supabase
       .from('products')
       .select('*')
+      .not('id', 'like', '%.0')
       .or(`id.ilike.%${cleanQuery}%,name.ilike.%${cleanQuery}%,brand.ilike.%${cleanQuery}%`)
-      .order('total', { ascending: false }) // Sort by quantity descending
-      .limit(100); // Increased limit to reduce chance of missing items due to duplicates
+      .order('total', { ascending: false })
+      .limit(100);
 
     if (error) {
       console.error('Supabase error:', error);
@@ -111,7 +99,8 @@ export const inventoryService = {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .order('total', { ascending: false }) // Sort by quantity descending
+      .not('id', 'like', '%.0')
+      .order('total', { ascending: false })
       .limit(limit);
 
     if (error) {
@@ -136,6 +125,7 @@ export const inventoryService = {
     const { data, error } = await supabase
       .from('products')
       .select('*')
+      .not('id', 'like', '%.0')
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -159,7 +149,7 @@ export const inventoryService = {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .in('id', [id, `${id}.0`])
+      .eq('id', id)
       .maybeSingle();
 
     if (error) {
@@ -194,8 +184,9 @@ export const inventoryService = {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .gt(branchColumn, 0) // Only products with stock > 0 in this branch
-      .order(branchColumn, { ascending: false }) // Sort by branch stock descending
+      .not('id', 'like', '%.0')
+      .gt(branchColumn, 0)
+      .order(branchColumn, { ascending: false })
       .limit(limit);
 
     if (error) {
@@ -218,6 +209,7 @@ export const inventoryService = {
     const { data, error } = await supabase
       .from('products')
       .select('brand')
+      .not('id', 'like', '%.0')
       .not('brand', 'is', null)
       .not('brand', 'eq', '');
 
@@ -242,6 +234,7 @@ export const inventoryService = {
     const { data, error } = await supabase
       .from('products')
       .select('*')
+      .not('id', 'like', '%.0')
       .eq('brand', brand);
 
     if (error) {
@@ -264,6 +257,7 @@ export const inventoryService = {
     const { data, error } = await supabase
       .from('products')
       .select('*')
+      .not('id', 'like', '%.0')
       .in('brand', brands);
 
     if (error) {
@@ -286,17 +280,15 @@ export const inventoryService = {
     }
     const { data, error } = await supabase
       .from('products')
-      .select('id, total');
+      .select('id, total')
+      .not('id', 'like', '%.0');
 
     if (error) {
       console.error('Supabase error fetching total available:', error);
       return 0;
     }
 
-    // We clean and deduplicate to avoid double counting if both 123 and 123.0 exist
-    // and to include 123.0 if it's the only one.
-    return cleanAndDeduplicate(data as any[])
-      .reduce((sum, row) => sum + (row.total || 0), 0);
+    return (data as any[]).reduce((sum, row) => sum + (row.total || 0), 0);
   },
 
   /**
@@ -394,27 +386,13 @@ export const inventoryService = {
 
     // Real Supabase implementation
     // 1. Get current product data to check stock
-    // Try exact ID first
-    let { data: product } = await supabase
+    const { data: product } = await supabase
       .from('products')
       .select('*')
       .eq('id', productId)
-      .single();
+      .maybeSingle();
 
-    // If not found, try with .0 suffix
-    if (!product) {
-      const { data: productWithSuffix } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', `${productId}.0`)
-        .single();
-
-      if (productWithSuffix) {
-        product = productWithSuffix;
-      } else {
-        throw new Error('Produto não encontrado');
-      }
-    }
+    if (!product) throw new Error('Produto não encontrado');
 
     const branchColumn = `stock_${branch.toLowerCase()}`;
     const currentStock = product[branchColumn];
@@ -839,15 +817,19 @@ export const inventoryService = {
 
     // Real Supabase Implementation
     try {
-      // First, get current stock
+      // Get current stock
       const { data: currentProduct, error: fetchError } = await supabase
         .from('products')
         .select('name, stock_ce, stock_sc, stock_sp')
         .eq('id', productId)
-        .single();
+        .maybeSingle();
 
       if (fetchError) {
         throw new Error(`Erro ao buscar produto ${productId}: ${fetchError.message}`);
+      }
+
+      if (!currentProduct) {
+        throw new Error(`Produto ${productId} não encontrado no banco de dados`);
       }
 
       // Calculate new stock values
@@ -856,15 +838,17 @@ export const inventoryService = {
       const newStockSp = Math.max(0, currentProduct.stock_sp + adjustments.sp);
       const newTotal = newStockCe + newStockSc + newStockSp;
 
-      // Update stock
+      // Update stock on both the clean ID and the .0 variant (if it exists in the DB)
+      const updatePayload = {
+        stock_ce: newStockCe,
+        stock_sc: newStockSc,
+        stock_sp: newStockSp,
+        total: newTotal
+      };
+
       const { error: updateError } = await supabase
         .from('products')
-        .update({
-          stock_ce: newStockCe,
-          stock_sc: newStockSc,
-          stock_sp: newStockSp,
-          total: newTotal
-        })
+        .update(updatePayload)
         .eq('id', productId);
 
       if (updateError) {
@@ -1078,7 +1062,7 @@ export const inventoryService = {
       const { error } = await supabase
         .from('products')
         .update({ name })
-        .in('id', [productId, `${productId}.0`]);
+        .eq('id', productId);
 
       if (error) {
         throw new Error(`Erro ao atualizar nome do produto ${productId}: ${error.message}`);
@@ -1112,7 +1096,7 @@ export const inventoryService = {
       const { error } = await supabase
         .from('products')
         .update({ image_url: imageUrl })
-        .in('id', [productId, `${productId}.0`]);
+        .eq('id', productId);
 
       if (error) {
         throw new Error(`Erro ao atualizar imagem do produto ${productId}: ${error.message}`);
@@ -1148,7 +1132,7 @@ export const inventoryService = {
       const { error } = await supabase
         .from('products')
         .update({ observations })
-        .in('id', [productId, `${productId}.0`]);
+        .eq('id', productId);
 
       if (error) {
         throw new Error(`Erro ao atualizar observações do produto ${productId}: ${error.message}`);
@@ -1174,7 +1158,7 @@ export const inventoryService = {
     const { error } = await supabase
       .from('products')
       .update({ brand_logo: brandLogo })
-      .in('id', [productId, `${productId}.0`]);
+      .eq('id', productId);
 
     if (error) throw new Error(error.message);
   },
@@ -1494,7 +1478,7 @@ export const inventoryService = {
     const { error } = await supabase
       .from('products')
       .update(updateData)
-      .in('id', [productId, `${productId}.0`]);
+      .eq('id', productId);
 
     if (error) {
       console.error('Error updating location:', error);
