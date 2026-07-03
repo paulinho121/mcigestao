@@ -255,13 +255,28 @@ export const jamefService = {
     async cotacaoFrete(params: CotacaoRequest): Promise<CotacaoResponse> {
         const token = await this.login();
 
+        const cnpjLimpo = params.cnpjRemetente.replace(/\D/g, '');
+
+        // Metragem cúbica (m³): calculada a partir das dimensões informadas.
+        // Sem dimensões, usa fator padrão de cubagem rodoviária (300 kg/m³) como estimativa.
+        const metragemCubica = (params.altura && params.largura && params.comprimento)
+            ? (params.altura * params.largura * params.comprimento * params.volumes) / 1_000_000
+            : params.peso / 300;
+
         const body: Record<string, any> = {
-            cnpjRemetente: params.cnpjRemetente.replace(/\D/g, ''),
+            cnpjRemetente: cnpjLimpo,
             cepOrigem: params.cepOrigem.replace(/\D/g, ''),
             cepDestino: params.cepDestino.replace(/\D/g, ''),
             peso: params.peso,
             valorMercadoria: params.valorMercadoria,
             quantidadeVolumes: params.volumes,
+            // Campos exigidos pela API (retornados como "required key" quando ausentes)
+            pesoMercadoria: params.peso,
+            valorNotaFiscal: params.valorMercadoria,
+            documentoDevedor: cnpjLimpo,
+            metragemCubica,
+            // Enum validado em produção: "1" = Rodoviário, "2" = Aéreo
+            tipoTransporte: '1',
         };
 
         body.filialOrigem = params.filialOrigem;
@@ -308,15 +323,33 @@ export const jamefService = {
 
         // Normaliza resposta (formato pode variar entre QA e PROD)
         const dado = data.dado?.[0] ?? data;
+
+        // previsaoEntrega vem no formato brasileiro dd/mm/yyyy
+        const previsaoStr: string | undefined = dado.dataPrevisaoEntrega ?? dado.previsaoEntrega;
+        let dataPrevisaoISO: string | undefined = previsaoStr;
+        let prazoDias = dado.prazoEntrega ?? dado.prazo ?? 0;
+        const match = previsaoStr?.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (match) {
+            const [, d, m, y] = match;
+            const previsaoDate = new Date(Number(y), Number(m) - 1, Number(d));
+            dataPrevisaoISO = previsaoDate.toISOString();
+            if (!prazoDias) {
+                const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+                prazoDias = Math.max(0, Math.round((previsaoDate.getTime() - hoje.getTime()) / 86_400_000));
+            }
+        }
+
+        const modalidades: Record<string, string> = { '1': 'Rodoviário', '2': 'Aéreo' };
+
         return {
-            valorFrete: dado.valorFrete ?? dado.valor ?? 0,
-            prazoEntrega: dado.prazoEntrega ?? dado.prazo ?? 0,
-            dataPrevisaoEntrega: dado.dataPrevisaoEntrega ?? dado.previsaoEntrega,
+            valorFrete: dado.valorFrete ?? dado.valor ?? dado.frete ?? 0,
+            prazoEntrega: prazoDias,
+            dataPrevisaoEntrega: dataPrevisaoISO,
             filialOrigem: dado.filialOrigem,
             filialDestino: dado.filialDestino,
-            servico: dado.servico ?? dado.tipoServico,
+            servico: dado.servico ?? dado.tipoServico ?? modalidades[dado.modalidadeTransporte] ?? dado.modalidadeTransporte,
             pesoTaxado: dado.pesoTaxado,
-            valorTaxas: dado.valorTaxas,
+            valorTaxas: dado.valorTaxas ?? dado.imposto,
             raw: data,
         };
     },
