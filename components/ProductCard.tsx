@@ -18,6 +18,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     const availableStock = product.total - (product.reserved || 0);
     const isLowStock = availableStock < 5 && availableStock > 0;
     const isOutOfStock = availableStock === 0;
+    const statusColor = product.is_future
+        ? 'bg-indigo-500'
+        : isOutOfStock
+            ? 'bg-red-500'
+            : isLowStock
+                ? 'bg-yellow-400'
+                : 'bg-emerald-500';
+    const availablePct = product.total > 0 ? Math.max(0, Math.min(100, (availableStock / product.total) * 100)) : 0;
 
     const handleShare = (e: React.MouseEvent) => {
         e.stopPropagation(); // Avoid expanding the card
@@ -95,6 +103,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     onClick={() => setIsSpotlightOpen(true)}
                     className={`w-full skeuo-card overflow-hidden flex flex-col h-full group cursor-pointer relative transition-all duration-300 hover:scale-[1.01] hover:shadow-xl ${isSpotlightOpen ? 'ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-slate-900 shadow-2xl scale-[1.02]' : ''}`}
                 >
+                <div className={`h-1 w-full shrink-0 ${statusColor}`} />
+
                 {product.brand_logo && (
                     <div
                         className="absolute right-[0%] bottom-[5%] w-40 h-40 opacity-[0.12] pointer-events-none grayscale dark:opacity-[0.2] dark:invert transition-opacity duration-300"
@@ -134,48 +144,46 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                                 </div>
                             )}
                         </div>
+
+                        {product.price && (
+                            <div className="absolute top-2 right-2 bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm">
+                                R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                        )}
+
+                        <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+                            <button
+                                onClick={handleInstagramStory}
+                                disabled={isGeneratingStory}
+                                className="p-1.5 rounded-full bg-white/90 text-pink-500 hover:text-pink-600 hover:bg-white transition-all shadow-sm dark:bg-slate-900/90 dark:text-pink-400 dark:hover:text-pink-300 disabled:opacity-50"
+                                title="Gerar Arte para Instagram Story"
+                            >
+                                {isGeneratingStory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Instagram className="w-4 h-4" />}
+                            </button>
+                            <button
+                                onClick={handleShare}
+                                className="p-1.5 rounded-full bg-white/90 text-slate-500 hover:text-green-600 hover:bg-white transition-all shadow-sm dark:bg-slate-900/90 dark:text-slate-400 dark:hover:text-green-400"
+                                title="Compartilhar no WhatsApp"
+                            >
+                                <Share2 className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 )}
 
                 <div className="p-4 sm:p-5 flex-grow relative z-10">
-                    <div className="flex justify-between items-start mb-3 gap-2 flex-wrap">
-                        <div className="flex gap-2">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800 whitespace-nowrap dark:bg-slate-700 dark:text-slate-300">
-                                COD: {product.id}
+                    <div className="flex justify-between items-start mb-2 gap-2">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800 whitespace-nowrap dark:bg-slate-700 dark:text-slate-300">
+                            COD: {product.id}
+                        </span>
+                        {product.brand && (
+                            <span className="text-xs font-semibold text-brand-600 uppercase tracking-wider truncate max-w-[120px] sm:max-w-none">
+                                {product.brand}
                             </span>
-                            {product.price && (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 whitespace-nowrap border border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800">
-                                    R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {product.brand && (
-                                <span className="text-xs font-semibold text-brand-600 uppercase tracking-wider truncate max-w-[120px] sm:max-w-none">
-                                    {product.brand}
-                                </span>
-                            )}
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    onClick={handleInstagramStory}
-                                    disabled={isGeneratingStory}
-                                    className="p-1.5 rounded-full bg-pink-50 text-pink-500 hover:text-pink-600 hover:bg-pink-100 transition-all dark:bg-pink-900/20 dark:text-pink-400 dark:hover:text-pink-300 disabled:opacity-50"
-                                    title="Gerar Arte para Instagram Story"
-                                >
-                                    {isGeneratingStory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Instagram className="w-4 h-4" />}
-                                </button>
-                                <button
-                                    onClick={handleShare}
-                                    className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all dark:bg-slate-700 dark:text-slate-400 dark:hover:text-green-400"
-                                    title="Compartilhar no WhatsApp"
-                                >
-                                    <Share2 className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
+                        )}
                     </div>
 
-                    <div className="mb-4">
+                    <div className="mb-3">
                         <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug group-hover:text-brand-600 transition-colors break-words line-clamp-2 dark:text-white dark:group-hover:text-brand-400">
                             {product.name}
                         </h3>
@@ -189,98 +197,75 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                         )}
                     </div>
 
-                    {/* Interactive Branch List - Revealed on Hover */}
-                    <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] opacity-0 group-hover:opacity-100 transition-all duration-500 ease-in-out overflow-hidden">
-                        <div className="min-h-0 space-y-3 pb-4">
-                            <div className="flex items-center justify-between text-sm">
-                                <div className="flex items-center text-emerald-600 dark:text-emerald-500">
-                                    <MapPin className="w-4 h-4 mr-2 text-emerald-500" />
-                                    <div className="flex flex-col">
-                                        <span className="leading-none font-bold">Ceará</span>
-                                        {product.location_ce && (
-                                            <span className="text-[10px] font-black uppercase text-brand-600/60 dark:text-brand-400/60 tracking-tight mt-1 leading-none bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
-                                                RUA/BOX: {product.location_ce}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                                <span className={clsx("font-mono font-medium", product.stock_ce > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
-                                    {product.stock_ce}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <div className="flex items-center text-blue-700 dark:text-blue-500">
-                                    <MapPin className="w-4 h-4 mr-2 text-blue-500" />
-                                    <div className="flex flex-col">
-                                        <span className="leading-none font-bold">Santa Catarina</span>
-                                        {product.location_sc && (
-                                            <span className="text-[10px] font-black uppercase text-brand-600/60 dark:text-brand-400/60 tracking-tight mt-1 leading-none bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
-                                                RUA/BOX: {product.location_sc}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                                <span className={clsx("font-mono font-medium", product.stock_sc > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
-                                    {product.stock_sc}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <div className="flex items-center text-rose-600 dark:text-rose-500">
-                                    <MapPin className="w-4 h-4 mr-2 text-rose-500" />
-                                    <div className="flex flex-col">
-                                        <span className="leading-none font-bold">São Paulo</span>
-                                        {product.location_sp && (
-                                            <span className="text-[10px] font-black uppercase text-brand-600/60 dark:text-brand-400/60 tracking-tight mt-1 leading-none bg-brand-50 dark:bg-brand-900/20 px-1.5 py-0.5 rounded">
-                                                RUA/BOX: {product.location_sp}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                                <span className={clsx("font-mono font-medium", product.stock_sp > 0 ? "text-slate-900 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")}>
-                                    {product.stock_sp}
-                                </span>
-                            </div>
+                    {/* Estoque por filial — sempre visível (funciona em toque e mouse) */}
+                    <div className="grid grid-cols-3 gap-1.5 mb-1">
+                        <div className="flex flex-col items-center py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
+                            <span className="text-[9px] font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Ceará</span>
+                            <span className={clsx("text-sm font-bold", product.stock_ce > 0 ? "text-emerald-700 dark:text-emerald-300" : "text-slate-300 dark:text-slate-600")}>
+                                {product.stock_ce}
+                            </span>
+                        </div>
+                        <div className="flex flex-col items-center py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                            <span className="text-[9px] font-black uppercase tracking-wide text-blue-600 dark:text-blue-400">S. Catarina</span>
+                            <span className={clsx("text-sm font-bold", product.stock_sc > 0 ? "text-blue-700 dark:text-blue-300" : "text-slate-300 dark:text-slate-600")}>
+                                {product.stock_sc}
+                            </span>
+                        </div>
+                        <div className="flex flex-col items-center py-1.5 rounded-lg bg-rose-50 dark:bg-rose-900/20">
+                            <span className="text-[9px] font-black uppercase tracking-wide text-rose-600 dark:text-rose-400">S. Paulo</span>
+                            <span className={clsx("text-sm font-bold", product.stock_sp > 0 ? "text-rose-700 dark:text-rose-300" : "text-slate-300 dark:text-slate-600")}>
+                                {product.stock_sp}
+                            </span>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-black/5 px-4 sm:px-5 py-3 border-t border-white/5 flex justify-between items-center gap-3 dark:bg-black/20 dark:border-white/5">
-                    <div className="flex flex-col">
-                        <span className="text-xs text-slate-500 uppercase font-semibold dark:text-slate-400">Estoque Total</span>
-                        <div className="flex items-center">
-                            <Box className="w-4 h-4 mr-1 text-brand-600 dark:text-brand-500" />
-                            <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{product.total}</span>
+                <div className="bg-black/5 px-4 sm:px-5 py-3 border-t border-white/5 dark:bg-black/20 dark:border-white/5">
+                    {!product.is_future && (
+                        <div className="mb-2.5">
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Disponível</span>
+                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{Math.max(0, availableStock)} de {product.total}</span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                                <div className={`h-full rounded-full ${statusColor}`} style={{ width: `${availablePct}%` }} />
+                            </div>
                         </div>
-                        {product.reserved > 0 && (
-                            <div className="mt-1 space-y-0.5">
-                                <div className="text-xs text-orange-600 font-medium">
+                    )}
+
+                    <div className="flex justify-between items-center gap-3">
+                        <div className="flex flex-col">
+                            <span className="text-xs text-slate-500 uppercase font-semibold dark:text-slate-400">Estoque Total</span>
+                            <div className="flex items-center">
+                                <Box className="w-4 h-4 mr-1 text-brand-600 dark:text-brand-500" />
+                                <span className="text-xl font-bold text-slate-900 dark:text-slate-100">{product.total}</span>
+                            </div>
+                            {product.reserved > 0 && (
+                                <div className="text-xs text-orange-600 font-medium mt-0.5">
                                     Reservado: {product.reserved} un
                                 </div>
-                                <div className="text-xs text-green-700 font-semibold">
-                                    Disponível: {availableStock} un
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
 
-                    <div className="text-right flex-shrink-0">
-                        {product.is_future ? (
-                            <span className="inline-block px-2.5 sm:px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-md whitespace-nowrap">
-                                Em Breve
-                            </span>
-                        ) : isOutOfStock ? (
-                            <span className="inline-block px-2.5 sm:px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-md whitespace-nowrap">
-                                Sem Estoque
-                            </span>
-                        ) : isLowStock ? (
-                            <span className="inline-block px-2.5 sm:px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-md whitespace-nowrap">
-                                Estoque Baixo
-                            </span>
-                        ) : (
-                            <span className="inline-block px-2.5 sm:px-3 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-md whitespace-nowrap">
-                                Disponível
-                            </span>
-                        )}
+                        <div className="text-right flex-shrink-0">
+                            {product.is_future ? (
+                                <span className="inline-block px-2.5 sm:px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-md whitespace-nowrap">
+                                    Em Breve
+                                </span>
+                            ) : isOutOfStock ? (
+                                <span className="inline-block px-2.5 sm:px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-md whitespace-nowrap">
+                                    Sem Estoque
+                                </span>
+                            ) : isLowStock ? (
+                                <span className="inline-block px-2.5 sm:px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-bold rounded-md whitespace-nowrap">
+                                    Estoque Baixo
+                                </span>
+                            ) : (
+                                <span className="inline-block px-2.5 sm:px-3 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-md whitespace-nowrap">
+                                    Disponível
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
