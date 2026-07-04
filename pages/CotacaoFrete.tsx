@@ -185,29 +185,29 @@ function ResultCard({ result, origem, cepDestino, peso, valor, volumes }: Result
                 </div>
 
                 {/* Main metrics */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white/5 border border-white/10 rounded-3xl p-5 space-y-1">
-                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            <DollarSign className="w-3.5 h-3.5 text-emerald-400" /> Valor do Frete
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div className="bg-white/5 border border-white/10 rounded-3xl p-3.5 sm:p-5 space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <DollarSign className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Valor do Frete
                         </div>
-                        <div className="text-3xl font-black text-white tracking-tighter">
+                        <div className="text-xl sm:text-3xl font-black text-white tracking-tighter whitespace-nowrap">
                             {result.valorFrete > 0 ? formatCurrency(result.valorFrete) : '—'}
                         </div>
                         {result.valorTaxas && result.valorTaxas > 0 && (
-                            <div className="text-xs text-slate-400">+ {formatCurrency(result.valorTaxas)} em taxas</div>
+                            <div className="text-[11px] sm:text-xs text-slate-400">+ {formatCurrency(result.valorTaxas)} em taxas</div>
                         )}
                     </div>
 
-                    <div className="bg-white/5 border border-white/10 rounded-3xl p-5 space-y-1">
-                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            <Clock className="w-3.5 h-3.5 text-violet-400" /> Prazo de Entrega
+                    <div className="bg-white/5 border border-white/10 rounded-3xl p-3.5 sm:p-5 space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <Clock className="w-3.5 h-3.5 text-violet-400 shrink-0" /> Prazo de Entrega
                         </div>
-                        <div className="text-3xl font-black text-white tracking-tighter">
+                        <div className="text-xl sm:text-3xl font-black text-white tracking-tighter whitespace-nowrap">
                             {result.prazoEntrega > 0 ? `${result.prazoEntrega}` : '—'}
-                            {result.prazoEntrega > 0 && <span className="text-lg font-bold text-slate-400 ml-1">dias úteis</span>}
+                            {result.prazoEntrega > 0 && <span className="text-xs sm:text-lg font-bold text-slate-400 ml-1">dias úteis</span>}
                         </div>
                         {deliveryDate && (
-                            <div className="text-xs text-slate-400">Previsão: <span className="text-white font-bold">{deliveryDate}</span></div>
+                            <div className="text-[11px] sm:text-xs text-slate-400">Previsão: <span className="text-white font-bold">{deliveryDate}</span></div>
                         )}
                     </div>
                 </div>
