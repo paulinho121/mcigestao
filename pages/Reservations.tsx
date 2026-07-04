@@ -15,6 +15,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [quantity, setQuantity] = useState(1);
     const [selectedBranch, setSelectedBranch] = useState<'CE' | 'SC' | 'SP'>('CE');
+    const [branchReserved, setBranchReserved] = useState<Record<'CE' | 'SC' | 'SP', number>>({ CE: 0, SC: 0, SP: 0 });
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -51,13 +52,26 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
         }
     };
 
-    const handleSelectProduct = (product: Product) => {
+    const handleSelectProduct = async (product: Product) => {
         setSelectedProduct(product);
         setSearchResults([]);
         setSearchQuery('');
         setQuantity(1);
         setSelectedBranch('CE'); // Reset to default
         setError('');
+        setBranchReserved({ CE: 0, SC: 0, SP: 0 });
+
+        // Estoque físico (stock_ce/sc/sp) não é decrementado por reservas
+        // (para sobreviver à sincronização externa), então o "disponível"
+        // por filial precisa descontar as reservas ativas na hora.
+        try {
+            const activeReservations = await inventoryService.getReservationsByProduct(product.id);
+            const totals: Record<'CE' | 'SC' | 'SP', number> = { CE: 0, SC: 0, SP: 0 };
+            activeReservations.forEach(r => { totals[r.branch] += r.quantity; });
+            setBranchReserved(totals);
+        } catch (err) {
+            console.error('Error loading branch reservations:', err);
+        }
     };
 
     const handleReserve = async () => {
@@ -109,7 +123,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
     };
 
     const availableStock = selectedProduct && selectedBranch
-        ? selectedProduct[`stock_${selectedBranch.toLowerCase()}` as 'stock_ce' | 'stock_sc' | 'stock_sp']
+        ? Math.max(0, selectedProduct[`stock_${selectedBranch.toLowerCase()}` as 'stock_ce' | 'stock_sc' | 'stock_sp'] - branchReserved[selectedBranch])
         : 0;
 
     const getBranchName = (code: string) => {
@@ -201,7 +215,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                                         Marca: {selectedProduct.brand}
                                     </div>
                                     <div className="text-sm text-slate-600 dark:text-slate-300">
-                                        Estoque Total: {selectedProduct.total} | Reservado: {selectedProduct.reserved} | Disponível: {availableStock}
+                                        Estoque Total: {selectedProduct.total} | Reservado: {selectedProduct.reserved} | Disponível no total: {Math.max(0, selectedProduct.total - selectedProduct.reserved)}
                                     </div>
                                 </div>
                                 <button
@@ -226,7 +240,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                                             : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
                                             }`}
                                     >
-                                        Ceará ({selectedProduct.stock_ce})
+                                        Ceará ({Math.max(0, selectedProduct.stock_ce - branchReserved.CE)})
                                     </button>
                                     <button
                                         type="button"
@@ -236,7 +250,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                                             : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
                                             }`}
                                     >
-                                        Santa Catarina ({selectedProduct.stock_sc})
+                                        Santa Catarina ({Math.max(0, selectedProduct.stock_sc - branchReserved.SC)})
                                     </button>
                                     <button
                                         type="button"
@@ -246,7 +260,7 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                                             : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
                                             }`}
                                     >
-                                        São Paulo ({selectedProduct.stock_sp})
+                                        São Paulo ({Math.max(0, selectedProduct.stock_sp - branchReserved.SP)})
                                     </button>
                                 </div>
                             </div>
@@ -325,6 +339,12 @@ export const Reservations: React.FC<ReservationsProps> = ({ userEmail, userName,
                                                     <Calendar className="w-4 h-4 mr-1" />
                                                     {new Date(reservation.reservedAt).toLocaleDateString('pt-BR')}
                                                 </div>
+                                                {reservation.expiresAt && (
+                                                    <div className="flex items-center text-amber-600 dark:text-amber-400">
+                                                        <Calendar className="w-4 h-4 mr-1" />
+                                                        Expira em {new Date(reservation.expiresAt).toLocaleDateString('pt-BR')}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                         {(reservation.reservedBy === userEmail || isMasterUser) && (

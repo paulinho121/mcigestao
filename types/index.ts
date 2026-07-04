@@ -57,6 +57,7 @@ export interface Reservation {
     reservedBy: string;
     reservedByName?: string;
     reservedAt: Date;
+    expiresAt?: Date;
 }
 
 export interface ImportProject {

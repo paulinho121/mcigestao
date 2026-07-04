@@ -364,7 +364,14 @@ export const inventoryService = {
       if (!product) throw new Error('Produto não encontrado');
 
       const branchKey = `stock_${branch.toLowerCase()}` as 'stock_ce' | 'stock_sc' | 'stock_sp';
-      if (quantity > product[branchKey]) throw new Error(`Estoque insuficiente na filial ${branch}`);
+      const alreadyReservedInBranch = reservations
+        .filter(r => r.productId === product!.id && r.branch === branch)
+        .reduce((sum, r) => sum + r.quantity, 0);
+      const availableInBranch = product[branchKey] - alreadyReservedInBranch;
+      if (quantity > availableInBranch) throw new Error(`Estoque insuficiente na filial ${branch}. Disponível: ${availableInBranch}`);
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 5);
 
       const reservation: Reservation = {
         id: Date.now().toString(),
@@ -375,12 +382,13 @@ export const inventoryService = {
         branch,
         reservedBy,
         reservedByName,
-        reservedAt: new Date()
+        reservedAt: new Date(),
+        expiresAt
       };
       reservations.push(reservation);
+      // Estoque físico não é decrementado — apenas o contador `reserved`,
+      // pelo mesmo motivo do caminho real (ver reserveProduct via Supabase).
       product.reserved += quantity;
-      product[branchKey] -= quantity;
-      product.total = product.stock_ce + product.stock_sc + product.stock_sp;
       return reservation;
     }
 
@@ -395,14 +403,31 @@ export const inventoryService = {
     if (!product) throw new Error('Produto não encontrado');
 
     const branchColumn = `stock_${branch.toLowerCase()}`;
-    const currentStock = product[branchColumn];
-    if (quantity > currentStock) {
-      throw new Error(`Estoque insuficiente na filial ${branch}. Disponível: ${currentStock}`);
+    const rawBranchStock = product[branchColumn] || 0;
+
+    // Desconta reservas ativas já feitas nesta filial (evita sobre-reservar
+    // já que o estoque físico não é mais decrementado — veja nota abaixo).
+    // Expiração roda em segundo plano (não bloqueia esta operação); por isso
+    // o filtro de expires_at abaixo garante que reservas já vencidas, mesmo
+    // que ainda não limpas, não contem como "já reservado".
+    this.expireStaleReservations().catch(err => console.error('Erro ao expirar reservas:', err));
+    const { data: activeInBranch } = await supabase
+      .from('reservations')
+      .select('quantity')
+      .eq('product_id', product.id)
+      .eq('branch', branch)
+      .eq('status', 'active')
+      .gt('expires_at', new Date().toISOString());
+    const alreadyReservedInBranch = (activeInBranch || []).reduce((sum, r: any) => sum + r.quantity, 0);
+    const availableInBranch = rawBranchStock - alreadyReservedInBranch;
+
+    if (quantity > availableInBranch) {
+      throw new Error(`Estoque insuficiente na filial ${branch}. Disponível: ${availableInBranch}`);
     }
 
-    // 2. Create reservation with 7-day expiration
+    // 2. Create reservation with 5-day expiration
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    expiresAt.setDate(expiresAt.getDate() + 5);
 
     const { data: reservationData, error: reservationError } = await supabase
       .from('reservations')
@@ -422,26 +447,14 @@ export const inventoryService = {
 
     if (reservationError) throw new Error(`Erro ao criar reserva: ${reservationError.message}`);
 
-    // 3. Update product stock
-    const newStock = currentStock - quantity;
-    const newReserved = (product.reserved || 0) + quantity;
-
-    // Calculate new total
-    const stock_ce = branch === 'CE' ? newStock : product.stock_ce;
-    const stock_sc = branch === 'SC' ? newStock : product.stock_sc;
-    const stock_sp = branch === 'SP' ? newStock : product.stock_sp;
-    const newTotal = stock_ce + stock_sc + stock_sp;
-
-    const updateData: any = {
-      reserved: newReserved,
-      [branchColumn]: newStock,
-      total: newTotal // Update total!
-    };
-
+    // 3. Atualiza apenas o contador agregado `reserved`, via RPC (SECURITY
+    // DEFINER) — UPDATE direto em `products` é restrito a usuários master por
+    // RLS, e a maioria dos vendedores não é master. O estoque físico
+    // (stock_ce/sc/sp) NÃO é alterado aqui de propósito: essas colunas são
+    // sobrescritas pela sincronização externa (ex.: API de estoque de SC), o
+    // que apagaria o efeito da reserva. "Disponível" é sempre total - reserved.
     const { error: updateError } = await supabase
-      .from('products')
-      .update(updateData)
-      .eq('id', product.id);
+      .rpc('adjust_product_reserved', { p_product_id: product.id, p_delta: quantity });
 
     if (updateError) {
       // Rollback reservation if stock update fails
@@ -458,7 +471,8 @@ export const inventoryService = {
       branch: reservationData.branch,
       reservedBy: reservationData.reserved_by,
       reservedByName: reservationData.reserved_by_name,
-      reservedAt: new Date(reservationData.reserved_at)
+      reservedAt: new Date(reservationData.reserved_at),
+      expiresAt: new Date(reservationData.expires_at)
     };
 
     // Log reservation creation
@@ -474,9 +488,53 @@ export const inventoryService = {
   },
 
   /**
+   * Expira reservas ativas cujo prazo (5 dias) já passou: libera o contador
+   * `reserved` do produto e marca a reserva como 'expired'. Chamado de forma
+   * "preguiçosa" sempre que reservas são lidas, já que não há um cron/job
+   * de backend rodando neste projeto.
+   */
+  async expireStaleReservations(): Promise<void> {
+    if (!supabase) {
+      const now = Date.now();
+      const stillActive: Reservation[] = [];
+      for (const r of reservations) {
+        if (r.expiresAt && r.expiresAt.getTime() < now) {
+          const p = MOCK_INVENTORY.find(prod => prod.id === r.productId || prod.id === `${r.productId}.0`);
+          if (p) p.reserved = Math.max(0, p.reserved - r.quantity);
+        } else {
+          stillActive.push(r);
+        }
+      }
+      reservations = stillActive;
+      return;
+    }
+
+    const db = supabase;
+    const nowIso = new Date().toISOString();
+    const { data: expired } = await db
+      .from('reservations')
+      .select('id, product_id, quantity')
+      .eq('status', 'active')
+      .lt('expires_at', nowIso);
+
+    if (!expired || expired.length === 0) return;
+
+    // Processa em paralelo e remove a reserva (em vez de marcar status) —
+    // a tabela não aceita status "expired" (constraint só permite active/cancelled),
+    // e excluir é idempotente: uma reserva já removida nunca é reprocessada.
+    await Promise.all((expired as any[]).map(async (r) => {
+      await db.rpc('adjust_product_reserved', { p_product_id: r.product_id, p_delta: -r.quantity });
+      await db.from('reservations').delete().eq('id', r.id);
+    }));
+  },
+
+  /**
    * Get all reservations
    */
   async getReservations(): Promise<Reservation[]> {
+    // Não bloqueia a leitura — o filtro de expires_at abaixo já garante uma
+    // lista correta mesmo antes da limpeza em segundo plano terminar.
+    this.expireStaleReservations().catch(err => console.error('Erro ao expirar reservas:', err));
     if (!supabase) return [...reservations];
 
     const { data, error } = await supabase
@@ -500,13 +558,15 @@ export const inventoryService = {
       branch: r.branch as 'CE' | 'SC' | 'SP',
       reservedBy: r.reserved_by,
       reservedByName: r.reserved_by_name,
-      reservedAt: new Date(r.reserved_at)
+      reservedAt: new Date(r.reserved_at),
+      expiresAt: r.expires_at ? new Date(r.expires_at) : undefined
     }));
   },
   /**
    * Get reservations for a specific product
    */
   async getReservationsByProduct(productId: string): Promise<Reservation[]> {
+    this.expireStaleReservations().catch(err => console.error('Erro ao expirar reservas:', err));
     if (!supabase) {
       return reservations.filter(r =>
         r.productId === productId || r.productId === `${productId}.0`
@@ -535,7 +595,8 @@ export const inventoryService = {
       branch: r.branch as 'CE' | 'SC' | 'SP',
       reservedBy: r.reserved_by,
       reservedByName: r.reserved_by_name,
-      reservedAt: new Date(r.reserved_at)
+      reservedAt: new Date(r.reserved_at),
+      expiresAt: r.expires_at ? new Date(r.expires_at) : undefined
     }));
   },
 
@@ -556,12 +617,7 @@ export const inventoryService = {
       if (!p) p = MOCK_INVENTORY.find(prod => prod.id === `${r.productId}.0`);
 
       if (p) {
-        p.reserved -= r.quantity;
-        if (r.branch) {
-          const key = `stock_${r.branch.toLowerCase()}` as 'stock_ce' | 'stock_sc' | 'stock_sp';
-          p[key] += r.quantity;
-          p.total = p.stock_ce + p.stock_sc + p.stock_sp;
-        }
+        p.reserved = Math.max(0, p.reserved - r.quantity);
       }
       reservations.splice(index, 1);
       return true;
@@ -577,34 +633,14 @@ export const inventoryService = {
 
     if (fetchError || !reservation) return false;
 
-    // 2. Get product details
-    const { data: product } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', reservation.product_id)
-      .single();
-
-    if (product) {
-      // 3. Restore stock
-      const branchColumn = `stock_${reservation.branch.toLowerCase()}`;
-      const newStock = product[branchColumn] + reservation.quantity;
-      const newReserved = Math.max(0, (product.reserved || 0) - reservation.quantity);
-
-      // Calculate new total
-      const stock_ce = reservation.branch === 'CE' ? newStock : product.stock_ce;
-      const stock_sc = reservation.branch === 'SC' ? newStock : product.stock_sc;
-      const stock_sp = reservation.branch === 'SP' ? newStock : product.stock_sp;
-      const newTotal = stock_ce + stock_sc + stock_sp;
-
-      await supabase
-        .from('products')
-        .update({
-          [branchColumn]: newStock,
-          reserved: newReserved,
-          total: newTotal // Update total!
-        })
-        .eq('id', reservation.product_id);
-    }
+    // Libera apenas o contador `reserved`, via RPC (SECURITY DEFINER) — o
+    // estoque físico nunca foi decrementado na criação da reserva, então não
+    // há nada a "devolver" ali, e o UPDATE direto em `products` é restrito a
+    // usuários master por RLS.
+    await supabase.rpc('adjust_product_reserved', {
+      p_product_id: reservation.product_id,
+      p_delta: -reservation.quantity
+    });
 
     // 4. Delete reservation
     const { error: deleteError } = await supabase
