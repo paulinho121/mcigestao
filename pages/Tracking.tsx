@@ -3,6 +3,8 @@ import {
     Search,
     Truck,
     Package,
+    PackageCheck,
+    Home,
     MapPin,
     Calendar,
     Clock,
@@ -83,7 +85,7 @@ function GerarLink() {
         <div class="nf">${nf}</div>
         <div id="qr" style="margin:16px 0"></div>
         <div class="url">${linkFinal}</div>
-        <div class="footer">MCI Estoque · estoquemci.vercel.app · Powered by JAMEF</div>
+        <div class="footer">MCI Estoque · estoquemci.vercel.app</div>
         <script>
             const svg = document.querySelector('[data-qr]');
             const qrDiv = document.getElementById('qr');
@@ -283,6 +285,101 @@ function hasCargoMoved(events: JamefTrackingItem['eventosRastreio']): boolean {
     });
 }
 
+// ─── Etapas do envio (stepper premium) ─────────────────────────────────────
+
+const SHIPPING_STAGES = [
+    { label: 'Pedido Realizado', icon: FileText },
+    { label: 'Coletado', icon: PackageCheck },
+    { label: 'Em Trânsito', icon: Truck },
+    { label: 'Entregue', icon: Home },
+] as const;
+
+function getStageIndex(status?: string): number {
+    const s = (status || '').toUpperCase();
+    if (s.includes('ENTREG')) return 3;
+    if (s.includes('TRANSPORTE') || s.includes('VIAGEM') || s.includes('TRANSITO')) return 2;
+    if (s.includes('COLETA') || s.includes('EMISSAO') || s.includes('EMBALA')) return 1;
+    return 0;
+}
+
+function ShippingStepper({ status }: { status?: string }) {
+    const activeIndex = getStageIndex(status);
+
+    return (
+        <div className="flex items-start w-full">
+            {SHIPPING_STAGES.map((stage, i) => {
+                const Icon = stage.icon;
+                const done = i <= activeIndex;
+                const isLast = i === SHIPPING_STAGES.length - 1;
+                return (
+                    <React.Fragment key={stage.label}>
+                        <div className="flex flex-col items-center gap-2 shrink-0 w-14 sm:w-20">
+                            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${
+                                done
+                                    ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/30 scale-100'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600'
+                            }`}>
+                                <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                            </div>
+                            <span className={`text-[8px] sm:text-[10px] font-black uppercase tracking-wider text-center leading-tight ${
+                                done ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400 dark:text-slate-600'
+                            }`}>
+                                {stage.label}
+                            </span>
+                        </div>
+                        {!isLast && (
+                            <div className="flex-1 h-1 sm:h-1.5 mt-5 sm:mt-6 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                                <div className={`h-full bg-brand-600 transition-all duration-700 ${i < activeIndex ? 'w-full' : 'w-0'}`} />
+                            </div>
+                        )}
+                    </React.Fragment>
+                );
+            })}
+        </div>
+    );
+}
+
+// ─── Card de localização (mapa estilizado, sem dependência externa) ────────
+
+function LocationMapCard({ cidade, uf }: { cidade?: string; uf?: string }) {
+    return (
+        <div className="relative overflow-hidden rounded-3xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 h-36 sm:h-44">
+            <svg viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 w-full h-full">
+                <defs>
+                    <pattern id="tracking-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-slate-300 dark:text-slate-700" />
+                    </pattern>
+                </defs>
+                <rect width="400" height="160" fill="url(#tracking-grid)" className="opacity-60 dark:opacity-30" />
+                <path
+                    d="M 10 130 Q 110 30 200 80 T 390 30"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeDasharray="7 7"
+                    className="text-brand-500/70"
+                />
+                <circle cx="10" cy="130" r="5" className="fill-slate-400 dark:fill-slate-600" />
+                <circle cx="390" cy="30" r="6" className="fill-brand-500" />
+            </svg>
+            <div className="absolute inset-0 flex items-end p-4 sm:p-5 bg-gradient-to-t from-slate-50 dark:from-slate-950 via-slate-50/40 dark:via-slate-950/50 to-transparent">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-brand-600 flex items-center justify-center shadow-lg shrink-0">
+                        <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                    </div>
+                    <div className="min-w-0">
+                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Localização Atual</div>
+                        <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                            {cidade || 'Em processamento'}{uf ? ` · ${uf}` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 interface TrackingProps {
     initialNF?: string;
     initialCNPJ?: string;
@@ -445,7 +542,7 @@ export const Tracking: React.FC<TrackingProps> = ({
                     </div>
 
                     <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter mb-6 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-600 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">
-                        Rastreamento <span className="text-brand-500 italic font-medium tracking-tight">JAMEF</span>
+                        Rastreamento de <span className="text-brand-500 italic font-medium tracking-tight">Encomendas</span>
                     </h1>
 
                     <p className="text-slate-500 dark:text-slate-400 text-base sm:text-lg max-w-xl mx-auto leading-relaxed px-4 font-medium opacity-80">
@@ -547,62 +644,76 @@ export const Tracking: React.FC<TrackingProps> = ({
                             </div>
                         )}
 
-                        {/* Status Dashboard */}
-                        <div className="bg-white/60 dark:bg-slate-950/60 backdrop-blur-2xl rounded-[2.5rem] border border-white dark:border-white/5 p-8 flex flex-col lg:flex-row items-center justify-between gap-10">
+                        {/* Status Dashboard — premium */}
+                        <div className="bg-white/60 dark:bg-slate-950/60 backdrop-blur-2xl rounded-[2.5rem] border border-white dark:border-white/5 p-6 sm:p-10 space-y-8">
 
-                            <div className="flex flex-col sm:flex-row items-center gap-8 text-center sm:text-left">
-                                <div className="relative">
-                                    <div className="absolute inset-0 bg-brand-500 blur-2xl opacity-20"></div>
-                                    <div className="w-24 h-24 rounded-[2rem] bg-brand-500 dark:bg-brand-600 flex items-center justify-center shadow-2xl relative z-10 scale-105 transition-transform hover:rotate-12">
-                                        <Package className="w-12 h-12 text-white" />
+                            {/* Cabeçalho: número de rastreio + previsão */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="relative shrink-0">
+                                        <div className="absolute inset-0 bg-brand-500 blur-xl opacity-20"></div>
+                                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[1.4rem] bg-brand-500 dark:bg-brand-600 flex items-center justify-center shadow-2xl relative z-10">
+                                            <Package className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
+                                        </div>
                                     </div>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <div className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.3em]">Status Operacional</div>
-                                    <div className={`px-5 py-2.5 rounded-full text-sm sm:text-base font-black border uppercase tracking-wider ${getStatusColor(result.eventosRastreio?.[0]?.status || 'Inexistente')}`}>
-                                        {result.eventosRastreio?.[0]?.status || 'Indeterminado'}
-                                    </div>
-                                    <div className="flex items-center justify-center sm:justify-start gap-2.5 p-2 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-                                        <Calendar className="w-4 h-4 text-brand-500" />
-                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-tighter">
-                                            Previsão: <span className="text-slate-900 dark:text-white ml-1">{result.frete?.previsaoEntrega ? new Date(result.frete.previsaoEntrega).toLocaleDateString('pt-BR') : 'Sem dados'}</span>
+                                    <div className="min-w-0">
+                                        <div className="text-[9px] sm:text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.25em] mb-1">Número de Rastreio</div>
+                                        <div className="text-xl sm:text-2xl font-black text-brand-600 dark:text-brand-400 tracking-tight truncate">
+                                            {result.notaFiscal?.numero || result.conhecimento?.numero || '---'}
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="hidden lg:block w-px h-24 bg-gradient-to-b from-transparent via-slate-200 dark:via-slate-800 to-transparent"></div>
-
-                            <div className="grid grid-cols-2 gap-x-12 gap-y-4 w-full lg:w-auto">
-                                <div className="space-y-1">
-                                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Nota Fiscal</div>
-                                    <div className="text-xl font-black text-brand-600 dark:text-brand-400 tracking-tighter">{result.notaFiscal?.numero || '---'}</div>
-                                </div>
-                                <div className="space-y-1">
-                                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Série</div>
-                                    <div className="text-xl font-black text-slate-900 dark:text-white tracking-tighter">{result.notaFiscal?.serie || '---'}</div>
-                                </div>
-                                <div className="space-y-1 col-span-2 pt-2 border-t border-slate-100 dark:border-slate-900">
-                                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Número CT-e</div>
-                                    <div className="text-sm font-bold text-slate-500 dark:text-slate-400">{result.conhecimento?.numero || '---'}</div>
+                                <div className="flex items-center gap-2.5 p-3 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 sm:text-right">
+                                    <Calendar className="w-4 h-4 text-brand-500 shrink-0" />
+                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-tighter">
+                                        Previsão: <span className="text-slate-900 dark:text-white ml-1">{result.frete?.previsaoEntrega ? new Date(result.frete.previsaoEntrega).toLocaleDateString('pt-BR') : 'Sem dados'}</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            {result.frete?.urlComprovanteEntrega && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const url = result.frete!.urlComprovanteEntrega;
-                                        const absolute = url.startsWith('http') ? url : `https://${url}`;
-                                        window.open(absolute, '_blank', 'noopener,noreferrer');
-                                    }}
-                                    className="group/btn flex items-center gap-3 px-6 py-4 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
-                                >
-                                    <ExternalLink className="w-4 h-4" />
-                                    <span>Comprovante</span>
-                                </button>
-                            )}
+                            {/* Status atual (badge) */}
+                            <div className={`inline-flex px-5 py-2.5 rounded-full text-sm font-black border uppercase tracking-wider ${getStatusColor(result.eventosRastreio?.[0]?.status || 'Inexistente')}`}>
+                                {result.eventosRastreio?.[0]?.status || 'Indeterminado'}
+                            </div>
+
+                            {/* Stepper de etapas */}
+                            <ShippingStepper status={result.eventosRastreio?.[0]?.status} />
+
+                            {/* Mapa estilizado com localização atual */}
+                            <LocationMapCard
+                                cidade={result.eventosRastreio?.[0]?.localOrigem?.cidade}
+                                uf={result.eventosRastreio?.[0]?.localOrigem?.uf}
+                            />
+
+                            {/* Info complementar */}
+                            <div className="flex flex-wrap items-center justify-between gap-6 pt-6 border-t border-slate-100 dark:border-slate-900">
+                                <div className="flex flex-wrap gap-x-10 gap-y-3">
+                                    <div className="space-y-1">
+                                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Série</div>
+                                        <div className="text-base font-black text-slate-900 dark:text-white tracking-tighter">{result.notaFiscal?.serie || '---'}</div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Número CT-e</div>
+                                        <div className="text-base font-bold text-slate-500 dark:text-slate-400">{result.conhecimento?.numero || '---'}</div>
+                                    </div>
+                                </div>
+
+                                {result.frete?.urlComprovanteEntrega && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const url = result.frete!.urlComprovanteEntrega;
+                                            const absolute = url.startsWith('http') ? url : `https://${url}`;
+                                            window.open(absolute, '_blank', 'noopener,noreferrer');
+                                        }}
+                                        className="group/btn flex items-center gap-3 px-6 py-4 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                        <span>Comprovante</span>
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {/* Share Card */}
@@ -758,7 +869,7 @@ export const Tracking: React.FC<TrackingProps> = ({
                                                                     <MapPin className="w-4 h-4 text-brand-500" />
                                                                 </div>
                                                                 <div className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-tighter">
-                                                                    {evento.localOrigem?.cidade || 'Central Jamef'}
+                                                                    {evento.localOrigem?.cidade || 'Centro de Distribuição'}
                                                                     <span className="text-slate-300 dark:text-slate-700 mx-1.5 font-normal">|</span>
                                                                     <span className="text-brand-500">{evento.localOrigem?.uf || 'BR'}</span>
                                                                 </div>
@@ -771,8 +882,8 @@ export const Tracking: React.FC<TrackingProps> = ({
 
                                                     {isExpanded && (
                                                         <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 text-sm font-medium text-slate-500 dark:text-slate-400 animate-in fade-in slide-in-from-top-4 duration-500 leading-relaxed">
-                                                            Registro sistêmico Jamef Cód: <span className="text-slate-900 dark:text-white font-bold tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded ml-1">{evento.codigoOcorrencia || '---'}</span>
-                                                            <p className="mt-2">Movimentação confirmada via terminal {evento.localOrigem?.cidade}. Dados processados com criptografia JWT ponta-a-ponta.</p>
+                                                            Registro do sistema Cód: <span className="text-slate-900 dark:text-white font-bold tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded ml-1">{evento.codigoOcorrencia || '---'}</span>
+                                                            <p className="mt-2">Movimentação confirmada via terminal {evento.localOrigem?.cidade}. Dados processados com criptografia ponta-a-ponta.</p>
                                                         </div>
                                                     )}
                                                 </div>
@@ -795,10 +906,10 @@ export const Tracking: React.FC<TrackingProps> = ({
                 </div>
             )}
 
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md px-6 py-2.5 rounded-full border border-white dark:border-white/5 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-4 whitespace-nowrap opacity-50 hover:opacity-100 transition-opacity z-50">
-                <span>© 2024 MCI Logística</span>
-                <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700"></span>
-                <span>Powered by Jamef API PROD</span>
+            <div className="fixed bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] sm:w-auto max-w-full bg-white/50 dark:bg-slate-900/50 backdrop-blur-md px-4 sm:px-6 py-2 sm:py-2.5 rounded-full border border-white dark:border-white/5 text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-3 sm:gap-4 opacity-50 hover:opacity-100 transition-opacity z-50">
+                <span className="truncate">© 2026 MCI Logística</span>
+                <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700 shrink-0"></span>
+                <span className="truncate">Rastreamento em Tempo Real</span>
             </div>
         </div>
     );
