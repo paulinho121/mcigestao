@@ -3,6 +3,7 @@ import App from './App';
 import { EmailConfirmation } from './pages/EmailConfirmation';
 import { SharedProduct } from './pages/SharedProduct';
 import { EmbedStock } from './pages/EmbedStock';
+import { CotacaoFrete } from './pages/CotacaoFrete';
 import { Tracking } from './pages/Tracking';
 import { HubLogin } from './pages/HubLogin';
 import { HubMarketplace } from './pages/HubMarketplace';
@@ -26,6 +27,7 @@ export const AppRouter = () => {
     }>({});
     const [isHubRoute, setIsHubRoute] = useState(false);
     const [isEmbedStock, setIsEmbedStock] = useState(false);
+    const [isEmbedFrete, setIsEmbedFrete] = useState(false);
     const [hubCompany, setHubCompany] = useState<HubCompany | null>(null);
 
     useEffect(() => {
@@ -46,16 +48,19 @@ export const AppRouter = () => {
                 setShowConfirmation(true);
                 setIsHubRoute(false);
                 setIsEmbedStock(false);
+                setIsEmbedFrete(false);
             } else if (hash.startsWith('#/share/')) {
                 // Limpa o ID de barras extras ou parâmetros de busca que o Android/WhatsApp podem adicionar
                 const id = hash.replace('#/share/', '').split('/')[0].split('?')[0];
                 setSharedProductId(id);
                 setIsHubRoute(false);
                 setIsEmbedStock(false);
+                setIsEmbedFrete(false);
             } else if (hash === '#/tracking' || hash.startsWith('#/tracking?')) {
                 setIsPublicTracking(true);
                 setIsHubRoute(false);
                 setIsEmbedStock(false);
+                setIsEmbedFrete(false);
                 // Parse query params from hash: #/tracking?nf=xxx&cnpj=xxx&...
                 const qIndex = hash.indexOf('?');
                 if (qIndex !== -1) {
@@ -75,6 +80,7 @@ export const AppRouter = () => {
                 setSharedProductId(null);
                 setIsPublicTracking(false);
                 setIsEmbedStock(false);
+                setIsEmbedFrete(false);
             } else if (hash === '#/consulta' || hash.startsWith('#/consulta?')) {
                 // Vista pública de consulta de estoque (embutível via iframe no CRM)
                 setIsEmbedStock(true);
@@ -82,12 +88,22 @@ export const AppRouter = () => {
                 setSharedProductId(null);
                 setIsPublicTracking(false);
                 setIsHubRoute(false);
+                setIsEmbedFrete(false);
+            } else if (hash === '#/frete' || hash.startsWith('#/frete?')) {
+                // Vista pública de cotação de frete Jamef (embutível via iframe no CRM)
+                setIsEmbedFrete(true);
+                setShowConfirmation(false);
+                setSharedProductId(null);
+                setIsPublicTracking(false);
+                setIsHubRoute(false);
+                setIsEmbedStock(false);
             } else {
                 setShowConfirmation(false);
                 setSharedProductId(null);
                 setIsPublicTracking(false);
                 setIsHubRoute(false);
                 setIsEmbedStock(false);
+                setIsEmbedFrete(false);
             }
         };
 
@@ -162,6 +178,15 @@ export const AppRouter = () => {
         return (
             <ThemeProvider>
                 <EmbedStock />
+            </ThemeProvider>
+        );
+    }
+
+    // ── COTAÇÃO DE FRETE PÚBLICA (iframe no CRM) ───────────────────────────────
+    if (isEmbedFrete) {
+        return (
+            <ThemeProvider>
+                <CotacaoFrete />
             </ThemeProvider>
         );
     }
