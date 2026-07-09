@@ -2,9 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import {
     Calculator, Truck, Clock, Package, MapPin, DollarSign,
     ArrowRight, Loader2, AlertCircle, CheckCircle2, ChevronDown, Info, RotateCcw,
-    Printer, Share2
+    Printer, Share2, Search, X
 } from 'lucide-react';
 import { jamefService, CotacaoResponse } from '../services/jamefService';
+import { inventoryService } from '../services/inventoryService';
+import { Product } from '../types';
 
 // Filiais MCI — filialOrigem é o código que a Jamef usa internamente
 // Se a cotação falhar, consulte: GET /api/jamef-prod/filial/v1/filiais para listar os códigos corretos
@@ -304,7 +306,67 @@ export function CotacaoFrete() {
     const [result, setResult] = useState<CotacaoResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    // Busca de produtos para preenchimento automático de peso/medidas
+    const [produtoQuery, setProdutoQuery] = useState('');
+    const [produtoResults, setProdutoResults] = useState<Product[]>([]);
+    const [searchingProdutos, setSearchingProdutos] = useState(false);
+    const [itens, setItens] = useState<{ product: Product; qtd: number }[]>([]);
+
     const filial = FILIAIS[filialIdx];
+
+    // Busca produtos com debounce (mín. 2 caracteres)
+    useEffect(() => {
+        const q = produtoQuery.trim();
+        if (q.length < 2) { setProdutoResults([]); setSearchingProdutos(false); return; }
+        setSearchingProdutos(true);
+        let cancelled = false;
+        const timer = setTimeout(async () => {
+            try {
+                const results = await inventoryService.searchProducts(q);
+                if (!cancelled) setProdutoResults(results.slice(0, 8));
+            } catch {
+                if (!cancelled) setProdutoResults([]);
+            } finally {
+                if (!cancelled) setSearchingProdutos(false);
+            }
+        }, 400);
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [produtoQuery]);
+
+    // Recalcula peso, volumes e dimensões a partir dos itens selecionados
+    useEffect(() => {
+        if (itens.length === 0) return;
+        const pesoTotal = itens.reduce((s, i) => s + (Number(i.product.peso_kg) || 0) * i.qtd, 0);
+        const volTotal = itens.reduce((s, i) => s + i.qtd, 0);
+        if (pesoTotal > 0) setPeso(String(+pesoTotal.toFixed(3)));
+        setVolumes(String(volTotal));
+        // Dimensões: maior medida entre os itens em cada eixo (aproximação por volume)
+        const maxAlt = Math.max(...itens.map(i => Number(i.product.altura_cm) || 0));
+        const maxLarg = Math.max(...itens.map(i => Number(i.product.largura_cm) || 0));
+        const maxComp = Math.max(...itens.map(i => Number(i.product.comprimento_cm) || 0));
+        if (maxAlt > 0) setAltura(String(maxAlt));
+        if (maxLarg > 0) setLargura(String(maxLarg));
+        if (maxComp > 0) setComprimento(String(maxComp));
+        if (maxAlt > 0 || maxLarg > 0 || maxComp > 0) setShowDimensoes(true);
+    }, [itens]);
+
+    const addProduto = (p: Product) => {
+        setItens(prev => {
+            const existing = prev.find(i => i.product.id === p.id);
+            if (existing) return prev.map(i => i.product.id === p.id ? { ...i, qtd: i.qtd + 1 } : i);
+            return [...prev, { product: p, qtd: 1 }];
+        });
+        setProdutoQuery('');
+        setProdutoResults([]);
+    };
+
+    const setQtdItem = (id: string, qtd: number) => {
+        setItens(prev => prev.map(i => i.product.id === id ? { ...i, qtd: Math.max(1, qtd) } : i));
+    };
+
+    const removeItem = (id: string) => {
+        setItens(prev => prev.filter(i => i.product.id !== id));
+    };
 
     // Lookup automático da filial Jamef pelo CEP de origem ao trocar a filial
     useEffect(() => {
@@ -365,6 +427,9 @@ export function CotacaoFrete() {
         setAltura('');
         setLargura('');
         setComprimento('');
+        setItens([]);
+        setProdutoQuery('');
+        setProdutoResults([]);
     };
 
     return (
@@ -479,6 +544,84 @@ export function CotacaoFrete() {
                             <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] flex items-center gap-2">
                                 <Package className="w-4 h-4 text-emerald-500" /> Dados da Mercadoria
                             </p>
+
+                            {/* Busca de produto — preenche peso/medidas automaticamente */}
+                            <div className="relative">
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        {searchingProdutos
+                                            ? <Loader2 className="w-4 h-4 animate-spin text-brand-500" />
+                                            : <Search className="w-4 h-4 text-slate-400" />
+                                        }
+                                    </div>
+                                    <input
+                                        value={produtoQuery}
+                                        onChange={e => setProdutoQuery(e.target.value)}
+                                        placeholder="Buscar produto por código ou nome (preenche peso e medidas)..."
+                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border-2 border-transparent dark:border-slate-800/50 rounded-2xl focus:border-brand-500/40 focus:bg-white dark:focus:bg-slate-900 focus:ring-[8px] focus:ring-brand-500/5 transition-all outline-none text-sm font-bold dark:text-white dark:placeholder-slate-700 shadow-sm"
+                                    />
+                                </div>
+                                {produtoResults.length > 0 && (
+                                    <div className="absolute z-30 mt-2 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
+                                        {produtoResults.map(p => (
+                                            <button
+                                                key={p.id} type="button" onClick={() => addProduto(p)}
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-b border-slate-100 dark:border-slate-800 last:border-0"
+                                            >
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{p.name}</p>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Cód. {p.id}</p>
+                                                </div>
+                                                {p.peso_kg ? (
+                                                    <span className="text-[10px] font-black px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                                                        {Number(p.peso_kg).toLocaleString('pt-BR')} kg
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[10px] font-black px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
+                                                        sem medidas
+                                                    </span>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Itens selecionados */}
+                            {itens.length > 0 && (
+                                <div className="space-y-2">
+                                    {itens.map(({ product: p, qtd }) => (
+                                        <div key={p.id} className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{p.name}</p>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                    Cód. {p.id}
+                                                    {p.peso_kg
+                                                        ? ` · ${Number(p.peso_kg).toLocaleString('pt-BR')} kg · ${Number(p.altura_cm) || '—'}×${Number(p.largura_cm) || '—'}×${Number(p.comprimento_cm) || '—'} cm`
+                                                        : ' · sem medidas cadastradas — preencha manualmente'}
+                                                </p>
+                                            </div>
+                                            <input
+                                                type="number" min={1} value={qtd}
+                                                onChange={e => setQtdItem(p.id, parseInt(e.target.value) || 1)}
+                                                className="w-16 px-2 py-2 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-black dark:text-white outline-none focus:border-brand-500/40 shrink-0"
+                                                title="Quantidade"
+                                            />
+                                            <button
+                                                type="button" onClick={() => removeItem(p.id)}
+                                                className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
+                                                title="Remover"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium ml-1">
+                                        Peso e volumes somados automaticamente. Dimensões usam a maior medida entre os itens — ajuste abaixo se necessário.
+                                    </p>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <InputField label="Peso (kg) *" value={peso} onChange={setPeso} placeholder="Ex: 25.5" type="number" />
                                 <InputField label="Valor (R$) *" value={valor} onChange={setValor} placeholder="Ex: 1500.00" type="number" />

@@ -26,6 +26,10 @@ export interface Product {
     abc_category?: 'A' | 'B' | 'C';
     price?: number;
     last_purchase_price?: number;
+    peso_kg?: number;
+    altura_cm?: number;
+    largura_cm?: number;
+    comprimento_cm?: number;
     location?: string;
     location_ce?: string;
     location_sc?: string;
