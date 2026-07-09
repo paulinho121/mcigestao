@@ -9,4 +9,3 @@ interface ImportMetaEnv {
 interface ImportMeta {
     readonly env: ImportMetaEnv
 }
-import { Analytics } from "@vercel/analytics/next"
