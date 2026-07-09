@@ -17,6 +17,14 @@ function cnpjFromNF(nf: string): string {
     return detectFilialFromNF(nf)?.cnpj ?? FILIAIS[0].cnpj; // fallback SC
 }
 
+// Cotação de frete embutida no CRM: sempre em modo claro, sem persistir preferência de tema
+function EmbedFreteLight() {
+    useEffect(() => {
+        document.documentElement.classList.remove('dark');
+    }, []);
+    return <CotacaoFrete />;
+}
+
 export const AppRouter = () => {
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [sharedProductId, setSharedProductId] = useState<string | null>(null);
@@ -184,11 +192,7 @@ export const AppRouter = () => {
 
     // ── COTAÇÃO DE FRETE PÚBLICA (iframe no CRM) ───────────────────────────────
     if (isEmbedFrete) {
-        return (
-            <ThemeProvider>
-                <CotacaoFrete />
-            </ThemeProvider>
-        );
+        return <EmbedFreteLight />;
     }
 
     if (sharedProductId) {
