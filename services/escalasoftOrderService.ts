@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 
 // ─── Configuração ─────────────────────────────────────────────────────────────
-// WMS local do CD — proxy Vite/Vercel: /api/escalasoft → http://170.82.192.22:9999/escalasoft
+// WMS local do CD — proxy Vite/Vercel: /api/escalasoft → http://sanco.cloud.escalasoft.com.br:4034/escalasoft
 const WMS_BASE = '/api/escalasoft';
 const WMS_USER = import.meta.env.VITE_WMS_USER || 'mci';
 const WMS_PASS = import.meta.env.VITE_WMS_PASS || 'clientemci';

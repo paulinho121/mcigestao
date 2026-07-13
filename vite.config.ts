@@ -10,13 +10,13 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       proxy: {
         '/api/wms': {
-          target: 'http://170.82.192.22:9999',
+          target: 'http://sanco.cloud.escalasoft.com.br:4034',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/wms/, ''),
           secure: false,
         },
         '/api/escalasoft': {
-          target: 'http://170.82.192.22:9999',
+          target: 'http://sanco.cloud.escalasoft.com.br:4034',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/escalasoft/, '/escalasoft'),
           secure: false,

@@ -26,11 +26,11 @@
     "rewrites": [
         {
             "source": "/api/wms/:path*",
-            "destination": "http://170.82.192.22:9999/:path*"
+            "destination": "http://sanco.cloud.escalasoft.com.br:4034/:path*"
         },
         {
             "source": "/api/escalasoft/:path*",
-            "destination": "http://170.82.192.22:9999/escalasoft/:path*"
+            "destination": "http://sanco.cloud.escalasoft.com.br:4034/escalasoft/:path*"
         },
         {
             "source": "/api/escalasoft-oms/:path*",
