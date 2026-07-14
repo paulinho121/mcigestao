@@ -30,6 +30,7 @@ export interface CotacaoRequest {
     altura?: number;
     largura?: number;
     comprimento?: number;
+    tipoTransporte?: '1' | '2'; // "1" = Rodoviário (padrão), "2" = Aéreo
 }
 
 export interface CotacaoResponse {
@@ -276,7 +277,7 @@ export const jamefService = {
             documentoDevedor: cnpjLimpo,
             metragemCubica,
             // Enum validado em produção: "1" = Rodoviário, "2" = Aéreo
-            tipoTransporte: '1',
+            tipoTransporte: params.tipoTransporte ?? '1',
         };
 
         body.filialOrigem = params.filialOrigem;

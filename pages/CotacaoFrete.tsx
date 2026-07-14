@@ -61,6 +61,7 @@ function ResultCard({ result, origem, cepDestino, peso, valor, volumes }: Result
     // Valor exibido já inclui as taxas somadas ao frete
     const taxas = result.valorTaxas && result.valorTaxas > 0 ? result.valorTaxas : 0;
     const totalFrete = result.valorFrete > 0 ? result.valorFrete + taxas : 0;
+    const unidadePrazo = result.prazoEntrega === 1 ? 'dia útil' : 'dias úteis';
 
     const geradoEm = new Date().toLocaleString('pt-BR', {
         day: '2-digit', month: '2-digit', year: 'numeric',
@@ -78,7 +79,7 @@ function ResultCard({ result, origem, cepDestino, peso, valor, volumes }: Result
         `━━━━━━━━━━━━━━━━━━`,
         `💵 *Frete Total:* ${totalFrete > 0 ? formatCurrency(totalFrete) : 'Consultar'}`,
         taxas > 0 ? `_(inclui ${formatCurrency(taxas)} em taxas)_` : '',
-        `⏱️ *Prazo:* ${result.prazoEntrega > 0 ? `${result.prazoEntrega} dias úteis` : 'A consultar'}`,
+        `⏱️ *Prazo:* ${result.prazoEntrega > 0 ? `${result.prazoEntrega} ${unidadePrazo}` : 'A consultar'}`,
         deliveryDate ? `📅 *Previsão:* ${deliveryDate}` : '',
         result.servico ? `🔖 *Serviço:* ${result.servico}` : '',
         `━━━━━━━━━━━━━━━━━━`,
@@ -142,7 +143,7 @@ function ResultCard({ result, origem, cepDestino, peso, valor, volumes }: Result
                         </div>
                         <div class="card">
                             <div class="card-label">⏱️ Prazo de Entrega</div>
-                            <div class="card-value">${result.prazoEntrega > 0 ? result.prazoEntrega : '—'} <span style="font-size:16px;font-weight:600;color:#64748b">${result.prazoEntrega > 0 ? 'dias úteis' : ''}</span></div>
+                            <div class="card-value">${result.prazoEntrega > 0 ? result.prazoEntrega : '—'} <span style="font-size:16px;font-weight:600;color:#64748b">${result.prazoEntrega > 0 ? unidadePrazo : ''}</span></div>
                             ${deliveryDate ? `<div class="card-sub">Previsão: ${deliveryDate}</div>` : ''}
                         </div>
                     </div>
@@ -211,7 +212,7 @@ function ResultCard({ result, origem, cepDestino, peso, valor, volumes }: Result
                         </div>
                         <div className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tighter whitespace-nowrap">
                             {result.prazoEntrega > 0 ? `${result.prazoEntrega}` : '—'}
-                            {result.prazoEntrega > 0 && <span className="text-xs sm:text-lg font-bold text-slate-400 ml-1">dias úteis</span>}
+                            {result.prazoEntrega > 0 && <span className="text-xs sm:text-lg font-bold text-slate-400 ml-1">{unidadePrazo}</span>}
                         </div>
                         {deliveryDate && (
                             <div className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">Previsão: <span className="text-slate-900 dark:text-white font-bold">{deliveryDate}</span></div>
@@ -412,7 +413,7 @@ export function CotacaoFrete() {
     const [comprimento, setComprimento] = useState('');
     const [showDimensoes, setShowDimensoes] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [result, setResult] = useState<CotacaoResponse | null>(null);
+    const [jamefResults, setJamefResults] = useState<CotacaoResponse[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     // Correios (cotação em paralelo à Jamef)
@@ -509,7 +510,7 @@ export function CotacaoFrete() {
 
         setLoading(true);
         setError(null);
-        setResult(null);
+        setJamefResults([]);
         setCorreiosResults(null);
         setCorreiosError(null);
 
@@ -519,8 +520,7 @@ export function CotacaoFrete() {
         const larguraNum = largura ? parseFloat(largura) : undefined;
         const comprimentoNum = comprimento ? parseFloat(comprimento) : undefined;
 
-        // Jamef e Correios cotam em paralelo; a falha de um não bloqueia o outro
-        const jamefPromise = jamefService.cotacaoFrete({
+        const baseParams = {
             cnpjRemetente: filial.cnpj,
             cepOrigem: filial.cep,
             cepDestino,
@@ -531,9 +531,25 @@ export function CotacaoFrete() {
             altura: alturaNum,
             largura: larguraNum,
             comprimento: comprimentoNum,
-        })
-            .then(setResult)
-            .catch((e: any) => setError(e.message || 'Erro ao calcular frete Jamef. Verifique os dados e tente novamente.'));
+        };
+
+        // Jamef: cota Rodoviário ("1") e Aéreo ("2") para comparar.
+        // Pré-autentica uma vez para evitar corrida de login (rate limit 1/min).
+        const jamefPromise = (async () => {
+            try { await jamefService.login(); } catch { /* usa cache/segue */ }
+            const modalidades: ('1' | '2')[] = ['1', '2'];
+            const settled = await Promise.allSettled(
+                modalidades.map(tipoTransporte => jamefService.cotacaoFrete({ ...baseParams, tipoTransporte }))
+            );
+            const ok = settled
+                .filter((s): s is PromiseFulfilledResult<CotacaoResponse> => s.status === 'fulfilled')
+                .map(s => s.value);
+            setJamefResults(ok);
+            if (ok.length === 0) {
+                const firstErr = settled.find(s => s.status === 'rejected') as PromiseRejectedResult | undefined;
+                setError(firstErr?.reason?.message || 'Erro ao calcular frete Jamef. Verifique os dados e tente novamente.');
+            }
+        })();
 
         const correiosPromise = correiosAtivo
             ? correiosService.cotar({
@@ -554,7 +570,7 @@ export function CotacaoFrete() {
     };
 
     const handleReset = () => {
-        setResult(null);
+        setJamefResults([]);
         setError(null);
         setCorreiosResults(null);
         setCorreiosError(null);
@@ -815,7 +831,7 @@ export function CotacaoFrete() {
                                 }
                             </button>
 
-                            {(result || error) && (
+                            {(jamefResults.length > 0 || correiosResults || error) && (
                                 <button
                                     type="button" onClick={handleReset}
                                     className="p-5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
@@ -828,17 +844,18 @@ export function CotacaoFrete() {
                     </form>
                 </div>
 
-                {/* Resultado Jamef */}
-                {result && (
+                {/* Resultado Jamef — Rodoviário e Aéreo */}
+                {jamefResults.map((res, i) => (
                     <ResultCard
-                        result={result}
+                        key={res.servico || i}
+                        result={res}
                         origem={filial.cidade}
                         cepDestino={cepDestino}
                         peso={peso}
                         valor={valor}
                         volumes={volumes}
                     />
-                )}
+                ))}
 
                 {/* Resultado Correios (paralelo à Jamef) */}
                 {correiosAtivo && (loading || correiosResults || correiosError) && (
