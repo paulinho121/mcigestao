@@ -360,11 +360,13 @@ function CorreiosResultCard({ resultados, loading, error }: {
                                             )}
                                             <span className="text-[10px] font-bold text-slate-400">cód. {r.coProduto}</span>
                                         </div>
-                                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                                            <Clock className="w-3 h-3" />
-                                            {r.prazoEntrega > 0 ? `${r.prazoEntrega} dia(s) útil(eis)` : 'prazo a consultar'}
-                                            {prev && <span>· previsão {prev}</span>}
-                                            {r.entregaSabado && <span className="text-emerald-500">· entrega sábado</span>}
+                                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                                <Clock className="w-3 h-3 shrink-0" />
+                                                {r.prazoEntrega > 0 ? `${r.prazoEntrega} ${r.prazoEntrega === 1 ? 'dia útil' : 'dias úteis'}` : 'prazo a consultar'}
+                                            </span>
+                                            {prev && <span className="whitespace-nowrap">· previsão {prev}</span>}
+                                            {r.entregaSabado && <span className="text-emerald-500 whitespace-nowrap">· entrega sábado</span>}
                                         </div>
                                     </div>
                                     <div className="text-right shrink-0">
