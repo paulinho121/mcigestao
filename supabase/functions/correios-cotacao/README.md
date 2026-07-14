@@ -14,7 +14,7 @@ Browser (CotacaoFrete.tsx)
   → Edge Function [supabase/functions/correios-cotacao/index.ts]
       → token  (POST /token/v1/autentica/cartaopostagem, Basic auth)
       → preço  (GET  /preco/v1/nacional/{coProduto})
-      → prazo  (GET  /prazo/v3/nacional/{coProduto})
+      → prazo  (GET  /prazo/v1/nacional/{coProduto})
 ```
 
 No cliente só existe o flag **não-secreto** `VITE_CORREIOS_ENABLED=true` (.env).
@@ -34,29 +34,30 @@ npx supabase secrets set \
   CORREIOS_CODIGO_ACESSO=<chave-completa-do-CWS> \
   CORREIOS_CARTAO_POSTAGEM=<numero-cartao-postagem> \
   CORREIOS_CONTRATO=<numero-contrato> \
+  CORREIOS_DR=12 \
   CORREIOS_SERVICOS=03220:SEDEX,03298:PAC \
   --project-ref vqnkopzeysrqzxavaxls
-# CORREIOS_DR=<código> só se o token pedir
 ```
 
-## STATUS (14/07/2026) — BLOQUEADO na autenticação
+O **código de acesso** deve vir da tela **"Gerar código de acesso as API's"** do
+CWS (string curta alfanumérica de ~40 chars) — NÃO da tela de "chave" (formato
+`cws-ch1_...`, que dá 401). A DR do contrato é **12** (Ceará).
 
-A credencial dos Correios retorna **401** em todos os endpoints de token
-(`/autentica`, `/contrato`, `/cartaopostagem`), independente de DR/corpo.
+## STATUS (14/07/2026) — AUTENTICAÇÃO OK, validado ao vivo
 
-- Login `mcistore` confirmado (gateway retorna `x-gtw-user: mcistore`).
-- Codificação Basic e formato conferem com a doc oficial.
-- Logo, o bloqueio é **do lado da conta/CWS**, não do código.
+Token 201 com o código correto. Preço + Prazo testados via curl e retornando:
+- SEDEX (03220): R$ 56,29 · 1 dia
+- PAC (03298): R$ 27,39 · 5 dias
+(origem 60160181 → destino 01310100, 1 kg, 20×15×10 cm)
 
-**Causa provável:** serviços de API não vinculados ao contrato.
-Precisa estar ativo no CWS: Token/API, **38202 (API Preços)**, **38210 (API Prazos)**.
+Ajustes aplicados após o teste ao vivo:
+- Prazo usa **`/prazo/v1/`** (não v3 — a doc estava errada).
+- **vlDeclarado não é enviado** (exige serviço adicional "Valor Declarado",
+  ERP-052); o pcFinal já inclui o seguro automático.
 
-**Ação:** suporte Correios com o req-id de exemplo `dzkwB2NFRInCBSjT5G2pK`
-(user `mcistore`, serviço `token`).
+## Falta: deploy + secrets
 
-## Retomar quando a credencial autenticar
-
-1. `secrets set` com a chave válida + `functions deploy`.
+1. `secrets set` (acima) + `functions deploy`.
 2. Testar: `supabase.functions.invoke('correios-cotacao', { body: { cepOrigem, cepDestino, pesoKg, valorDeclarado } })`
    deve retornar `{ configured: true, resultados: [...] }`.
 3. Validar SEDEX/PAC aparecendo na tela ao lado da Jamef.

@@ -116,7 +116,8 @@ Deno.serve(async (req) => {
     const comprimento = clampDim(params.comprimento, 15, 20);
     const largura = clampDim(params.largura, 10, 15);
     const altura = clampDim(params.altura, 1, 10);
-    const valorDeclarado = Number(params.valorDeclarado) || 0;
+    // Obs.: vlDeclarado NÃO é enviado — exige o serviço adicional "Valor Declarado"
+    // (ERP-052). O pcFinal já inclui o seguro automático (vlSeguroAutomatico).
 
     let token: string;
     try {
@@ -139,7 +140,6 @@ Deno.serve(async (req) => {
                 tpObjeto: '2',
                 comprimento: String(comprimento), largura: String(largura), altura: String(altura),
             });
-            if (valorDeclarado > 0) precoQs.set('vlDeclarado', valorDeclarado.toFixed(2).replace('.', ','));
             if (contrato) precoQs.set('nuContrato', contrato);
             if (dr) precoQs.set('nuDR', dr);
 
@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
 
             const [precoRes, prazoRes] = await Promise.all([
                 fetch(`${CORREIOS_BASE}/preco/v1/nacional/${svc.coProduto}?${precoQs}`, { headers: authHeaders }),
-                fetch(`${CORREIOS_BASE}/prazo/v3/nacional/${svc.coProduto}?${prazoQs}`, { headers: authHeaders }),
+                fetch(`${CORREIOS_BASE}/prazo/v1/nacional/${svc.coProduto}?${prazoQs}`, { headers: authHeaders }),
             ]);
 
             if (!precoRes.ok) {
