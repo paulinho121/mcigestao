@@ -55,12 +55,20 @@ Ajustes aplicados após o teste ao vivo:
 - **vlDeclarado não é enviado** (exige serviço adicional "Valor Declarado",
   ERP-052); o pcFinal já inclui o seguro automático.
 
-## Falta: deploy + secrets
+## DEPLOY — no ar (14/07/2026)
 
-1. `secrets set` (acima) + `functions deploy`.
-2. Testar: `supabase.functions.invoke('correios-cotacao', { body: { cepOrigem, cepDestino, pesoKg, valorDeclarado } })`
-   deve retornar `{ configured: true, resultados: [...] }`.
-3. Validar SEDEX/PAC aparecendo na tela ao lado da Jamef.
+Função publicada no projeto `vqnkopzeysrqzxavaxls` via Dashboard (editor),
+arquivo único `index.ts`, nome `correios-cotacao`. Os 6 secrets `CORREIOS_*`
+definidos em Edge Functions → Secrets. Validado ponta a ponta: a tela `#/frete`
+mostra SEDEX/PAC ao lado da Jamef.
+
+**Pendente para PRODUÇÃO (Vercel):** adicionar a env var `VITE_CORREIOS_ENABLED=true`
+nas configurações do projeto na Vercel e redeploy (sem isso, o card fica oculto
+em produção; no dev local já está no `.env`).
+
+Redeploy futuro: pode ser via Dashboard (colar `index.ts`) ou, com o CLI logado
+na conta dona do projeto, `npx supabase functions deploy correios-cotacao
+--project-ref vqnkopzeysrqzxavaxls`.
 
 ## Próximas fases (pedidas, ainda não feitas)
 
