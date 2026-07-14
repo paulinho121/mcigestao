@@ -5,6 +5,7 @@ import {
     Printer, Share2, Search, X
 } from 'lucide-react';
 import { jamefService, CotacaoResponse } from '../services/jamefService';
+import { correiosService, CorreiosCotacaoResultado } from '../services/correiosService';
 import { inventoryService } from '../services/inventoryService';
 import { Product } from '../types';
 
@@ -289,6 +290,112 @@ function ResultCard({ result, origem, cepDestino, peso, valor, volumes }: Result
     );
 }
 
+// ── Card de resultado dos Correios (um ou mais serviços: SEDEX, PAC…) ─────────
+function CorreiosResultCard({ resultados, loading, error }: {
+    resultados: CorreiosCotacaoResultado[] | null;
+    loading: boolean;
+    error: string | null;
+}) {
+    const validos = (resultados || []).filter(r => !r.erro && r.valorFrete > 0);
+    // Ordena do mais barato ao mais caro
+    const ordenados = [...validos].sort((a, b) => a.valorFrete - b.valorFrete);
+
+    return (
+        <div className="relative overflow-hidden bg-white dark:bg-gradient-to-br dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl p-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <div className="absolute -top-12 -right-12 w-56 h-56 bg-yellow-400/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 space-y-6">
+                {/* Header */}
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div className="w-10 h-10 rounded-2xl bg-yellow-400/15 flex items-center justify-center shrink-0">
+                        <Truck className="w-5 h-5 text-yellow-500" />
+                    </div>
+                    <div>
+                        <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight">Correios</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Preço + Prazo · API CWS</p>
+                    </div>
+                </div>
+
+                {loading && (
+                    <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 py-6">
+                        <Loader2 className="w-5 h-5 animate-spin text-yellow-500" />
+                        <span className="text-sm font-bold">Consultando serviços dos Correios...</span>
+                    </div>
+                )}
+
+                {!loading && error && (
+                    <div className="flex items-start gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-2xl">
+                        <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                        <p className="text-sm text-red-500/90 font-medium">{error}</p>
+                    </div>
+                )}
+
+                {!loading && !error && ordenados.length === 0 && (
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium py-4">
+                        Nenhum serviço dos Correios retornou cotação para este trajeto/peso.
+                    </p>
+                )}
+
+                {!loading && ordenados.length > 0 && (
+                    <div className="space-y-3">
+                        {ordenados.map((r, idx) => {
+                            const prev = r.dataPrevisaoEntrega
+                                ? new Date(r.dataPrevisaoEntrega).toLocaleDateString('pt-BR')
+                                : null;
+                            return (
+                                <div key={r.coProduto}
+                                    className={`flex items-center gap-4 p-4 rounded-2xl border ${
+                                        idx === 0
+                                            ? 'bg-emerald-500/5 border-emerald-500/30'
+                                            : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10'
+                                    }`}
+                                >
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-sm font-black text-slate-900 dark:text-white">{r.servico}</span>
+                                            {idx === 0 && (
+                                                <span className="text-[9px] font-black px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                                                    Mais barato
+                                                </span>
+                                            )}
+                                            <span className="text-[10px] font-bold text-slate-400">cód. {r.coProduto}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                            <Clock className="w-3 h-3" />
+                                            {r.prazoEntrega > 0 ? `${r.prazoEntrega} dia(s) útil(eis)` : 'prazo a consultar'}
+                                            {prev && <span>· previsão {prev}</span>}
+                                            {r.entregaSabado && <span className="text-emerald-500">· entrega sábado</span>}
+                                        </div>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                        <div className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight whitespace-nowrap">
+                                            {formatCurrency(r.valorFrete)}
+                                        </div>
+                                        {r.vlSeguro && r.vlSeguro > 0 && (
+                                            <div className="text-[10px] text-slate-400">inclui seguro {formatCurrency(r.vlSeguro)}</div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* Serviços com erro individual */}
+                {!loading && (resultados || []).some(r => r.erro) && (
+                    <div className="space-y-1 pt-1">
+                        {(resultados || []).filter(r => r.erro).map(r => (
+                            <p key={r.coProduto} className="text-[10px] text-amber-500 font-medium">
+                                {r.servico} (cód. {r.coProduto}): {r.erro}
+                            </p>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export function CotacaoFrete() {
     const [filialIdx, setFilialIdx] = useState(0);
     const [filialCodigo, setFilialCodigo] = useState(FILIAIS[0].filialCodigo);
@@ -305,6 +412,11 @@ export function CotacaoFrete() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<CotacaoResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Correios (cotação em paralelo à Jamef)
+    const [correiosResults, setCorreiosResults] = useState<CorreiosCotacaoResultado[] | null>(null);
+    const [correiosError, setCorreiosError] = useState<string | null>(null);
+    const correiosAtivo = correiosService.credenciaisConfiguradas();
 
     // Busca de produtos para preenchimento automático de peso/medidas
     const [produtoQuery, setProdutoQuery] = useState('');
@@ -396,30 +508,54 @@ export function CotacaoFrete() {
         setLoading(true);
         setError(null);
         setResult(null);
+        setCorreiosResults(null);
+        setCorreiosError(null);
 
-        try {
-            const res = await jamefService.cotacaoFrete({
-                cnpjRemetente: filial.cnpj,
+        const pesoNum = parseFloat(peso);
+        const valorNum = parseFloat(valor.replace(',', '.'));
+        const alturaNum = altura ? parseFloat(altura) : undefined;
+        const larguraNum = largura ? parseFloat(largura) : undefined;
+        const comprimentoNum = comprimento ? parseFloat(comprimento) : undefined;
+
+        // Jamef e Correios cotam em paralelo; a falha de um não bloqueia o outro
+        const jamefPromise = jamefService.cotacaoFrete({
+            cnpjRemetente: filial.cnpj,
+            cepOrigem: filial.cep,
+            cepDestino,
+            filialOrigem: filialCodigo.trim(),
+            peso: pesoNum,
+            valorMercadoria: valorNum,
+            volumes: parseInt(volumes) || 1,
+            altura: alturaNum,
+            largura: larguraNum,
+            comprimento: comprimentoNum,
+        })
+            .then(setResult)
+            .catch((e: any) => setError(e.message || 'Erro ao calcular frete Jamef. Verifique os dados e tente novamente.'));
+
+        const correiosPromise = correiosAtivo
+            ? correiosService.cotar({
                 cepOrigem: filial.cep,
                 cepDestino,
-                filialOrigem: filialCodigo.trim(),
-                peso: parseFloat(peso),
-                valorMercadoria: parseFloat(valor.replace(',', '.')),
-                volumes: parseInt(volumes) || 1,
-                altura: altura ? parseFloat(altura) : undefined,
-                largura: largura ? parseFloat(largura) : undefined,
-                comprimento: comprimento ? parseFloat(comprimento) : undefined,
-            });
-            setResult(res);
-        } catch (e: any) {
-            setError(e.message || 'Erro ao calcular frete. Verifique os dados e tente novamente.');
-        }
+                pesoKg: pesoNum,
+                valorDeclarado: valorNum,
+                altura: alturaNum,
+                largura: larguraNum,
+                comprimento: comprimentoNum,
+            })
+                .then(setCorreiosResults)
+                .catch((e: any) => setCorreiosError(e.message || 'Erro ao consultar Correios.'))
+            : Promise.resolve();
+
+        await Promise.allSettled([jamefPromise, correiosPromise]);
         setLoading(false);
     };
 
     const handleReset = () => {
         setResult(null);
         setError(null);
+        setCorreiosResults(null);
+        setCorreiosError(null);
         setCepDestino('');
         setPeso('');
         setValor('');
@@ -690,7 +826,7 @@ export function CotacaoFrete() {
                     </form>
                 </div>
 
-                {/* Resultado */}
+                {/* Resultado Jamef */}
                 {result && (
                     <ResultCard
                         result={result}
@@ -699,6 +835,15 @@ export function CotacaoFrete() {
                         peso={peso}
                         valor={valor}
                         volumes={volumes}
+                    />
+                )}
+
+                {/* Resultado Correios (paralelo à Jamef) */}
+                {correiosAtivo && (loading || correiosResults || correiosError) && (
+                    <CorreiosResultCard
+                        resultados={correiosResults}
+                        loading={loading && !correiosResults && !correiosError}
+                        error={correiosError}
                     />
                 )}
 
