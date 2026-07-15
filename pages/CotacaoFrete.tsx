@@ -14,7 +14,7 @@ import { Product } from '../types';
 const FILIAIS: { label: string; cnpj: string; cep: string; cidade: string; filialCodigo: string }[] = [
     { label: 'SC — Santa Catarina', cnpj: '05502390000200', cep: '89218000', cidade: 'Joinville/SC',  filialCodigo: 'JVL' },
     { label: 'SP — São Paulo',      cnpj: '05502390000383', cep: '01310100', cidade: 'São Paulo/SP',  filialCodigo: 'SPA' },
-    { label: 'CE — Ceará',          cnpj: '05502390000111', cep: '60160181', cidade: 'Fortaleza/CE',  filialCodigo: 'FZA' },
+    { label: 'CE — Ceará',          cnpj: '05502390000111', cep: '60025001', cidade: 'Fortaleza/CE',  filialCodigo: 'FZA' },
 ];
 
 function formatCurrency(v: number) {

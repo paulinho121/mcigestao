@@ -23,6 +23,7 @@ import { PreVenda } from './pages/PreVenda';
 import { PedidosCD } from './pages/PedidosCD';
 import { MeusPedidos } from './pages/MeusPedidos';
 import { CotacaoFrete } from './pages/CotacaoFrete';
+import { PrePostagem } from './pages/PrePostagem';
 import { Etiquetas } from './pages/Etiquetas';
 import { EtiquetaPersonalizada } from './pages/EtiquetaPersonalizada';
 import { PreSaleAlertBanner } from './components/PreSaleAlertBanner';
@@ -36,7 +37,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 import { CircleMenu, CircleMenuItem } from './components/ui/circle-menu';
 
-type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas' | 'etiqueta_personalizada' | 'marketing_sc';
+type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas' | 'etiqueta_personalizada' | 'marketing_sc' | 'prepostagem';
 
 function BackgroundMesh() {
   return null;
@@ -236,6 +237,7 @@ function App() {
       subItems: [
         { label: 'Rastreamento', icon: <Truck size={20} />, onClick: () => navigate('tracking'), colorClass: 'bg-violet-600 hover:bg-violet-700' },
         { label: 'Cotação Frete', icon: <Calculator size={20} />, onClick: () => navigate('cotacao_frete'), colorClass: 'bg-violet-500 hover:bg-violet-600' },
+        { label: 'Pré-Postagem', icon: <Package size={20} />, onClick: () => navigate('prepostagem'), colorClass: 'bg-amber-500 hover:bg-amber-600' },
         { label: 'Etiquetas API', icon: <Tag size={20} />, onClick: () => navigate('etiquetas'), colorClass: 'bg-violet-700 hover:bg-violet-800' },
         { label: 'Gerar Etiqueta', icon: <Package size={20} />, onClick: () => navigate('etiqueta_personalizada'), colorClass: 'bg-violet-800 hover:bg-violet-900' },
       ],
@@ -451,6 +453,7 @@ function App() {
           {activeTab === 'pedidos_cd' && isMaster && <PedidosCD isMaster={isMaster} userEmail={user.email} />}
           {activeTab === 'meus_pedidos' && <MeusPedidos userEmail={user.email} userName={user.name} />}
           {activeTab === 'cotacao_frete' && <CotacaoFrete />}
+          {activeTab === 'prepostagem' && <PrePostagem />}
           {activeTab === 'etiquetas' && <Etiquetas />}
           {activeTab === 'etiqueta_personalizada' && <EtiquetaPersonalizada />}
           {activeTab === 'marketing_sc' && isMarketing && <MarketingSC />}
