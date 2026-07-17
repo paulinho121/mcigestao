@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
     Calculator, Truck, Clock, Package, MapPin, DollarSign,
     ArrowRight, Loader2, AlertCircle, CheckCircle2, ChevronDown, Info, RotateCcw,
-    Printer, Share2, Search, X
+    Printer, Share2, Search, X, Plus, Boxes
 } from 'lucide-react';
 import { jamefService, CotacaoResponse } from '../services/jamefService';
 import { correiosService, CorreiosCotacaoResultado } from '../services/correiosService';
@@ -412,6 +412,12 @@ export function CotacaoFrete() {
     const [largura, setLargura] = useState('');
     const [comprimento, setComprimento] = useState('');
     const [showDimensoes, setShowDimensoes] = useState(false);
+
+    // Múltiplos volumes com dimensões próprias — cubagem precisa na Jamef
+    // (cada linha vira uma entrada no array "cubagem" da API, com sua qtd/medidas)
+    const [volumesCubagem, setVolumesCubagem] = useState<
+        { quantidade: string; altura: string; largura: string; comprimento: string }[]
+    >([{ quantidade: '1', altura: '', largura: '', comprimento: '' }]);
     const [loading, setLoading] = useState(false);
     const [jamefResults, setJamefResults] = useState<CotacaoResponse[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -483,6 +489,38 @@ export function CotacaoFrete() {
         setItens(prev => prev.filter(i => i.product.id !== id));
     };
 
+    // ── Volumes com dimensões (múltiplos) ──────────────────────────────────────
+    const addVolumeRow = () => setVolumesCubagem(prev => [...prev, { quantidade: '1', altura: '', largura: '', comprimento: '' }]);
+    const removeVolumeRow = (idx: number) => setVolumesCubagem(prev => prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx));
+    const updateVolumeRow = (idx: number, patch: Partial<{ quantidade: string; altura: string; largura: string; comprimento: string }>) =>
+        setVolumesCubagem(prev => prev.map((r, i) => i === idx ? { ...r, ...patch } : r));
+
+    // Só considera linhas totalmente preenchidas (qtd + as 3 medidas)
+    const volumesValidos = volumesCubagem
+        .map(v => ({
+            quantidade: parseInt(v.quantidade) || 0,
+            altura: parseFloat(v.altura) || 0,
+            largura: parseFloat(v.largura) || 0,
+            comprimento: parseFloat(v.comprimento) || 0,
+        }))
+        .filter(v => v.quantidade > 0 && v.altura > 0 && v.largura > 0 && v.comprimento > 0);
+
+    const qtdVolumesTotal = volumesValidos.reduce((s, v) => s + v.quantidade, 0);
+    const metragemCubicaTotal = volumesValidos.reduce((s, v) => s + (v.altura * v.largura * v.comprimento * v.quantidade) / 1_000_000, 0);
+    // Fator rodoviário padrão (mesma referência já usada como estimativa no jamefService)
+    const pesoCubadoEstimado = metragemCubicaTotal * 300;
+
+    // Sincroniza altura/largura/comprimento (maior medida) e volumes(qtd) a partir
+    // da lista — esses agregados alimentam a Correios, que não cota multi-volume.
+    useEffect(() => {
+        if (volumesValidos.length === 0) return;
+        setAltura(String(Math.max(...volumesValidos.map(v => v.altura))));
+        setLargura(String(Math.max(...volumesValidos.map(v => v.largura))));
+        setComprimento(String(Math.max(...volumesValidos.map(v => v.comprimento))));
+        setVolumes(String(qtdVolumesTotal));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [volumesCubagem]);
+
     // Lookup automático da filial Jamef pelo CEP de origem ao trocar a filial
     useEffect(() => {
         let cancelled = false;
@@ -539,7 +577,11 @@ export function CotacaoFrete() {
             try { await jamefService.login(); } catch { /* usa cache/segue */ }
             const modalidades: ('1' | '2')[] = ['1', '2'];
             const settled = await Promise.allSettled(
-                modalidades.map(tipoTransporte => jamefService.cotacaoFrete({ ...baseParams, tipoTransporte }))
+                modalidades.map(tipoTransporte => jamefService.cotacaoFrete({
+                    ...baseParams,
+                    tipoTransporte,
+                    volumesCubagem: volumesValidos.length > 0 ? volumesValidos : undefined,
+                }))
             );
             const ok = settled
                 .filter((s): s is PromiseFulfilledResult<CotacaoResponse> => s.status === 'fulfilled')
@@ -584,6 +626,7 @@ export function CotacaoFrete() {
         setItens([]);
         setProdutoQuery('');
         setProdutoResults([]);
+        setVolumesCubagem([{ quantidade: '1', altura: '', largura: '', comprimento: '' }]);
     };
 
     return (
@@ -782,23 +825,68 @@ export function CotacaoFrete() {
                                 <InputField label="Volumes (qtd)" value={volumes} onChange={setVolumes} placeholder="1" type="number" />
                             </div>
 
-                            {/* Dimensões opcionais */}
-                            <button
-                                type="button"
-                                onClick={() => setShowDimensoes(v => !v)}
-                                className="flex items-center gap-2 text-xs font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 transition-colors"
-                            >
-                                <ChevronDown className={`w-4 h-4 transition-transform ${showDimensoes ? 'rotate-180' : ''}`} />
-                                {showDimensoes ? 'Ocultar dimensões' : 'Adicionar dimensões (opcional — melhora precisão)'}
-                            </button>
+                            {/* Volumes com dimensões — múltiplos, cubagem precisa na Jamef */}
+                            <div className="space-y-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowDimensoes(v => !v)}
+                                    className="flex items-center gap-2 text-xs font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 transition-colors"
+                                >
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${showDimensoes ? 'rotate-180' : ''}`} />
+                                    {showDimensoes ? 'Ocultar volumes e dimensões' : 'Adicionar volumes e dimensões (opcional — melhora precisão)'}
+                                </button>
 
-                            {showDimensoes && (
-                                <div className="grid grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <InputField label="Altura (cm)" value={altura} onChange={setAltura} placeholder="Ex: 30" type="number" />
-                                    <InputField label="Largura (cm)" value={largura} onChange={setLargura} placeholder="Ex: 40" type="number" />
-                                    <InputField label="Comprimento (cm)" value={comprimento} onChange={setComprimento} placeholder="Ex: 50" type="number" />
-                                </div>
-                            )}
+                                {showDimensoes && (
+                                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                                            Vários volumes de tamanhos diferentes? Adicione uma linha para cada — a Jamef calcula a cubagem de cada um.
+                                        </p>
+
+                                        {volumesCubagem.map((v, i) => (
+                                            <div key={i} className="space-y-2.5 p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                    <InputField label="Qtd" value={v.quantidade} onChange={val => updateVolumeRow(i, { quantidade: val })} placeholder="1" type="number" />
+                                                    <InputField label="Altura (cm)" value={v.altura} onChange={val => updateVolumeRow(i, { altura: val })} placeholder="Ex: 30" type="number" />
+                                                    <InputField label="Largura (cm)" value={v.largura} onChange={val => updateVolumeRow(i, { largura: val })} placeholder="Ex: 40" type="number" />
+                                                    <InputField label="Compr. (cm)" value={v.comprimento} onChange={val => updateVolumeRow(i, { comprimento: val })} placeholder="Ex: 50" type="number" />
+                                                </div>
+                                                {volumesCubagem.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeVolumeRow(i)}
+                                                        className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-red-500 transition-colors"
+                                                    >
+                                                        <X className="w-3.5 h-3.5" /> Remover este volume
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+
+                                        <button
+                                            type="button"
+                                            onClick={addVolumeRow}
+                                            className="flex items-center gap-2 text-xs font-bold text-brand-600 hover:text-brand-700 dark:text-brand-400 transition-colors"
+                                        >
+                                            <Plus className="w-4 h-4" /> Adicionar volume
+                                        </button>
+
+                                        {metragemCubicaTotal > 0 && (
+                                            <div className="flex items-center justify-between gap-3 p-4 bg-brand-500/5 border border-brand-500/15 rounded-2xl">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <Boxes className="w-5 h-5 text-brand-500 shrink-0" />
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-black text-slate-700 dark:text-slate-300">Peso cubado estimado</p>
+                                                        <p className="text-[10px] text-slate-400 truncate">{qtdVolumesTotal} volume(s) · {metragemCubicaTotal.toFixed(3)} m³ · fator rodoviário</p>
+                                                    </div>
+                                                </div>
+                                                <p className="text-lg font-black text-brand-600 dark:text-brand-400 shrink-0">
+                                                    {pesoCubadoEstimado.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Erro */}

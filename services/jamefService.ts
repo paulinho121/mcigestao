@@ -19,6 +19,15 @@ export interface JamefTrackingResponse {
     item?: JamefTrackingItem;
 }
 
+// Um volume/caixa com suas próprias dimensões e quantidade — a Jamef aceita
+// vários itens no array "cubagem", cada um com medidas diferentes.
+export interface VolumeCubagem {
+    quantidade: number;
+    altura: number;
+    largura: number;
+    comprimento: number;
+}
+
 export interface CotacaoRequest {
     cnpjRemetente: string;
     cepOrigem: string;
@@ -27,6 +36,9 @@ export interface CotacaoRequest {
     peso: number;
     valorMercadoria: number;
     volumes: number;
+    /** Lista de volumes com dimensões próprias (múltiplas caixas diferentes).
+     *  Quando presente, substitui altura/largura/comprimento no cálculo de cubagem. */
+    volumesCubagem?: VolumeCubagem[];
     altura?: number;
     largura?: number;
     comprimento?: number;
@@ -258,11 +270,15 @@ export const jamefService = {
 
         const cnpjLimpo = params.cnpjRemetente.replace(/\D/g, '');
 
-        // Metragem cúbica (m³): calculada a partir das dimensões informadas.
+        const temVolumesCubagem = !!params.volumesCubagem && params.volumesCubagem.length > 0;
+
+        // Metragem cúbica (m³): soma das dimensões de cada volume informado.
         // Sem dimensões, usa fator padrão de cubagem rodoviária (300 kg/m³) como estimativa.
-        const metragemCubica = (params.altura && params.largura && params.comprimento)
-            ? (params.altura * params.largura * params.comprimento * params.volumes) / 1_000_000
-            : params.peso / 300;
+        const metragemCubica = temVolumesCubagem
+            ? params.volumesCubagem!.reduce((soma, v) => soma + (v.altura * v.largura * v.comprimento * v.quantidade) / 1_000_000, 0)
+            : (params.altura && params.largura && params.comprimento)
+                ? (params.altura * params.largura * params.comprimento * params.volumes) / 1_000_000
+                : params.peso / 300;
 
         const body: Record<string, any> = {
             cnpjRemetente: cnpjLimpo,
@@ -281,7 +297,14 @@ export const jamefService = {
         };
 
         body.filialOrigem = params.filialOrigem;
-        if (params.altura && params.largura && params.comprimento) {
+        if (temVolumesCubagem) {
+            body.cubagem = params.volumesCubagem!.map(v => ({
+                altura: v.altura,
+                largura: v.largura,
+                comprimento: v.comprimento,
+                volumes: v.quantidade,
+            }));
+        } else if (params.altura && params.largura && params.comprimento) {
             body.cubagem = [{
                 altura: params.altura,
                 largura: params.largura,
