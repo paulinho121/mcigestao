@@ -102,13 +102,19 @@ Deno.serve(async (req) => {
     }
 
     try {
-        const qs = new URLSearchParams();
+        // resultado=T força "Todos os Eventos" — sem isso, a consulta em lote
+        // (múltiplos codigosObjetos) volta só o último evento por padrão.
+        const qs = new URLSearchParams({ resultado: 'T' });
         codigos.forEach(c => qs.append('codigosObjetos', c));
         const url = codigos.length === 1
-            ? `${BASE}/srorastro/v1/objetos/${codigos[0]}`
+            ? `${BASE}/srorastro/v1/objetos/${codigos[0]}?resultado=T`
             : `${BASE}/srorastro/v1/objetos?${qs}`;
 
-        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } });
+        // Accept-Language explícito: o runtime do Deno envia um header padrão que
+        // a API dos Correios rejeita (SRO-018 — só aceita pt-BR, en ou es-ES exatos).
+        const res = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json', 'Accept-Language': 'pt-BR' },
+        });
         if (!res.ok) {
             const txt = await res.text().catch(() => '');
             let msg = txt.slice(0, 300);
