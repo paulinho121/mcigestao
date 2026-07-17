@@ -682,7 +682,7 @@ export const Tracking: React.FC<TrackingProps> = ({
     }
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] pb-20 transition-colors duration-500 font-sans selection:bg-brand-500/30 selection:text-brand-900">
+        <div className="relative min-h-screen bg-[#f8fafc] dark:bg-[#020617] pb-20 transition-colors duration-500 font-sans selection:bg-brand-500/30 selection:text-brand-900">
             {/* Tabs — só para usuários internos */}
             {!isPublic && (
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex gap-1 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md p-1 rounded-2xl shadow-sm">
