@@ -352,8 +352,16 @@ function CorreiosRastreio() {
 
     const buscar = async (e: React.FormEvent) => {
         e.preventDefault();
-        const codigos = input.split(/[\s,;]+/).map(c => c.trim()).filter(Boolean);
-        if (codigos.length === 0) { setError('Informe ao menos um código de rastreio.'); return; }
+        // Objetos dos Correios seguem o padrão UPU S10: 2 letras + 9 dígitos + 2 letras
+        // (ex.: AD687837723BR). Removemos todo espaço antes de casar o padrão, para
+        // aceitar tanto "AD687837723BR" quanto "AD 687 837 723 BR" digitado com espaços,
+        // sem quebrar um único código em fragmentos por causa dos espaços internos.
+        const semEspacos = input.toUpperCase().replace(/\s+/g, '');
+        const codigos = semEspacos.match(/[A-Z]{2}\d{9}[A-Z]{2}/g) ?? [];
+        if (codigos.length === 0) {
+            setError('Não foi possível reconhecer nenhum código de rastreio válido. Formato esperado: 2 letras + 9 números + 2 letras (ex.: AD687837723BR).');
+            return;
+        }
 
         setLoading(true); setError(null); setObjetos([]); setBuscou(true);
         try {
