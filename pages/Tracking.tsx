@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { jamefService, JamefTrackingItem } from '../services/jamefService';
+import { correiosRastroService, CorreiosObjetoRastreado } from '../services/correiosRastroService';
 import { detectFilialFromNF } from '../config/filiais';
 
 // ─── Gerar Link de Rastreio ───────────────────────────────────────────────────
@@ -271,6 +272,162 @@ function GerarLink() {
     );
 }
 
+// ─── Rastreio Correios (SEDEX/PAC) ─────────────────────────────────────────────
+
+function correiosStatusColor(entregue: boolean, situacao: string) {
+    if (entregue) return 'text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20';
+    const s = situacao.toUpperCase();
+    if (s.includes('SAIU PARA ENTREGA')) return 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/20';
+    if (s.includes('DEVOLU') || s.includes('PROBLEMA') || s.includes('EXTRAVIA')) return 'text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20';
+    return 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
+}
+
+function CorreiosObjetoCard({ objeto }: { objeto: CorreiosObjetoRastreado }) {
+    const [expanded, setExpanded] = useState(true);
+    const prev = objeto.dataPrevisao ? new Date(objeto.dataPrevisao).toLocaleDateString('pt-BR') : null;
+
+    return (
+        <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-white dark:border-white/5 overflow-hidden shadow-2xl">
+            <div className="p-6 sm:p-8 border-b border-slate-100 dark:border-slate-900 flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500/15 flex items-center justify-center shrink-0">
+                        <Package className="w-6 h-6 text-amber-500" />
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">{objeto.codigoObjeto}</h3>
+                            {objeto.categoria && (
+                                <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 uppercase tracking-wider">{objeto.categoria}</span>
+                            )}
+                        </div>
+                        {prev && <p className="text-xs text-slate-400 font-bold mt-0.5">Previsão de entrega: {prev}</p>}
+                    </div>
+                </div>
+                <div className={`inline-flex px-4 py-2 rounded-full text-xs font-black border uppercase tracking-wider ${correiosStatusColor(objeto.entregue, objeto.situacaoAtual)}`}>
+                    {objeto.situacaoAtual}
+                </div>
+            </div>
+
+            {objeto.eventos.length === 0 ? (
+                <p className="text-sm text-slate-400 font-medium p-8">Nenhum evento encontrado para este objeto ainda.</p>
+            ) : (
+                <button type="button" onClick={() => setExpanded(v => !v)} className="w-full flex items-center justify-between px-6 sm:px-8 py-4 text-left">
+                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Histórico ({objeto.eventos.length})</span>
+                    {expanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </button>
+            )}
+
+            {expanded && objeto.eventos.length > 0 && (
+                <div className="px-6 sm:px-8 pb-8 space-y-0">
+                    {objeto.eventos.map((ev, i) => (
+                        <div key={i} className="flex gap-4">
+                            <div className="flex flex-col items-center shrink-0">
+                                <div className={`w-3 h-3 rounded-full mt-1.5 ${i === 0 ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'}`} />
+                                {i < objeto.eventos.length - 1 && <div className="w-0.5 flex-1 bg-slate-200 dark:bg-slate-800 my-1" />}
+                            </div>
+                            <div className="pb-6 min-w-0 flex-1">
+                                <p className="text-sm font-black text-slate-800 dark:text-white">{ev.descricao}</p>
+                                {ev.detalhe && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{ev.detalhe}</p>}
+                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                    <span className="text-[11px] font-bold text-slate-400">
+                                        {new Date(ev.dataHora).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    {ev.cidade && <span className="text-[11px] font-bold text-slate-400">· {ev.cidade}{ev.uf ? `/${ev.uf}` : ''}</span>}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function CorreiosRastreio() {
+    const [input, setInput] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [objetos, setObjetos] = useState<CorreiosObjetoRastreado[]>([]);
+    const [error, setError] = useState<string | null>(null);
+    const [buscou, setBuscou] = useState(false);
+
+    const buscar = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const codigos = input.split(/[\s,;]+/).map(c => c.trim()).filter(Boolean);
+        if (codigos.length === 0) { setError('Informe ao menos um código de rastreio.'); return; }
+
+        setLoading(true); setError(null); setObjetos([]); setBuscou(true);
+        try {
+            const r = await correiosRastroService.rastrear(codigos);
+            if (r.erro) setError(r.erro); else setObjetos(r.objetos);
+        } catch (e: any) {
+            setError(e.message || 'Falha ao consultar rastreio dos Correios.');
+        }
+        setLoading(false);
+    };
+
+    return (
+        <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] pb-20 transition-colors duration-500 font-sans">
+            <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+                <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-500/5 dark:bg-amber-500/10 rounded-full blur-[120px]" />
+                <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-500/5 dark:bg-brand-500/10 rounded-full blur-[120px]" />
+            </div>
+
+            <div className="relative pt-12 pb-24 sm:pt-16 sm:pb-32 px-4 text-center overflow-hidden">
+                <div className="max-w-3xl mx-auto relative z-10">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/20 rounded-full text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest mb-8">
+                        <Package className="w-3.5 h-3.5" /> Correios · SEDEX / PAC
+                    </div>
+                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tighter mb-4 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-600 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">
+                        Rastreio <span className="text-amber-500 italic font-medium">Correios</span>
+                    </h1>
+                    <p className="text-slate-500 dark:text-slate-400 text-base sm:text-lg max-w-xl mx-auto leading-relaxed font-medium opacity-80">
+                        Digite um ou mais códigos de objeto (ex.: AD687837723BR) para ver o histórico de entrega.
+                    </p>
+                </div>
+            </div>
+
+            <main className="max-w-2xl mx-auto px-4 -mt-16 sm:-mt-24 relative z-20 space-y-6">
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] dark:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)] border border-white dark:border-white/5 p-8 sm:p-10">
+                    <form onSubmit={buscar} className="space-y-5">
+                        <div className="relative group">
+                            <Package className="absolute left-6 top-6 w-6 h-6 text-slate-300 dark:text-slate-600 group-focus-within:text-amber-500 transition-colors" />
+                            <textarea
+                                value={input} onChange={e => setInput(e.target.value)}
+                                placeholder="AD687837723BR&#10;Vários códigos: separe por vírgula, espaço ou linha"
+                                rows={2}
+                                autoFocus
+                                className="w-full pl-16 pr-6 py-5 bg-slate-50 dark:bg-slate-950 border-2 border-transparent dark:border-slate-800/50 rounded-2xl focus:border-amber-500/40 focus:bg-white dark:focus:bg-slate-900 focus:ring-[12px] focus:ring-amber-500/5 transition-all outline-none text-lg font-bold dark:text-white dark:placeholder-slate-700 shadow-sm tracking-tight resize-none"
+                            />
+                        </div>
+                        <button type="submit" disabled={loading || !input.trim()}
+                            className="group relative w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] transition-all duration-300 overflow-hidden active:scale-[0.97] bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-xl shadow-amber-500/20">
+                            {loading
+                                ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /><span>Consultando...</span></>
+                                : <><Search className="w-4 h-4" /><span>Rastrear</span></>
+                            }
+                        </button>
+                    </form>
+
+                    {error && (
+                        <div className="mt-6 p-5 bg-red-500/5 border border-red-500/20 rounded-2xl flex items-start gap-3">
+                            <Warehouse className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                            <p className="text-sm text-red-600 dark:text-red-400 font-medium">{error}</p>
+                        </div>
+                    )}
+                </div>
+
+                {!loading && buscou && !error && objetos.length === 0 && (
+                    <p className="text-center text-sm text-slate-400 font-medium">Nenhum objeto encontrado.</p>
+                )}
+
+                <div className="space-y-6">
+                    {objetos.map(o => <CorreiosObjetoCard key={o.codigoObjeto} objeto={o} />)}
+                </div>
+            </main>
+        </div>
+    );
+}
+
 // Detecção de filial centralizada em config/filiais.ts
 function detectStateFromNF(nf: string): { cnpj: string; label: string } | null {
     const filial = detectFilialFromNF(nf);
@@ -395,7 +552,7 @@ export const Tracking: React.FC<TrackingProps> = ({
     initialDocType,
     isPublic = false,
 }) => {
-    const [activeView, setActiveView] = useState<'rastrear' | 'gerar_link'>('rastrear');
+    const [activeView, setActiveView] = useState<'rastrear' | 'gerar_link' | 'correios'>('rastrear');
     const [document, setDocument] = useState(initialCNPJ || '');
     const docType: 'remetente' | 'destinatario' = initialDocType || 'remetente';
     const [number, setNumber] = useState(initialNF || '');
@@ -486,10 +643,40 @@ export const Tracking: React.FC<TrackingProps> = ({
                                 className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm">
                                 <Link2 className="w-4 h-4" /> Gerar Link
                             </button>
+                            <button onClick={() => setActiveView('correios')}
+                                className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                                <Package className="w-4 h-4" /> Correios
+                            </button>
                         </div>
                     </div>
                 )}
                 <GerarLink />
+            </>
+        );
+    }
+
+    if (activeView === 'correios') {
+        return (
+            <>
+                {!isPublic && (
+                    <div className="sticky top-0 z-30 flex justify-center pt-4 pb-2 bg-[#f8fafc]/80 dark:bg-[#020617]/80 backdrop-blur-md">
+                        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl shadow-sm">
+                            <button onClick={() => setActiveView('rastrear')}
+                                className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                                <Search className="w-4 h-4" /> Rastrear
+                            </button>
+                            <button onClick={() => setActiveView('gerar_link')}
+                                className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                                <Link2 className="w-4 h-4" /> Gerar Link
+                            </button>
+                            <button onClick={() => setActiveView('correios')}
+                                className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm">
+                                <Package className="w-4 h-4" /> Correios
+                            </button>
+                        </div>
+                    </div>
+                )}
+                <CorreiosRastreio />
             </>
         );
     }
@@ -506,6 +693,10 @@ export const Tracking: React.FC<TrackingProps> = ({
                     <button onClick={() => setActiveView('gerar_link')}
                         className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                         <Link2 className="w-4 h-4" /> Gerar Link
+                    </button>
+                    <button onClick={() => setActiveView('correios')}
+                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                        <Package className="w-4 h-4" /> Correios
                     </button>
                 </div>
             )}
