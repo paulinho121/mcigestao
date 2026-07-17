@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
     Package, User, Truck, Loader2, AlertCircle, CheckCircle2,
-    Search, X, FileText, Download, Send, Copy, RotateCcw, Building2
+    Search, X, FileText, Download, Send, Copy, RotateCcw, Building2, Printer, Inbox
 } from 'lucide-react';
-import { correiosPrepostagemService, PessoaPP, ItemDeclaracao, CriarPrePostagemResult } from '../services/correiosPrepostagemService';
+import { correiosPrepostagemService, PessoaPP, ItemDeclaracao, CriarPrePostagemResult, PrePostagemItem, StatusPrePostagem } from '../services/correiosPrepostagemService';
 import { inventoryService } from '../services/inventoryService';
 import { Product } from '../types';
 
@@ -105,7 +105,159 @@ function PessoaForm({ titulo, icon, pessoa, setPessoa, comEmail }: {
     );
 }
 
+// ── Consultar pré-postagens → escolher → imprimir etiquetas ───────────────────
+function ConsultarImprimir() {
+    const hoje = new Date().toISOString().slice(0, 10);
+    const mesAtras = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+
+    const [status, setStatus] = useState<StatusPrePostagem>('PREPOSTADO');
+    const [dataInicial, setDataInicial] = useState(mesAtras);
+    const [dataFinal, setDataFinal] = useState(hoje);
+    const [lista, setLista] = useState<PrePostagemItem[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [erro, setErro] = useState<string | null>(null);
+    const [sel, setSel] = useState<Set<string>>(new Set());
+    const [imprimindo, setImprimindo] = useState(false);
+    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+    const [msg, setMsg] = useState<string | null>(null);
+
+    const buscar = async () => {
+        setLoading(true); setErro(null); setLista([]); setSel(new Set()); setPdfUrl(null); setMsg(null);
+        try {
+            const r = await correiosPrepostagemService.listar({ status, dataInicial, dataFinal, size: 100 });
+            if (r.erro) setErro(r.erro); else setLista(r.itens);
+        } catch (e: any) { setErro(e.message || 'Falha ao consultar pré-postagens.'); }
+        setLoading(false);
+    };
+
+    useEffect(() => { buscar(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+    const toggle = (id: string) => setSel(p => {
+        const n = new Set(p);
+        if (n.has(id)) n.delete(id); else n.add(id);
+        return n;
+    });
+    const toggleTodos = () => setSel(p => p.size === lista.length ? new Set() : new Set(lista.map(i => i.id)));
+
+    const imprimir = async () => {
+        if (sel.size === 0) return;
+        setImprimindo(true); setMsg(null); setPdfUrl(null);
+        try {
+            // Envia SOMENTE os ids (a API rejeita ids+códigos juntos — PPN-289)
+            const r = await correiosPrepostagemService.gerarRotulo({ idsPrePostagem: [...sel] });
+            if (r.erro) setMsg(r.erro);
+            else if (r.pdfBase64) {
+                const blob = await (await fetch(`data:application/pdf;base64,${r.pdfBase64}`)).blob();
+                const url = URL.createObjectURL(blob);
+                setPdfUrl(url);
+                window.open(url, '_blank'); // abre o PDF já pronto para imprimir
+            } else setMsg(r.msg || 'Rótulo em geração — tente novamente em instantes.');
+        } catch (e: any) { setMsg(e.message || 'Falha ao gerar etiquetas.'); }
+        setImprimindo(false);
+    };
+
+    return (
+        <div className="space-y-5">
+            {/* Filtros */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+                <div className="flex flex-wrap gap-2">
+                    {(['PREPOSTADO', 'POSTADO'] as StatusPrePostagem[]).map(s => (
+                        <button key={s} type="button" onClick={() => setStatus(s)}
+                            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${status === s ? 'bg-brand-600 text-white border-brand-600' : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-brand-400'}`}>
+                            {s === 'PREPOSTADO' ? 'Pré-postadas' : 'Já postadas'}
+                        </button>
+                    ))}
+                </div>
+                <div className="flex flex-wrap items-end gap-3">
+                    <Field label="De" value={dataInicial} onChange={setDataInicial} type="date" className="w-40" />
+                    <Field label="Até" value={dataFinal} onChange={setDataFinal} type="date" className="w-40" />
+                    <button type="button" onClick={buscar} disabled={loading}
+                        className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-800 text-white hover:bg-slate-900 disabled:bg-slate-200 disabled:text-slate-400 inline-flex items-center gap-2">
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Buscar
+                    </button>
+                </div>
+            </div>
+
+            {erro && (
+                <div className="flex items-start gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-2xl">
+                    <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-600 font-medium">{erro}</p>
+                </div>
+            )}
+
+            {/* Lista */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-slate-100 flex-wrap">
+                    <label className="flex items-center gap-2 text-xs font-black text-slate-500 uppercase tracking-widest cursor-pointer">
+                        <input type="checkbox" checked={lista.length > 0 && sel.size === lista.length} onChange={toggleTodos}
+                            className="w-4 h-4 rounded accent-brand-600" />
+                        {sel.size > 0 ? `${sel.size} selecionada(s)` : 'Selecionar todas'}
+                    </label>
+                    <button type="button" onClick={imprimir} disabled={sel.size === 0 || imprimindo}
+                        className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${sel.size === 0 || imprimindo ? 'bg-slate-100 text-slate-400' : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20'}`}>
+                        {imprimindo ? <><Loader2 className="w-4 h-4 animate-spin" /> Gerando...</> : <><Printer className="w-4 h-4" /> Imprimir etiqueta{sel.size > 1 ? 's' : ''}</>}
+                    </button>
+                </div>
+
+                {loading && (
+                    <div className="flex items-center justify-center gap-3 py-14 text-slate-400">
+                        <Loader2 className="w-5 h-5 animate-spin" /> <span className="text-sm font-bold">Consultando Correios...</span>
+                    </div>
+                )}
+
+                {!loading && lista.length === 0 && !erro && (
+                    <div className="flex flex-col items-center py-14 text-center">
+                        <Inbox className="w-10 h-10 text-slate-300 mb-3" />
+                        <p className="text-sm font-bold text-slate-500">Nenhuma pré-postagem no período</p>
+                        <p className="text-xs text-slate-400 mt-1">Ajuste o status ou o intervalo de datas.</p>
+                    </div>
+                )}
+
+                {!loading && lista.map(i => {
+                    const marcada = sel.has(i.id);
+                    return (
+                        <label key={i.id}
+                            className={`flex items-center gap-3 px-5 py-3.5 border-b border-slate-100 last:border-0 cursor-pointer transition-colors ${marcada ? 'bg-brand-500/5' : 'hover:bg-slate-50'}`}>
+                            <input type="checkbox" checked={marcada} onChange={() => toggle(i.id)} className="w-4 h-4 rounded accent-brand-600 shrink-0" />
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-sm font-black text-slate-800">{i.codigoObjeto || '—'}</span>
+                                    <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase tracking-wider">
+                                        {i.codigoServico === '03220' ? 'SEDEX' : i.codigoServico === '03298' ? 'PAC' : i.codigoServico}
+                                    </span>
+                                    {i.descStatusAtual && (
+                                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 uppercase tracking-wider">{i.descStatusAtual}</span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-slate-500 truncate mt-0.5">
+                                    {i.destinatarioNome || 'Destinatário —'}
+                                    {i.destinatarioCidade && ` · ${i.destinatarioCidade}/${i.destinatarioUf}`}
+                                    {i.pesoInformado && ` · ${(Number(i.pesoInformado) / 1000).toLocaleString('pt-BR')} kg`}
+                                </p>
+                            </div>
+                            {i.dataHora && (
+                                <span className="text-[10px] font-bold text-slate-400 shrink-0">
+                                    {new Date(i.dataHora).toLocaleDateString('pt-BR')}
+                                </span>
+                            )}
+                        </label>
+                    );
+                })}
+            </div>
+
+            {msg && <p className="text-xs text-amber-600 font-medium px-1">{msg}</p>}
+            {pdfUrl && (
+                <a href={pdfUrl} download="etiquetas-correios.pdf"
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest bg-emerald-500 hover:bg-emerald-600 text-white">
+                    <Download className="w-4 h-4" /> Baixar PDF das etiquetas
+                </a>
+            )}
+        </div>
+    );
+}
+
 export function PrePostagem() {
+    const [modo, setModo] = useState<'criar' | 'consultar'>('criar');
     const [remetente, setRemetente] = useState<PessoaPP>({ ...EMPTY_PESSOA });
     const [destinatario, setDestinatario] = useState<PessoaPP>({ ...EMPTY_PESSOA });
     const [codigoServico, setCodigoServico] = useState('03220');
@@ -232,11 +384,28 @@ export function PrePostagem() {
                     </div>
                     <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-slate-900">Pré-Postagem</h1>
                     <p className="text-slate-500 text-sm mt-2 max-w-xl mx-auto">
-                        Crie a pré-postagem, obtenha o código de rastreio e gere o rótulo para impressão.
+                        Crie a pré-postagem, obtenha o código de rastreio e imprima as etiquetas.
                     </p>
                 </div>
 
-                {!result && (
+                {/* Seletor de modo */}
+                <div className="flex justify-center">
+                    <div className="inline-flex p-1 bg-slate-100 rounded-2xl gap-1">
+                        {([
+                            { k: 'criar', label: 'Nova Pré-Postagem', icon: <Send className="w-4 h-4" /> },
+                            { k: 'consultar', label: 'Consultar & Imprimir', icon: <Printer className="w-4 h-4" /> },
+                        ] as const).map(m => (
+                            <button key={m.k} type="button" onClick={() => setModo(m.k)}
+                                className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${modo === m.k ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                                {m.icon} {m.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {modo === 'consultar' && <ConsultarImprimir />}
+
+                {modo === 'criar' && !result && (
                     <>
                         {/* Remetente */}
                         <div className="space-y-2">
@@ -330,7 +499,7 @@ export function PrePostagem() {
                 )}
 
                 {/* Resultado */}
-                {result && (
+                {modo === 'criar' && result && (
                     <div className="bg-white rounded-3xl border border-emerald-200 shadow-lg p-8 space-y-6 animate-in fade-in slide-in-from-bottom-4">
                         <div className="flex items-center gap-3">
                             <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 flex items-center justify-center">

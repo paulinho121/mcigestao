@@ -51,6 +51,24 @@ export interface CriarPrePostagemResult {
     prePostagem?: any;
 }
 
+export type StatusPrePostagem = 'PREPOSTADO' | 'POSTADO';
+
+export interface PrePostagemItem {
+    id: string;
+    codigoObjeto?: string;
+    codigoServico?: string;
+    servico?: string;
+    dataHora?: string;
+    statusAtual?: string;
+    descStatusAtual?: string;
+    pesoInformado?: string;
+    numeroNotaFiscal?: string;
+    destinatarioNome?: string;
+    destinatarioCidade?: string;
+    destinatarioUf?: string;
+    remetenteNome?: string;
+}
+
 async function invoke(body: Record<string, any>): Promise<any> {
     if (!supabase) throw new Error('Supabase não configurado.');
     const { data, error } = await supabase.functions.invoke('correios-prepostagem', { body });
@@ -83,8 +101,21 @@ export const correiosPrepostagemService = {
         return invoke({ action: 'criar', ...input });
     },
 
-    /** Gera o rótulo (etiqueta) PDF em base64 */
-    async gerarRotulo(params: { id?: string | number; codigoObjeto?: string }): Promise<{ pdfBase64?: string; idRecibo?: string | number; pendente?: boolean; msg?: string; erro?: string }> {
+    /** Lista pré-postagens por status + intervalo de datas (a API exige ambos) */
+    async listar(params: { status: StatusPrePostagem; dataInicial: string; dataFinal: string; page?: number; size?: number }): Promise<{ itens: PrePostagemItem[]; page?: any; erro?: string }> {
+        const d = await invoke({ action: 'listar', ...params });
+        return { itens: d?.itens ?? [], page: d?.page, erro: d?.erro };
+    },
+
+    /**
+     * Gera o rótulo (etiqueta) PDF em base64.
+     * Aceita várias pré-postagens de uma vez (um PDF com todas as etiquetas).
+     * Atenção (PPN-289): envie ids OU códigos — nunca os dois.
+     */
+    async gerarRotulo(params: {
+        id?: string | number; idsPrePostagem?: string[];
+        codigoObjeto?: string; codigosObjeto?: string[];
+    }): Promise<{ pdfBase64?: string; nome?: string; idRecibo?: string | number; pendente?: boolean; msg?: string; erro?: string }> {
         return invoke({ action: 'rotulo', ...params });
     },
 };

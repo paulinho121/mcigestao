@@ -5,7 +5,9 @@
  * Ações (campo `action` no body):
  *   - "cep":    consulta endereço por CEP (auto-preenche o formulário)
  *   - "criar":  cria a pré-postagem (POST /prepostagem/v1/prepostagens)
- *   - "rotulo": gera o rótulo (etiqueta) PDF da pré-postagem criada
+ *   - "listar": consulta pré-postagens (GET /prepostagem/v2/prepostagens)
+ *               exige status (PREPOSTADO|POSTADO) + dataInicial/dataFinal
+ *   - "rotulo": gera o rótulo (etiqueta) PDF — aceita várias pré-postagens
  *
  * Segredos (Supabase → Edge Functions → Secrets): CORREIOS_USUARIO,
  * CORREIOS_CODIGO_ACESSO, CORREIOS_CARTAO_POSTAGEM, CORREIOS_CONTRATO, CORREIOS_DR.
@@ -128,36 +130,78 @@ async function criar(p: any, token: string) {
     });
 }
 
+// ── Listar pré-postagens ──────────────────────────────────────────────────────
+// GET /prepostagem/v2/prepostagens?status=PREPOSTADO|POSTADO&dataInicial&dataFinal
+// (a API exige status + intervalo de datas; "Filtro insuficiente" sem eles)
+async function listar(p: any, token: string) {
+    const qs = new URLSearchParams({
+        status: p.status === 'POSTADO' ? 'POSTADO' : 'PREPOSTADO',
+        dataInicial: p.dataInicial,
+        dataFinal: p.dataFinal,
+        page: String(p.page ?? 0),
+        size: String(p.size ?? 50),
+    });
+    const res = await fetch(`${BASE}/prepostagem/v2/prepostagens?${qs}`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+    });
+    if (!res.ok) return json({ erro: await erroCorreios(res) }, 400);
+    const d = await res.json();
+    const itens = (d.itens ?? []).map((i: any) => ({
+        id: i.id,
+        codigoObjeto: i.codigoObjeto,
+        codigoServico: i.codigoServico,
+        servico: i.servico?.descricao ?? i.servico,
+        dataHora: i.dataHora,
+        statusAtual: i.statusAtual,
+        descStatusAtual: i.descStatusAtual,
+        pesoInformado: i.pesoInformado,
+        numeroNotaFiscal: i.numeroNotaFiscal,
+        destinatarioNome: i.destinatario?.nome,
+        destinatarioCidade: i.destinatario?.endereco?.cidade,
+        destinatarioUf: i.destinatario?.endereco?.uf,
+        remetenteNome: i.remetente?.nome,
+    }));
+    return json({ itens, page: d.page });
+}
+
 // ── Gerar rótulo (PDF assíncrono) ─────────────────────────────────────────────
+// IMPORTANTE (PPN-289): informar SOMENTE os ids OU somente os códigos — nunca ambos.
 async function rotulo(p: any, token: string) {
-    const idsPrePostagem = p.idsPrePostagem ?? (p.id ? [p.id] : []);
-    const codigosObjeto = p.codigosObjeto ?? (p.codigoObjeto ? [p.codigoObjeto] : []);
+    const ids: string[] = p.idsPrePostagem ?? (p.id ? [p.id] : []);
+    const codigos: string[] = p.codigosObjeto ?? (p.codigoObjeto ? [p.codigoObjeto] : []);
+
+    const payload: Record<string, unknown> = {
+        tipoRotulo: p.tipoRotulo ?? 'P',
+        formatoRotulo: p.formatoRotulo ?? 'ETIQUETA',
+        imprimeRemetente: p.imprimeRemetente ?? 'S',
+        layoutImpressao: p.layoutImpressao ?? 'PADRAO',
+    };
+    if (ids.length) payload.idsPrePostagem = ids;
+    else if (codigos.length) payload.codigosObjeto = codigos;
+    else return json({ erro: 'Informe ao menos uma pré-postagem.' }, 400);
 
     // 1. Solicita geração assíncrona
     const solicita = await fetch(`${BASE}/prepostagem/v1/prepostagens/rotulo/assincrono/pdf`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            codigosObjeto, idsPrePostagem,
-            tipoRotulo: 'P', formatoRotulo: 'ETIQUETA', imprimeRemetente: 'S', layoutImpressao: 'PADRAO',
-        }),
+        body: JSON.stringify(payload),
     });
     if (!solicita.ok) return json({ erro: await erroCorreios(solicita) }, 400);
-    const sol = await solicita.json();
-    const idRecibo = sol.idRecibo ?? sol.id;
+    const idRecibo = (await solicita.json()).idRecibo;
 
-    // 2. Baixa (poll curto — costuma ficar pronto em segundos)
+    // 2. Baixa (fica pronto em poucos segundos)
     for (let i = 0; i < 8; i++) {
         await new Promise(r => setTimeout(r, 1500));
         const dl = await fetch(`${BASE}/prepostagem/v1/prepostagens/rotulo/download/assincrono/${idRecibo}`, {
             headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
         });
-        if (dl.status === 200) {
+        if (dl.ok) {
             const d = await dl.json();
-            if (d.dados || d.pdf) return json({ idRecibo, pdfBase64: d.dados ?? d.pdf });
+            if (d.dados) return json({ idRecibo, nome: d.nome, pdfBase64: d.dados });
+            if (d.mensagem) return json({ erro: d.mensagem }, 400); // ex.: PPN-289
         }
     }
-    return json({ idRecibo, pendente: true, msg: 'Rótulo em geração — tente baixar novamente em instantes.' });
+    return json({ idRecibo, pendente: true, msg: 'Rótulo em geração — tente novamente em instantes.' });
 }
 
 Deno.serve(async (req) => {
@@ -178,8 +222,9 @@ Deno.serve(async (req) => {
         switch (p.action) {
             case 'cep': return await consultarCep(p.cep, token);
             case 'criar': return await criar(p, token);
+            case 'listar': return await listar(p, token);
             case 'rotulo': return await rotulo(p, token);
-            default: return json({ error: 'action inválida (use cep | criar | rotulo)' }, 400);
+            default: return json({ error: 'action inválida (use cep | criar | listar | rotulo)' }, 400);
         }
     } catch (e) {
         return json({ error: (e as Error).message }, 500);
