@@ -119,11 +119,6 @@ function wmsHeaders(token?: string | null): Record<string, string> {
     return h;
 }
 
-// Gera um numeroOrdem numérico baseado nos últimos 8 dígitos do timestamp
-function gerarNumeroOrdem(): number {
-    return parseInt(Date.now().toString().slice(-8), 10);
-}
-
 // ─── Helpers locais ───────────────────────────────────────────────────────────
 
 const STORAGE_KEY = 'cd_orders_local';
@@ -168,80 +163,64 @@ export const escalasoftOrderService = {
         const numeroPedido = generateNumeroPedido();
         const now = new Date();
         const valorTotal = params.produtos.reduce((sum, p) => sum + p.valor_total, 0);
-        const numeroOrdemWms = gerarNumeroOrdem();
         let apiSuccess = false;
         let apiError = '';
         let wmsResponseId: number | null = null;
 
         const token = await getWmsToken();
 
-        // ── Payload conforme exemplo real do WMS local ────────────────────────
         const observacao = [
             params.observacao || '',
             params.vendedor_nome ? `Vendedor: ${params.vendedor_nome}` : '',
             params.vendedor_email ? `Email: ${params.vendedor_email}` : '',
         ].filter(Boolean).join(' | ');
 
-        // Conteúdo do pedido em base64 (campo Arquivo obrigatório na tabela AM_ORDEMANEXO)
-        const conteudoPedido = JSON.stringify({
-            NumeroPedido: numeroPedido,
-            Data: new Date().toLocaleDateString('pt-BR'),
-            ClienteNome: params.cliente_nome,
-            ClienteCpfCnpj: params.cliente_cpf.replace(/\D/g, ''),
-            Observacao: observacao,
-            Endereco: {
-                Cep: params.cep ? String(params.cep).padStart(8, '0') : '',
-                Uf: params.uf || '',
-                Municipio: params.municipio || '',
-                Bairro: params.bairro || '',
-                Logradouro: params.logradouro || '',
-            },
-            Itens: params.produtos.map((p, i) => ({
-                Sequencia: i + 1,
-                Produto: p.codigo_referencia,
-                Nome: p.nome,
-                Quantidade: p.quantidade,
-                ValorUnitario: p.valor_unitario,
-                ValorTotal: p.valor_total,
-            })),
-            ValorTotal: valorTotal,
-        });
-        const arquivoBase64 = btoa(unescape(encodeURIComponent(conteudoPedido)));
+        // ── Payload conforme documentação oficial (POST /armazem/ordem/cadastrar,
+        // roteado nesse WMS em /armazem/producao/cadastrar). CNPJ enviado como
+        // número (sem zero à esquerda) — validado ao vivo pela equipe de TI.
+        //
+        // Campos de enum sem legenda documentada (Tipo, NaturezaOperacao,
+        // NaturezaFiscal, Documento.TipoDocumento, Saida.TipoTransporte,
+        // Solicitante, Deposito, UnidadeNegocioCliente) são OMITIDOS de propósito —
+        // um teste ao vivo confirmou que o WMS aceita a ordem e aplica valores
+        // padrão quando esses campos não são informados.
+        const cnpjCdNumerico = Number(CNPJ_CD);
 
         const payload = {
             Lista: {
-                Anexo: {
-                    Tipo: 1,
-                    Nome: numeroPedido,
-                    Arquivo: arquivoBase64,
+                Ordem: [{
+                    Filial: cnpjCdNumerico,
+                    Cliente: cnpjCdNumerico,
                     NumeroPedido: numeroPedido,
                     Observacao: observacao,
                     Saida: {
-                        Transportadora: CNPJ_CD,
+                        ClienteFinal: params.cliente_cpf.replace(/\D/g, ''),
                         NomeClienteFinal: params.cliente_nome,
                         UF: params.uf || '',
                         Municipio: params.municipio || '',
                         LocalEntrega: {
                             Cep: params.cep ? String(params.cep).padStart(8, '0') : '',
+                            Pais: 'brasil',
                             Estado: params.uf || '',
                             Municipio: params.codigo_municipio || 0,
                             Bairro: params.bairro || '',
                             Logradouro: params.logradouro || '',
-                            Numero: String(params.numero_endereco || ''),
+                            Numero: params.numero_endereco ? String(params.numero_endereco) : 'S/N',
                         },
                         Programacao: params.produtos.map((p, i) => ({
                             Produto: p.codigo_referencia,
-                            UnidadeMedida: 'PC',
+                            UnidadeMedida: 'UN',
                             Quantidade: p.quantidade,
                             SequencialPedido: i + 1,
+                            Observacao: p.nome,
                         })),
                     },
-                },
+                }],
             },
         };
 
         try {
-            const url = `${WMS_BASE}/armazem/ordem/anexo/cadastrar?numeroOrdem=${numeroOrdemWms}`;
+            const url = `${WMS_BASE}/armazem/producao/cadastrar`;
             console.log('[WMS-CD] POST', url, JSON.stringify(payload, null, 2));
 
             const res = await fetch(url, {
@@ -253,21 +232,16 @@ export const escalasoftOrderService = {
             const text = await res.text();
             console.log(`[WMS-CD] Resposta ${res.status}:`, text);
 
-            if (res.ok) {
+            let data: any = null;
+            try { data = JSON.parse(text); } catch { /* corpo não-JSON */ }
+
+            // Resposta: { Lista: [{ Registro, NumeroOrdem, NumeroPedido, Documento, Erro? }] }
+            const item = data?.Lista?.[0];
+            if (res.ok && item && !item.Erro) {
                 apiSuccess = true;
-                try {
-                    const data = JSON.parse(text);
-                    // Resposta: { Lista: [{ Registro, NumeroOrdem, NumeroPedido, Erro? }] }
-                    const item = data.Lista?.[0];
-                    wmsResponseId = item?.NumeroOrdem ?? item?.Registro ?? null;
-                    if (item?.Erro) {
-                        apiSuccess = false;
-                        apiError = item.Erro;
-                        console.warn('[WMS-CD] Erro WMS no body:', item.Erro);
-                    }
-                } catch { /* body não-JSON — ok */ }
+                wmsResponseId = item.NumeroOrdem ?? item.Registro ?? null;
             } else {
-                apiError = `HTTP ${res.status}: ${text.slice(0, 300)}`;
+                apiError = item?.Erro || data?.msg || data?.mensagem || text.slice(0, 300) || `HTTP ${res.status}`;
                 console.warn('[WMS-CD] Falha ao enviar pedido:', apiError);
             }
         } catch (e: any) {

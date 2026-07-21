@@ -731,6 +731,7 @@ export function PedidosCD({ isMaster = false, userEmail = '' }: { isMaster?: boo
     const [cep, setCep] = useState('');
     const [uf, setUf] = useState('');
     const [municipio, setMunicipio] = useState('');
+    const [codigoMunicipio, setCodigoMunicipio] = useState<number | undefined>(undefined); // código IBGE (ViaCEP)
     const [bairro, setBairro] = useState('');
     const [logradouro, setLogradouro] = useState('');
     const [sending, setSending] = useState(false);
@@ -846,6 +847,7 @@ export function PedidosCD({ isMaster = false, userEmail = '' }: { isMaster?: boo
                 cep: parseInt(cep.replace(/\D/g, '') || '0', 10),
                 uf,
                 municipio,
+                codigo_municipio: codigoMunicipio,
                 bairro,
                 logradouro,
                 vendedor_email: userEmail || undefined,
@@ -854,7 +856,7 @@ export function PedidosCD({ isMaster = false, userEmail = '' }: { isMaster?: boo
             if (result.success) {
                 setSendResult({ type: 'success', msg: `${result.message} Nº ${result.numero_pedido}${result.pedido_id ? ` (API #${result.pedido_id})` : ''}` });
                 setCart([]); setClienteNome(''); setClienteCpf(''); setObservacao(''); setVendedor('');
-                setCep(''); setUf(''); setMunicipio(''); setBairro(''); setLogradouro('');
+                setCep(''); setUf(''); setMunicipio(''); setCodigoMunicipio(undefined); setBairro(''); setLogradouro('');
                 loadOrders();
                 setTimeout(() => setTab('pedidos'), 1500);
             }
@@ -1003,6 +1005,16 @@ export function PedidosCD({ isMaster = false, userEmail = '' }: { isMaster?: boo
                                             setMunicipio(cliente.cidade?.split('-')[0]?.trim() || '');
                                             setBairro(cliente.bairro || '');
                                             setLogradouro(cliente.logradouro || '');
+                                            // Cadastro do cliente não traz código IBGE — busca pelo CEP se houver
+                                            const cepDigits = (cliente.cep || '').replace(/\D/g, '');
+                                            if (cepDigits.length === 8) {
+                                                fetch(`https://viacep.com.br/ws/${cepDigits}/json/`)
+                                                    .then(r => r.json())
+                                                    .then(d => setCodigoMunicipio(!d.erro && d.ibge ? parseInt(d.ibge, 10) : undefined))
+                                                    .catch(() => setCodigoMunicipio(undefined));
+                                            } else {
+                                                setCodigoMunicipio(undefined);
+                                            }
                                         }
                                     }}
                                     onAddNew={() => setShowQuickCliente(true)}
@@ -1028,7 +1040,7 @@ export function PedidosCD({ isMaster = false, userEmail = '' }: { isMaster?: boo
                                         if (v.length === 8) {
                                             fetch(`https://viacep.com.br/ws/${v}/json/`)
                                                 .then(r => r.json())
-                                                .then(d => { if (!d.erro) { setUf(d.uf || ''); setMunicipio(d.localidade || ''); setBairro(d.bairro || ''); setLogradouro(d.logradouro || ''); } })
+                                                .then(d => { if (!d.erro) { setUf(d.uf || ''); setMunicipio(d.localidade || ''); setBairro(d.bairro || ''); setLogradouro(d.logradouro || ''); setCodigoMunicipio(d.ibge ? parseInt(d.ibge, 10) : undefined); } })
                                                 .catch(() => {});
                                         }
                                     }} placeholder="00000000"
