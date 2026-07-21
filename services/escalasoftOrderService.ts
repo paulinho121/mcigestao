@@ -138,6 +138,31 @@ function generateNumeroPedido(): string {
     return `PED${date}${rand}`;
 }
 
+// Tipos de logradouro reconhecidos (tabela padrão Correios/IBGE, mais comuns primeiro).
+// O campo "Logradouro" hoje é texto livre (ex.: "Rua das Flores"), mas o WMS exige
+// TipoLogradouro separado (LocalEntrega.TipoLogradouro é obrigatório — validado ao vivo).
+const TIPOS_LOGRADOURO: { re: RegExp; tipo: string }[] = [
+    { re: /^avenida\b\.?\s*/i, tipo: 'Avenida' },
+    { re: /^av\.?\s+/i, tipo: 'Avenida' },
+    { re: /^alameda\b\.?\s*/i, tipo: 'Alameda' },
+    { re: /^travessa\b\.?\s*/i, tipo: 'Travessa' },
+    { re: /^rodovia\b\.?\s*/i, tipo: 'Rodovia' },
+    { re: /^estrada\b\.?\s*/i, tipo: 'Estrada' },
+    { re: /^pra[cç]a\b\.?\s*/i, tipo: 'Praça' },
+    { re: /^largo\b\.?\s*/i, tipo: 'Largo' },
+    { re: /^viela\b\.?\s*/i, tipo: 'Viela' },
+    { re: /^rua\b\.?\s*/i, tipo: 'Rua' },
+];
+
+/** Separa "Rua das Flores" → { tipo: "Rua", nome: "das Flores" }. Sem prefixo reconhecido, assume "Rua". */
+function extrairTipoLogradouro(logradouro: string): { tipo: string; nome: string } {
+    const trimmed = (logradouro || '').trim();
+    for (const { re, tipo } of TIPOS_LOGRADOURO) {
+        if (re.test(trimmed)) return { tipo, nome: trimmed.replace(re, '').trim() || trimmed };
+    }
+    return { tipo: 'Rua', nome: trimmed };
+}
+
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -185,6 +210,7 @@ export const escalasoftOrderService = {
         // um teste ao vivo confirmou que o WMS aceita a ordem e aplica valores
         // padrão quando esses campos não são informados.
         const cnpjCdNumerico = Number(CNPJ_CD);
+        const { tipo: tipoLogradouro, nome: nomeLogradouro } = extrairTipoLogradouro(params.logradouro || '');
 
         const payload = {
             Lista: {
@@ -204,7 +230,8 @@ export const escalasoftOrderService = {
                             Estado: params.uf || '',
                             Municipio: params.codigo_municipio || 0,
                             Bairro: params.bairro || '',
-                            Logradouro: params.logradouro || '',
+                            Logradouro: nomeLogradouro,
+                            TipoLogradouro: tipoLogradouro,
                             Numero: params.numero_endereco ? String(params.numero_endereco) : 'S/N',
                         },
                         Programacao: params.produtos.map((p, i) => ({
