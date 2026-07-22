@@ -507,8 +507,13 @@ export function CotacaoFrete() {
 
     const qtdVolumesTotal = volumesValidos.reduce((s, v) => s + v.quantidade, 0);
     const metragemCubicaTotal = volumesValidos.reduce((s, v) => s + (v.altura * v.largura * v.comprimento * v.quantidade) / 1_000_000, 0);
-    // Fator rodoviário padrão (mesma referência já usada como estimativa no jamefService)
-    const pesoCubadoEstimado = metragemCubicaTotal * 300;
+    // A Jamef cota Rodoviário e Aéreo em paralelo, e cada modalidade usa um fator de
+    // cubagem diferente (validado ao vivo contra o portal oficial da Jamef):
+    // Rodoviário = 300 kg/m³ · Aéreo = 1.000.000/6.000 ≈ 166,67 kg/m³ (padrão IATA).
+    // Mostramos as duas estimativas — o valor final enviado à API usa as dimensões
+    // reais de cada volume, não esse número (que é só uma prévia).
+    const pesoCubadoRodoviario = metragemCubicaTotal * 300;
+    const pesoCubadoAereo = metragemCubicaTotal * (1_000_000 / 6_000);
 
     // Sincroniza altura/largura/comprimento (maior medida) e volumes(qtd) a partir
     // da lista — esses agregados alimentam a Correios, que não cota multi-volume.
@@ -871,17 +876,27 @@ export function CotacaoFrete() {
                                         </button>
 
                                         {metragemCubicaTotal > 0 && (
-                                            <div className="flex items-center justify-between gap-3 p-4 bg-brand-500/5 border border-brand-500/15 rounded-2xl">
+                                            <div className="p-4 bg-brand-500/5 border border-brand-500/15 rounded-2xl space-y-3">
                                                 <div className="flex items-center gap-3 min-w-0">
                                                     <Boxes className="w-5 h-5 text-brand-500 shrink-0" />
-                                                    <div className="min-w-0">
-                                                        <p className="text-xs font-black text-slate-700 dark:text-slate-300">Peso cubado estimado</p>
-                                                        <p className="text-[10px] text-slate-400 truncate">{qtdVolumesTotal} volume(s) · {metragemCubicaTotal.toFixed(3)} m³ · fator rodoviário</p>
+                                                    <p className="text-[10px] text-slate-400 truncate">
+                                                        {qtdVolumesTotal} volume(s) · {metragemCubicaTotal.toFixed(3)} m³ — peso cubado estimado por modalidade:
+                                                    </p>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3 pl-8">
+                                                    <div>
+                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Rodoviário</p>
+                                                        <p className="text-base font-black text-slate-700 dark:text-slate-300">
+                                                            {pesoCubadoRodoviario.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Aéreo</p>
+                                                        <p className="text-base font-black text-brand-600 dark:text-brand-400">
+                                                            {pesoCubadoAereo.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg
+                                                        </p>
                                                     </div>
                                                 </div>
-                                                <p className="text-lg font-black text-brand-600 dark:text-brand-400 shrink-0">
-                                                    {pesoCubadoEstimado.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg
-                                                </p>
                                             </div>
                                         )}
                                     </div>
