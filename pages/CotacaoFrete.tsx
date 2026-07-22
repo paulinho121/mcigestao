@@ -12,8 +12,8 @@ import { Product } from '../types';
 // Filiais MCI — filialOrigem é o código que a Jamef usa internamente
 // Se a cotação falhar, consulte: GET /api/jamef-prod/filial/v1/filiais para listar os códigos corretos
 const FILIAIS: { label: string; cnpj: string; cep: string; cidade: string; filialCodigo: string }[] = [
-    { label: 'SC — Santa Catarina', cnpj: '05502390000200', cep: '89218000', cidade: 'Joinville/SC',  filialCodigo: 'JVL' },
-    { label: 'SP — São Paulo',      cnpj: '05502390000383', cep: '01310100', cidade: 'São Paulo/SP',  filialCodigo: 'SPA' },
+    { label: 'SC — Santa Catarina', cnpj: '05502390000200', cep: '88310180', cidade: 'Itajaí/SC',     filialCodigo: 'ITJ' },
+    { label: 'SP — São Paulo',      cnpj: '05502390000383', cep: '05305003', cidade: 'São Paulo/SP',  filialCodigo: 'SPA' },
     { label: 'CE — Ceará',          cnpj: '05502390000111', cep: '60025001', cidade: 'Fortaleza/CE',  filialCodigo: 'FZA' },
 ];
 
