@@ -138,32 +138,6 @@ function generateNumeroPedido(): string {
     return `PED${date}${rand}`;
 }
 
-// Tipos de logradouro reconhecidos (tabela padrão Correios/IBGE, mais comuns primeiro).
-// O campo "Logradouro" hoje é texto livre (ex.: "Rua das Flores"), mas o WMS exige
-// TipoLogradouro separado (LocalEntrega.TipoLogradouro é obrigatório — validado ao vivo).
-const TIPOS_LOGRADOURO: { re: RegExp; tipo: string }[] = [
-    { re: /^avenida\b\.?\s*/i, tipo: 'Avenida' },
-    { re: /^av\.?\s+/i, tipo: 'Avenida' },
-    { re: /^alameda\b\.?\s*/i, tipo: 'Alameda' },
-    { re: /^travessa\b\.?\s*/i, tipo: 'Travessa' },
-    { re: /^rodovia\b\.?\s*/i, tipo: 'Rodovia' },
-    { re: /^estrada\b\.?\s*/i, tipo: 'Estrada' },
-    { re: /^pra[cç]a\b\.?\s*/i, tipo: 'Praça' },
-    { re: /^largo\b\.?\s*/i, tipo: 'Largo' },
-    { re: /^viela\b\.?\s*/i, tipo: 'Viela' },
-    { re: /^rua\b\.?\s*/i, tipo: 'Rua' },
-];
-
-/** Separa "Rua das Flores" → { tipo: "Rua", nome: "das Flores" }. Sem prefixo reconhecido, assume "Rua". */
-function extrairTipoLogradouro(logradouro: string): { tipo: string; nome: string } {
-    const trimmed = (logradouro || '').trim();
-    for (const { re, tipo } of TIPOS_LOGRADOURO) {
-        if (re.test(trimmed)) return { tipo, nome: trimmed.replace(re, '').trim() || trimmed };
-    }
-    return { tipo: 'Rua', nome: trimmed };
-}
-
-
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 export const escalasoftOrderService = {
@@ -200,46 +174,39 @@ export const escalasoftOrderService = {
             params.vendedor_email ? `Email: ${params.vendedor_email}` : '',
         ].filter(Boolean).join(' | ');
 
-        // ── Payload conforme documentação oficial (POST /armazem/ordem/cadastrar,
-        // roteado nesse WMS em /armazem/producao/cadastrar). CNPJ enviado como
-        // número (sem zero à esquerda) — validado ao vivo pela equipe de TI.
+        // ── Payload alinhado a um exemplo REAL de pedido já processado com sucesso
+        // no WMS (fornecido pelo TI da Sanco/Escalasoft). Diferenças confirmadas
+        // em relação à doc Swagger genérica:
+        //   - "Tipo": 11 → valor real de um pedido de Saída/expedição (a doc não
+        //     documentava nenhum valor válido; descoberto via exemplo real).
+        //   - Campo é "CnpjClienteFinal", não "ClienteFinal" (nome divergia da doc).
+        //   - "UnidadeMedida" usa "PC", não "UN" (a doc mostrava "UN" só como
+        //     placeholder de exemplo).
+        //   - Sem "Filial"/"Cliente" na raiz e sem "Saida.LocalEntrega" — o exemplo
+        //     real funciona sem endereço (provavelmente resolvido a partir do
+        //     cadastro do cliente no Escalasoft pelo CNPJ). Isso também elimina o
+        //     erro anterior de "LocalEntrega.TipoLogradouro obrigatório", já que
+        //     omitimos o objeto inteiro em vez de enviá-lo incompleto.
         //
-        // Campos de enum sem legenda documentada (Tipo, NaturezaOperacao,
-        // NaturezaFiscal, Documento.TipoDocumento, Saida.TipoTransporte,
-        // Solicitante, Deposito, UnidadeNegocioCliente) são OMITIDOS de propósito —
-        // um teste ao vivo confirmou que o WMS aceita a ordem e aplica valores
-        // padrão quando esses campos não são informados.
-        const cnpjCdNumerico = Number(CNPJ_CD);
-        const { tipo: tipoLogradouro, nome: nomeLogradouro } = extrairTipoLogradouro(params.logradouro || '');
-
+        // Em aberto: "Saida.Transportadora" — no exemplo real vem preenchido com
+        // o CNPJ de uma transportadora (não fica claro se é fixo ou varia por
+        // cliente/pedido). Usamos o CNPJ do CD como valor provisório até o TI
+        // confirmar o correto.
         const payload = {
             Lista: {
                 Ordem: [{
-                    Filial: cnpjCdNumerico,
-                    Cliente: cnpjCdNumerico,
+                    Tipo: 11,
                     NumeroPedido: numeroPedido,
                     Observacao: observacao,
                     Saida: {
-                        ClienteFinal: params.cliente_cpf.replace(/\D/g, ''),
+                        Transportadora: CNPJ_CD,
                         NomeClienteFinal: params.cliente_nome,
-                        UF: params.uf || '',
-                        Municipio: params.municipio || '',
-                        LocalEntrega: {
-                            Cep: params.cep ? String(params.cep).padStart(8, '0') : '',
-                            Pais: 'brasil',
-                            Estado: params.uf || '',
-                            Municipio: params.codigo_municipio || 0,
-                            Bairro: params.bairro || '',
-                            Logradouro: nomeLogradouro,
-                            TipoLogradouro: tipoLogradouro,
-                            Numero: params.numero_endereco ? String(params.numero_endereco) : 'S/N',
-                        },
+                        CnpjClienteFinal: params.cliente_cpf.replace(/\D/g, ''),
                         Programacao: params.produtos.map((p, i) => ({
                             Produto: p.codigo_referencia,
-                            UnidadeMedida: 'UN',
+                            UnidadeMedida: 'PC',
                             Quantidade: p.quantidade,
                             SequencialPedido: i + 1,
-                            Observacao: p.nome,
                         })),
                     },
                 }],
