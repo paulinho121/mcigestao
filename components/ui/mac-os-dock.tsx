@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 // Types for the component
 interface DockApp {
@@ -369,17 +370,35 @@ const MacOSDock: React.FC<MacOSDockProps> = ({
           );
         })}
 
-        {/* Popups de Submenus (Exibidos acima do ícone clicado) */}
+        {/* Popups de Submenus (Exibidos acima do ícone clicado).
+            Renderizado via Portal direto no document.body: o próprio dock tem
+            backdrop-blur-xl (backdrop-filter), que cria um "containing block"
+            para position:fixed nos descendentes — sem o portal, "fixed" vira
+            relativo ao dock (que rola/desloca) em vez de relativo à tela de
+            verdade, jogando o popup pra fora da viewport. Com o portal, o
+            popup escapa tanto do overflow-x-auto (que rola o dock em telas
+            pequenas) quanto do containing block do backdrop-blur. */}
         {apps.map((app, index) => {
           if (activeAppId !== app.id || !app.subItems || app.subItems.length === 0) return null;
-          
-          const position = currentPositions[index] || 0;
-          return (
-            <div 
+
+          const iconEl = iconRefs.current[index];
+          const rect = iconEl?.getBoundingClientRect();
+          if (!rect || typeof document === 'undefined') return null;
+          // Trava a âncora horizontal pra não deixar o popup (~180px) vazar
+          // pra fora da tela quando o ícone está perto da borda esquerda/direita.
+          const halfPopup = 100; // metade do min-w-[180px] + folga
+          const margin = 12;
+          const anchorLeft = Math.min(
+            Math.max(rect.left + rect.width / 2, halfPopup + margin),
+            window.innerWidth - halfPopup - margin
+          );
+          return createPortal(
+            <div
               key={`popup-${app.id}`}
-              className="absolute bottom-full mb-8 flex flex-col gap-1 bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 min-w-[180px] z-[60] pointer-events-auto origin-bottom animate-in fade-in zoom-in-95 duration-200"
+              className="fixed flex flex-col gap-1 bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 min-w-[180px] max-w-[calc(100vw-24px)] z-[60] pointer-events-auto origin-bottom animate-in fade-in zoom-in-95 duration-200"
               style={{
-                left: `${position}px`,
+                left: `${anchorLeft}px`,
+                bottom: `${window.innerHeight - rect.top + 32}px`,
                 transform: 'translateX(-50%)',
               }}
               onClick={(e) => e.stopPropagation()}
@@ -412,7 +431,9 @@ const MacOSDock: React.FC<MacOSDockProps> = ({
               
               {/* Seta indicadora (triângulo apontando para baixo) */}
               <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 bg-slate-800/95 border-b border-r border-white/10"></div>
-            </div>
+            </div>,
+            document.body,
+            `popup-${app.id}`
           );
         })}
       </div>

@@ -349,13 +349,11 @@ function App() {
           >
             <X size={18} />
           </button>
-          {/* Dock */}
-          {/* Sem overflow-x-auto: por spec do CSS, overflow-x != visible força overflow-y a
-              cortar também, o que escondia/quebrava o clique nos popups de submenu (eles
-              usam bottom-full para abrir para cima, saindo da caixa deste wrapper). O
-              MacOSDock já reduz o tamanho dos ícones de forma responsiva, então não
-              precisa de scroll horizontal — validado sem overflow em mobile (375px). */}
-          <div className="relative z-10 w-full pb-4 flex justify-center px-4">
+          {/* Dock — overflow-x-auto restaurado (necessário quando os ícones não cabem
+              na tela, ex. telas menores/zoom). O popup de submenu agora usa
+              position:fixed (ver mac-os-dock.tsx), que ignora esse overflow — por isso
+              dá pra ter scroll aqui sem cortar o popup. */}
+          <div className="relative z-10 w-full overflow-x-auto pb-4 flex justify-center no-scrollbar px-4">
             <MacOSDock
               apps={circleMenuItems.map((item) => ({
                 id: item.label,
