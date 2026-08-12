@@ -31,11 +31,11 @@ import { PreSaleAlertBanner } from './components/PreSaleAlertBanner';
 import { User } from './types';
 import { isMasterUser, isMarketingUser } from './config/masterUsers';
 import { MarketingSC } from './pages/MarketingSC';
-import { Package, ClipboardList, Wrench, LogOut, Ship, ShoppingBag, FileText, Sun, Moon, Users, Truck, BookOpen, Menu, BarChart3, PackagePlus, Image as ImageIcon, Upload as UploadIcon, Layers, ArrowDownUp, CalendarClock, Tag, FileCode2, Activity, PackageSearch, Calculator, ShoppingCart } from 'lucide-react';
+import { Package, ClipboardList, Wrench, LogOut, Ship, ShoppingBag, FileText, Sun, Moon, Users, Truck, BookOpen, Menu, BarChart3, PackagePlus, Image as ImageIcon, Upload as UploadIcon, Layers, ArrowDownUp, CalendarClock, Tag, FileCode2, Activity, PackageSearch, Calculator, ShoppingCart, X } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
-import { CircleMenu, CircleMenuItem } from './components/ui/circle-menu';
+import MacOSDock from './components/ui/mac-os-dock';
 
 type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas' | 'etiqueta_personalizada' | 'marketing_sc' | 'prepostagem';
 
@@ -53,6 +53,14 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [preSaleAlertTrigger] = useState(0);
   const { theme, toggleTheme } = useTheme();
+
+  // Fecha o menu com Esc (acessibilidade — hoje só dá pra fechar clicando fora)
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsMenuOpen(false); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMenuOpen]);
 
   useEffect(() => {
     // Check for persisted session
@@ -189,12 +197,13 @@ function App() {
 
   const navigate = (tab: Tab) => { setActiveTab(tab); setIsMenuOpen(false); };
 
-  const circleMenuItems: CircleMenuItem[] = [
+  const circleMenuItems = [
     {
       label: 'Estoque',
       icon: <Package size={20} />,
       onClick: () => navigate('inventory'),
       colorClass: 'bg-brand-600 hover:bg-brand-700',
+      tabs: ['inventory', 'stock_management', 'product_registration', 'image_review'] as Tab[],
       subItems: isMaster ? [
         { label: 'Estoque', icon: <Package size={20} />, onClick: () => navigate('inventory'), colorClass: 'bg-brand-600 hover:bg-brand-700' },
         { label: 'Gestão', icon: <BarChart3 size={20} />, onClick: () => navigate('stock_management'), colorClass: 'bg-brand-500 hover:bg-brand-600' },
@@ -207,12 +216,14 @@ function App() {
       icon: <BookOpen size={20} />,
       onClick: () => navigate('catalogs'),
       colorClass: 'bg-teal-600 hover:bg-teal-700',
+      tabs: ['catalogs'] as Tab[],
     },
     {
       label: 'Reservas',
       icon: <ClipboardList size={20} />,
       onClick: () => navigate('reservations'),
       colorClass: 'bg-indigo-600 hover:bg-indigo-700',
+      tabs: ['reservations', 'withdrawals'] as Tab[],
       subItems: isMaster ? [
         { label: 'Reservas', icon: <ClipboardList size={20} />, onClick: () => navigate('reservations'), colorClass: 'bg-indigo-600 hover:bg-indigo-700' },
         { label: 'Retiradas', icon: <ArrowDownUp size={20} />, onClick: () => navigate('withdrawals'), colorClass: 'bg-indigo-500 hover:bg-indigo-600' },
@@ -223,6 +234,7 @@ function App() {
       icon: <Ship size={20} />,
       onClick: () => navigate('in_import'),
       colorClass: 'bg-sky-600 hover:bg-sky-700',
+      tabs: ['in_import', 'upload', 'import_management'] as Tab[],
       subItems: [
         { label: 'Importação', icon: <Ship size={20} />, onClick: () => navigate('in_import'), colorClass: 'bg-sky-600 hover:bg-sky-700' },
         { label: 'Upload', icon: <UploadIcon size={20} />, onClick: () => navigate('upload'), colorClass: 'bg-sky-500 hover:bg-sky-600' },
@@ -234,6 +246,7 @@ function App() {
       icon: <Truck size={20} />,
       onClick: () => navigate('tracking'),
       colorClass: 'bg-violet-600 hover:bg-violet-700',
+      tabs: ['tracking', 'cotacao_frete', 'prepostagem', 'etiquetas', 'etiqueta_personalizada'] as Tab[],
       subItems: [
         { label: 'Rastreamento', icon: <Truck size={20} />, onClick: () => navigate('tracking'), colorClass: 'bg-violet-600 hover:bg-violet-700' },
         { label: 'Cotação Frete', icon: <Calculator size={20} />, onClick: () => navigate('cotacao_frete'), colorClass: 'bg-violet-500 hover:bg-violet-600' },
@@ -247,18 +260,21 @@ function App() {
       icon: <CalendarClock size={20} />,
       onClick: () => navigate('rental_management'),
       colorClass: 'bg-teal-600 hover:bg-teal-700',
+      tabs: ['rental_management'] as Tab[],
     },
     {
       label: 'Diretoria',
       icon: <FileText size={20} />,
       onClick: () => navigate('diretoria'),
       colorClass: 'bg-slate-600 hover:bg-slate-700',
+      tabs: ['diretoria'] as Tab[],
     },
     ...(isMarketing ? [{
       label: 'Ecommerce SC',
       icon: <ShoppingCart size={20} />,
       onClick: () => navigate('marketing_sc'),
       colorClass: 'bg-purple-600 hover:bg-purple-700',
+      tabs: ['marketing_sc'] as Tab[],
     }] : []),
     ...(isMaster ? [
       {
@@ -266,6 +282,7 @@ function App() {
         icon: <Wrench size={20} />,
         onClick: () => navigate('maintenance'),
         colorClass: 'bg-amber-600 hover:bg-amber-700',
+        tabs: ['maintenance', 'nfe_automation', 'logs'] as Tab[],
         subItems: [
           { label: 'Manutenção', icon: <Wrench size={20} />, onClick: () => navigate('maintenance'), colorClass: 'bg-amber-600 hover:bg-amber-700' },
           { label: 'NF-e', icon: <FileCode2 size={20} />, onClick: () => navigate('nfe_automation'), colorClass: 'bg-amber-500 hover:bg-amber-600' },
@@ -277,18 +294,21 @@ function App() {
         icon: <ShoppingBag size={20} />,
         onClick: () => navigate('shopping'),
         colorClass: 'bg-rose-600 hover:bg-rose-700',
+        tabs: ['shopping'] as Tab[],
       },
       {
         label: 'Pré-Venda',
         icon: <Tag size={20} />,
         onClick: () => navigate('pre_venda'),
         colorClass: 'bg-red-700 hover:bg-red-800',
+        tabs: ['pre_venda'] as Tab[],
       },
       {
         label: 'Pedidos CD',
         icon: <PackageSearch size={20} />,
         onClick: () => navigate(isMaster ? 'pedidos_cd' : 'meus_pedidos'),
         colorClass: 'bg-orange-600 hover:bg-orange-700',
+        tabs: ['pedidos_cd', 'meus_pedidos'] as Tab[],
         subItems: isMaster ? [
           { label: 'Gerenciar',    icon: <PackageSearch size={20} />, onClick: () => navigate('pedidos_cd'),    colorClass: 'bg-orange-600 hover:bg-orange-700' },
           { label: 'Meus Pedidos', icon: <ClipboardList size={20} />, onClick: () => navigate('meus_pedidos'), colorClass: 'bg-orange-500 hover:bg-orange-600' },
@@ -299,6 +319,7 @@ function App() {
         icon: <Users size={20} />,
         onClick: () => navigate('suppliers'),
         colorClass: 'bg-emerald-600 hover:bg-emerald-700',
+        tabs: ['suppliers', 'brands'] as Tab[],
         subItems: [
           { label: 'Fornecedores', icon: <Users size={20} />, onClick: () => navigate('suppliers'), colorClass: 'bg-emerald-600 hover:bg-emerald-700' },
           { label: 'Marcas', icon: <Tag size={20} />, onClick: () => navigate('brands'), colorClass: 'bg-emerald-500 hover:bg-emerald-600' },
@@ -311,19 +332,56 @@ function App() {
     <div className="min-h-screen bg-[var(--skeuo-bg)] transition-colors duration-200">
       <BackgroundMesh />
 
-      {/* Circle Menu Overlay */}
+      {/* Circle Menu Overlay -> MacOS Dock */}
       {isMenuOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-end pb-12">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             onClick={() => setIsMenuOpen(false)}
           />
-          {/* Circle Menu centralizado */}
-          <div className="relative z-10">
-            <CircleMenu
-              items={circleMenuItems}
-              onClose={() => setIsMenuOpen(false)}
+          {/* Fechar (clicar fora ou Esc também fecha) */}
+          <button
+            onClick={() => setIsMenuOpen(false)}
+            className="absolute top-6 right-6 z-20 w-10 h-10 rounded-full bg-slate-800/80 hover:bg-slate-700 backdrop-blur-xl border border-white/15 text-white flex items-center justify-center shadow-lg transition-colors"
+            aria-label="Fechar menu"
+            title="Fechar (Esc)"
+          >
+            <X size={18} />
+          </button>
+          {/* Dock */}
+          <div className="relative z-10 w-full overflow-x-auto pb-4 flex justify-center no-scrollbar px-4">
+            <MacOSDock
+              apps={circleMenuItems.map((item) => ({
+                id: item.label,
+                name: item.label,
+                icon: item.icon,
+                subItems: item.subItems?.map(sub => ({
+                  id: sub.label,
+                  name: sub.label,
+                  icon: sub.icon
+                }))
+              }))}
+              onAppClick={(id) => {
+                let targetItem = circleMenuItems.find(i => i.label === id);
+                
+                if (!targetItem) {
+                  for (const menu of circleMenuItems) {
+                    if (menu.subItems) {
+                      const sub = menu.subItems.find(s => s.label === id);
+                      if (sub) {
+                        targetItem = sub as any;
+                        break;
+                      }
+                    }
+                  }
+                }
+
+                if (targetItem && targetItem.onClick) {
+                  targetItem.onClick();
+                }
+              }}
+              openApps={circleMenuItems.filter(i => i.tabs?.includes(activeTab)).map(i => i.label)}
             />
           </div>
         </div>
