@@ -76,8 +76,10 @@ const MacOSDock: React.FC<MacOSDockProps> = ({
   const [config, setConfig] = useState(getResponsiveConfig);
   const { baseIconSize, maxScale, effectWidth } = config;
   const minScale = 1.0;
-  // Aumentado o espaçamento para caber os nomes
-  const baseSpacing = Math.max(12, baseIconSize * 0.3);
+  // Espaçamento pensado pro RÓTULO (não só o ícone) — nomes como "Ecommerce SC" ou
+  // "Rastreamento" passam de 80px e coladavam no vizinho com o espaçamento antigo
+  // (baseIconSize * 0.3 ≈ 19px, insuficiente). Validado sem overlap ao vivo.
+  const baseSpacing = Math.max(28, baseIconSize * 0.5);
 
   // Update config on window resize
   useEffect(() => {
