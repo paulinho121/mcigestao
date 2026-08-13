@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Product, Reservation } from '../types';
-import { MapPin, Box, AlertCircle, Package, Calendar, FileText, Share2, Instagram, Loader2 } from 'lucide-react';
+import { MapPin, Box, AlertCircle, Package, Calendar, FileText, Share2, Instagram, Loader2, Hash } from 'lucide-react';
 import { clsx } from 'clsx';
 import { inventoryService } from '../services/inventoryService';
 import { generateStoryImage } from '../utils/storyGenerator';
@@ -398,6 +398,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
                                 {/* Additional Info */}
                                 <div className="space-y-4">
+                                    {product.ncm && (
+                                        <div className="p-3 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="p-2 bg-slate-200/70 dark:bg-slate-700/50 rounded-lg shrink-0">
+                                                    <Hash className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">NCM</span>
+                                                    <span className="block text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{product.ncm}</span>
+                                                </div>
+                                            </div>
+                                            {product.st_sp === true && (
+                                                <span className="shrink-0 px-2.5 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 text-[10px] font-bold rounded-md uppercase tracking-wide whitespace-nowrap">
+                                                    ST em SP
+                                                </span>
+                                            )}
+                                            {product.st_sp === false && (
+                                                <span className="shrink-0 px-2.5 py-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded-md uppercase tracking-wide whitespace-nowrap">
+                                                    Não é ST em SP
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {reservations.length > 0 && (
                                         <div>
                                             <h4 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">

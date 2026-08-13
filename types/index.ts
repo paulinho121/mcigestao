@@ -30,6 +30,8 @@ export interface Product {
     altura_cm?: number;
     largura_cm?: number;
     comprimento_cm?: number;
+    ncm?: string;
+    st_sp?: boolean | null;
     location?: string;
     location_ce?: string;
     location_sc?: string;
