@@ -5,6 +5,7 @@ import { Reservations } from './pages/Reservations';
 import { Upload } from './pages/Upload';
 import { Maintenance } from './pages/Maintenance';
 import { InImport } from './pages/InImport';
+import { Importacoes } from './pages/Importacoes';
 import { ImportManagement } from './pages/ImportManagement';
 import { RentalManagement } from './pages/RentalManagement';
 import { Shopping } from './pages/Shopping';
@@ -37,7 +38,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 import MacOSDock from './components/ui/mac-os-dock';
 
-type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas' | 'etiqueta_personalizada' | 'marketing_sc' | 'prepostagem';
+type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'importacoes' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas' | 'etiqueta_personalizada' | 'marketing_sc' | 'prepostagem';
 
 function BackgroundMesh() {
   return null;
@@ -232,13 +233,14 @@ function App() {
     {
       label: 'Importação',
       icon: <Ship size={20} />,
-      onClick: () => navigate('in_import'),
+      onClick: () => navigate('importacoes'),
       colorClass: 'bg-sky-600 hover:bg-sky-700',
-      tabs: ['in_import', 'upload', 'import_management'] as Tab[],
+      tabs: ['in_import', 'importacoes', 'upload', 'import_management'] as Tab[],
       subItems: [
-        { label: 'Importação', icon: <Ship size={20} />, onClick: () => navigate('in_import'), colorClass: 'bg-sky-600 hover:bg-sky-700' },
+        { label: 'Importações', icon: <Ship size={20} />, onClick: () => navigate('importacoes'), colorClass: 'bg-sky-600 hover:bg-sky-700' },
+        { label: 'Gestão Interna', icon: <Layers size={20} />, onClick: () => navigate('in_import'), colorClass: 'bg-sky-700 hover:bg-sky-800' },
         { label: 'Upload', icon: <UploadIcon size={20} />, onClick: () => navigate('upload'), colorClass: 'bg-sky-500 hover:bg-sky-600' },
-        { label: 'Gestão', icon: <Layers size={20} />, onClick: () => navigate('import_management'), colorClass: 'bg-sky-700 hover:bg-sky-800' },
+        { label: 'Gestão (legado)', icon: <Layers size={20} />, onClick: () => navigate('import_management'), colorClass: 'bg-sky-800 hover:bg-sky-900' },
       ],
     },
     {
@@ -491,10 +493,11 @@ function App() {
 
         {/* Page Content */}
         <main className="flex-1">
-          {activeTab === 'inventory' && <Inventory userEmail={user.email} />}
+          {activeTab === 'inventory' && <Inventory userEmail={user.email} onNavigateToImports={() => navigate('importacoes')} />}
           {activeTab === 'reservations' && <Reservations userEmail={user.email} userName={user.name} isMasterUser={isMaster} />}
           {activeTab === 'withdrawals' && isMaster && <Withdrawals userEmail={user.email} />}
           {activeTab === 'in_import' && <InImport />}
+          {activeTab === 'importacoes' && <Importacoes onBack={() => navigate('inventory')} />}
           {activeTab === 'upload' && <Upload />}
           {activeTab === 'maintenance' && <Maintenance />}
           {activeTab === 'import_management' && <ImportManagement />}

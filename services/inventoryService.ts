@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Product, Reservation, ImportProject, ImportItem, WithdrawalProtocol, WithdrawalItem } from '../types';
+import { Product, Reservation, ImportProject, ImportItem, PendingImportItem, WithdrawalProtocol, WithdrawalItem } from '../types';
 import { MOCK_INVENTORY } from './mockData';
 import { logService } from './logService';
 import { preSaleService } from './preSaleService';
@@ -1496,6 +1496,79 @@ export const inventoryService = {
       quantity: totalQuantity,
       expectedDate: earliestDate
     };
+  },
+
+  /**
+   * Vitrine pública de Importações: todos os itens de todos os projetos
+   * de importação em aberto ("open"), já com produto e projeto embutidos.
+   * Ordenado por previsão de chegada mais próxima primeiro (sem previsão vai por último).
+   */
+  async getAllPendingImportItems(): Promise<PendingImportItem[]> {
+    if (!supabase) return [];
+
+    // 1. Projetos em aberto
+    const { data: projects, error: projectsError } = await supabase
+      .from('import_projects')
+      .select('id, manufacturer, import_number')
+      .eq('status', 'open');
+
+    if (projectsError) {
+      console.error('Error fetching open import projects:', projectsError);
+      return [];
+    }
+    if (!projects || projects.length === 0) return [];
+
+    const projectMap = new Map(projects.map((p: any) => [p.id, p]));
+    const projectIds = projects.map((p: any) => p.id);
+
+    // 2. Itens desses projetos
+    const { data: items, error: itemsError } = await supabase
+      .from('import_items')
+      .select('*')
+      .in('project_id', projectIds);
+
+    if (itemsError) {
+      console.error('Error fetching pending import items:', itemsError);
+      return [];
+    }
+    if (!items || items.length === 0) return [];
+
+    // 3. Dados dos produtos
+    const productIds = [...new Set(items.map((i: any) => i.product_id))];
+    const { data: products } = await supabase
+      .from('products')
+      .select('id, name, brand, image_url')
+      .in('id', productIds);
+
+    const productMap = new Map(products?.map((p: any) => [p.id, p]) || []);
+
+    const result: PendingImportItem[] = items.map((item: any) => {
+      const project = projectMap.get(item.project_id);
+      return {
+        id: item.id,
+        projectId: item.project_id,
+        productId: item.product_id,
+        quantity: item.quantity,
+        createdAt: item.created_at,
+        expectedDate: item.expected_date,
+        observation: item.observation,
+        productName: productMap.get(item.product_id)?.name || 'Produto',
+        productBrand: productMap.get(item.product_id)?.brand || '',
+        imageUrl: productMap.get(item.product_id)?.image_url || undefined,
+        manufacturer: project?.manufacturer || '',
+        importNumber: project?.import_number || '',
+      };
+    });
+
+    // Previsão mais próxima primeiro; itens sem previsão vão para o final
+    result.sort((a, b) => {
+      if (!a.expectedDate && !b.expectedDate) return 0;
+      if (!a.expectedDate) return 1;
+      if (!b.expectedDate) return -1;
+      return new Date(a.expectedDate).getTime() - new Date(b.expectedDate).getTime();
+    });
+
+    return result;
   },
 
   /**
