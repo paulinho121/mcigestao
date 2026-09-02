@@ -86,6 +86,14 @@ export interface ImportItem {
     observation?: string;
 }
 
+// Item de importação "achatado" com os dados do projeto já embutidos,
+// usado na vitrine pública de Importações (view consolidada, todos os projetos abertos).
+export interface PendingImportItem extends ImportItem {
+    manufacturer: string;
+    importNumber: string;
+    imageUrl?: string;
+}
+
 export interface SeasonalBackground {
     id: string;
     name: string;
