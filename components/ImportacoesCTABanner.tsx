@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Ship, ChevronRight, Boxes } from 'lucide-react';
+import { Ship, ChevronRight } from 'lucide-react';
 import { inventoryService } from '../services/inventoryService';
 
 interface Props {
@@ -22,11 +22,13 @@ export function ImportacoesCTABanner({ onNavigate }: Props) {
     return (
         <button
             onClick={onNavigate}
-            className="app-card w-full flex flex-col sm:flex-row sm:items-center gap-4 p-4 sm:p-5 mb-10 text-left border-l-4 border-l-amber-500 group"
+            className="app-card relative w-full flex flex-col sm:flex-row sm:items-center gap-4 p-4 sm:p-5 mb-10 text-left group"
         >
-            <div className="flex items-center gap-4 flex-1 min-w-0">
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-amber-100 dark:bg-amber-500/15 flex items-center justify-center shrink-0">
-                    <Ship className="w-5 h-5 sm:w-6 sm:h-6 text-amber-700 dark:text-amber-400" />
+            <span className="hidden sm:block absolute left-0 top-3 bottom-3 w-1 rounded-full bg-amber-500" />
+
+            <div className="flex items-center gap-4 flex-1 min-w-0 sm:pl-3">
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/25 flex items-center justify-center shrink-0">
+                    <Ship className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400" />
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -35,12 +37,11 @@ export function ImportacoesCTABanner({ onNavigate }: Props) {
                             'Verificando importações em andamento...'
                         ) : (
                             <>
-                                <span className="text-amber-700 dark:text-amber-400">{count} {count === 1 ? 'produto' : 'produtos'}</span> a caminho do nosso estoque
+                                <span className="text-amber-600 dark:text-amber-400">{count} {count === 1 ? 'produto' : 'produtos'}</span> a caminho do nosso estoque
                             </>
                         )}
                     </div>
-                    <p className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-start gap-1.5">
-                        <Boxes className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <p className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">
                         Acompanhe o que está em trânsito antes mesmo de chegar ao estoque
                     </p>
                 </div>
