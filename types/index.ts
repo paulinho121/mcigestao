@@ -113,7 +113,10 @@ export interface PurchaseSuggestionItem {
     incomingQty: number;
     projectedStock: number;
     suggestedQty: number | null;
-    urgency: 'ESGOTADO' | 'CRITICO' | 'BAIXO';
+    coveredByImport: boolean;
+    // OK = estoque saudável, mas o item entra no relatório porque tem algo em
+    // importação em andamento (visibilidade por marca, não é sugestão de compra).
+    urgency: 'ESGOTADO' | 'CRITICO' | 'BAIXO' | 'OK';
     lastPurchasePrice?: number;
     estimatedCost: number | null;
 }

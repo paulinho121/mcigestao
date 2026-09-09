@@ -10,13 +10,23 @@ const URGENCY_STYLE: Record<PurchaseSuggestionItem['urgency'], { label: string; 
     ESGOTADO: { label: 'Esgotado', badge: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/40', dot: 'bg-red-500' },
     CRITICO: { label: 'Crítico', badge: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-900/40', dot: 'bg-orange-500' },
     BAIXO: { label: 'Baixo estoque', badge: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/15 dark:text-amber-400 dark:border-amber-900/40', dot: 'bg-amber-500' },
+    OK: { label: 'Em importação', badge: 'bg-brand-50 text-brand-700 border-brand-200 dark:bg-brand-900/20 dark:text-brand-400 dark:border-brand-900/40', dot: 'bg-brand-500' },
 };
 
 export const SugestaoCompra: React.FC = () => {
     const [items, setItems] = useState<PurchaseSuggestionItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedBrand, setSelectedBrand] = useState<string>('Todas');
+    const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
     const [search, setSearch] = useState('');
+
+    const toggleBrand = (brand: string) => {
+        setSelectedBrands((prev) => {
+            const next = new Set(prev);
+            if (next.has(brand)) next.delete(brand);
+            else next.add(brand);
+            return next;
+        });
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -35,29 +45,36 @@ export const SugestaoCompra: React.FC = () => {
     const brandCounts = useMemo(() => {
         const map = new Map<string, number>();
         for (const item of items) map.set(item.brand, (map.get(item.brand) || 0) + 1);
-        return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+        return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
     }, [items]);
 
     const filteredItems = useMemo(() => {
         const q = search.trim().toLowerCase();
         return items.filter((item) => {
-            const matchesBrand = selectedBrand === 'Todas' || item.brand === selectedBrand;
+            const matchesBrand = selectedBrands.size === 0 || selectedBrands.has(item.brand);
             const matchesSearch = !q || item.productName.toLowerCase().includes(q) || item.productId.toLowerCase().includes(q);
             return matchesBrand && matchesSearch;
         });
-    }, [items, selectedBrand, search]);
+    }, [items, selectedBrands, search]);
 
     const summary = useMemo(() => {
-        const base = { esgotado: 0, critico: 0, baixo: 0, unidades: 0, valor: 0, temValor: false };
+        const base = { esgotado: 0, critico: 0, baixo: 0, emImportacao: 0, unidades: 0, valor: 0, temValor: false };
         for (const item of filteredItems) {
             if (item.urgency === 'ESGOTADO') base.esgotado++;
             else if (item.urgency === 'CRITICO') base.critico++;
-            else base.baixo++;
+            else if (item.urgency === 'BAIXO') base.baixo++;
+            else base.emImportacao++;
             base.unidades += item.suggestedQty || 0;
             if (item.estimatedCost != null) { base.valor += item.estimatedCost; base.temValor = true; }
         }
         return base;
     }, [filteredItems]);
+
+    const brandLabel = selectedBrands.size === 0
+        ? 'Todas as marcas'
+        : selectedBrands.size === 1
+            ? Array.from(selectedBrands)[0]
+            : Array.from(selectedBrands).join(', ');
 
     const handleExportCSV = () => {
         if (filteredItems.length === 0) return;
@@ -69,7 +86,7 @@ export const SugestaoCompra: React.FC = () => {
             item.currentStock,
             item.incomingQty,
             item.projectedStock,
-            item.suggestedQty ?? 'A definir',
+            item.urgency === 'OK' ? '—' : item.coveredByImport ? 'Coberto pela importação' : item.suggestedQty ?? 'A definir',
             URGENCY_STYLE[item.urgency].label,
         ].join(';'));
         const csvContent = '﻿' + [headers.join(';'), ...rows].join('\n');
@@ -78,7 +95,8 @@ export const SugestaoCompra: React.FC = () => {
         const link = document.createElement('a');
         const date = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
         link.href = url;
-        link.download = `sugestao_compra_${selectedBrand === 'Todas' ? 'todas_marcas' : selectedBrand.toLowerCase().replace(/\s+/g, '_')}_${date}.csv`;
+        const fileSlug = selectedBrands.size === 0 ? 'todas_marcas' : Array.from(selectedBrands).join('_').toLowerCase().replace(/\s+/g, '_');
+        link.download = `sugestao_compra_${fileSlug}_${date}.csv`;
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -97,7 +115,6 @@ export const SugestaoCompra: React.FC = () => {
 
         const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const date = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-        const brandLabel = selectedBrand === 'Todas' ? 'Todas as marcas' : selectedBrand;
         const title = `Relatório de Sugestão de Compra — ${brandLabel}`;
 
         printWindow.document.write(`
@@ -125,6 +142,7 @@ export const SugestaoCompra: React.FC = () => {
             .badge-esgotado { background: #fef2f2; color: #b91c1c; }
             .badge-critico { background: #fff7ed; color: #c2410c; }
             .badge-baixo { background: #fffbeb; color: #b45309; }
+            .badge-ok { background: #ecfdf5; color: #047857; }
             .footer { margin-top: 32px; text-align: center; color: #94a3b8; font-size: 10.5px; border-top: 1px solid #f1f5f9; padding-top: 16px; }
             @media print {
               body { padding: 0; }
@@ -149,6 +167,7 @@ export const SugestaoCompra: React.FC = () => {
             <div class="card"><div class="label">Esgotados</div><div class="value">${summary.esgotado}</div></div>
             <div class="card"><div class="label">Críticos</div><div class="value">${summary.critico}</div></div>
             <div class="card"><div class="label">Baixo estoque</div><div class="value">${summary.baixo}</div></div>
+            <div class="card"><div class="label">Em importação</div><div class="value">${summary.emImportacao}</div></div>
             <div class="card"><div class="label">Unidades sugeridas</div><div class="value">${summary.unidades}</div></div>
             <div class="card"><div class="label">Valor estimado</div><div class="value">${summary.temValor ? `R$ ${summary.valor.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}` : '—'}</div></div>
           </div>
@@ -168,7 +187,8 @@ export const SugestaoCompra: React.FC = () => {
             </thead>
             <tbody>
               ${filteredItems.map((item) => {
-            const badgeClass = item.urgency === 'ESGOTADO' ? 'badge-esgotado' : item.urgency === 'CRITICO' ? 'badge-critico' : 'badge-baixo';
+            const badgeClass = item.urgency === 'ESGOTADO' ? 'badge-esgotado' : item.urgency === 'CRITICO' ? 'badge-critico' : item.urgency === 'BAIXO' ? 'badge-baixo' : 'badge-ok';
+            const sugestaoCell = item.urgency === 'OK' ? '—' : item.coveredByImport ? 'Coberto' : item.suggestedQty ?? 'a definir';
             return `
                 <tr>
                   <td class="code">${esc(item.productId)}</td>
@@ -177,7 +197,7 @@ export const SugestaoCompra: React.FC = () => {
                   <td class="val">${item.currentStock}</td>
                   <td class="val">${item.incomingQty > 0 ? item.incomingQty : '—'}</td>
                   <td class="val">${item.projectedStock}</td>
-                  <td class="val" style="color:#0f172a;">${item.suggestedQty ?? 'a definir'}</td>
+                  <td class="val" style="color:#0f172a;">${sugestaoCell}</td>
                   <td><span class="badge ${badgeClass}">${URGENCY_STYLE[item.urgency].label}</span></td>
                 </tr>`;
         }).join('')}
@@ -245,7 +265,7 @@ export const SugestaoCompra: React.FC = () => {
                 </div>
 
                 {/* Summary cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
                         <div className="flex items-center gap-2 text-red-600 dark:text-red-400 mb-1">
                             <PackageX className="w-4 h-4" />
@@ -268,6 +288,13 @@ export const SugestaoCompra: React.FC = () => {
                         <div className="text-2xl font-black text-slate-900 dark:text-white">{summary.baixo}</div>
                     </div>
                     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
+                        <div className="flex items-center gap-2 text-brand-600 dark:text-brand-400 mb-1">
+                            <Ship className="w-4 h-4" />
+                            <span className="text-[10px] font-black uppercase tracking-wider">Em importação</span>
+                        </div>
+                        <div className="text-2xl font-black text-slate-900 dark:text-white">{summary.emImportacao}</div>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
                         <div className="flex items-center gap-2 text-[#00a699] mb-1">
                             <ShoppingCart className="w-4 h-4" />
                             <span className="text-[10px] font-black uppercase tracking-wider">Un. sugeridas</span>
@@ -285,41 +312,58 @@ export const SugestaoCompra: React.FC = () => {
                 </div>
 
                 {/* Filters */}
-                <div className="flex flex-col lg:flex-row gap-3 mb-6">
-                    <div className="flex-1 relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Buscar por código ou nome do produto..."
-                            className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00a699]/30 dark:text-white text-sm font-medium transition-all"
-                        />
-                    </div>
-                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 lg:pb-0">
-                        <button
-                            onClick={() => setSelectedBrand('Todas')}
-                            className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold border transition-all ${selectedBrand === 'Todas'
-                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white'
-                                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-[#00a699]/40'
-                                }`}
-                        >
-                            Todas as marcas ({items.length})
-                        </button>
-                        {brandCounts.map(([brand, count]) => (
+                <div className="flex flex-col gap-3 mb-6">
+                    <div className="flex flex-col lg:flex-row gap-3">
+                        <div className="flex-1 relative">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Buscar por código ou nome do produto..."
+                                className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00a699]/30 dark:text-white text-sm font-medium transition-all"
+                            />
+                        </div>
+                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 lg:pb-0">
                             <button
-                                key={brand}
-                                onClick={() => setSelectedBrand(brand)}
-                                className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold border transition-all ${selectedBrand === brand
-                                    ? 'bg-[#00a699] text-white border-[#00a699]'
+                                onClick={() => setSelectedBrands(new Set())}
+                                className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold border transition-all ${selectedBrands.size === 0
+                                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white'
                                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-[#00a699]/40'
                                     }`}
                             >
-                                <Building2 className="w-3 h-3 opacity-60" />
-                                {brand} ({count})
+                                Todas as marcas ({items.length})
                             </button>
-                        ))}
+                            {brandCounts.map(([brand, count]) => {
+                                const active = selectedBrands.has(brand);
+                                return (
+                                    <button
+                                        key={brand}
+                                        onClick={() => toggleBrand(brand)}
+                                        className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold border transition-all ${active
+                                            ? 'bg-[#00a699] text-white border-[#00a699]'
+                                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-[#00a699]/40'
+                                            }`}
+                                    >
+                                        <Building2 className="w-3 h-3 opacity-60" />
+                                        {brand} ({count})
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
+                    {selectedBrands.size > 0 && (
+                        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                            <span className="font-semibold">{selectedBrands.size} {selectedBrands.size === 1 ? 'marca selecionada' : 'marcas selecionadas'}:</span>
+                            <span className="font-medium truncate">{Array.from(selectedBrands).join(', ')}</span>
+                            <button
+                                onClick={() => setSelectedBrands(new Set())}
+                                className="ml-auto shrink-0 text-[#00a699] hover:text-[#008d82] font-bold"
+                            >
+                                Limpar seleção
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Table */}
@@ -391,7 +435,14 @@ export const SugestaoCompra: React.FC = () => {
                                                     {item.projectedStock}
                                                 </td>
                                                 <td className="py-4 px-4 text-center">
-                                                    {item.suggestedQty != null ? (
+                                                    {item.urgency === 'OK' ? (
+                                                        <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>
+                                                    ) : item.coveredByImport ? (
+                                                        <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-brand-600 dark:text-brand-400" title="O que já está em importação cobre a meta de estoque">
+                                                            <Ship className="w-3 h-3" />
+                                                            Coberto
+                                                        </span>
+                                                    ) : item.suggestedQty != null ? (
                                                         <span className="inline-flex items-center justify-center min-w-[2.5rem] px-2.5 py-1 rounded-lg bg-[#00a699]/10 dark:bg-[#00a699]/15 text-[#00a699] dark:text-[#00d1c1] font-black text-sm">
                                                             {item.suggestedQty}
                                                         </span>
