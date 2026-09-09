@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
     ShoppingCart, AlertTriangle, PackageX, TrendingDown, Ship, Download,
-    RefreshCw, Search, Building2,
+    RefreshCw, Search, Building2, Printer,
 } from 'lucide-react';
 import { purchaseIntelligenceService } from '../services/purchaseIntelligenceService';
 import { PurchaseSuggestionItem } from '../types';
@@ -86,6 +86,119 @@ export const SugestaoCompra: React.FC = () => {
         URL.revokeObjectURL(url);
     };
 
+    const handlePrint = () => {
+        if (filteredItems.length === 0) return;
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Permita pop-ups para imprimir');
+            return;
+        }
+
+        const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const date = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+        const brandLabel = selectedBrand === 'Todas' ? 'Todas as marcas' : selectedBrand;
+        const title = `Relatório de Sugestão de Compra — ${brandLabel}`;
+
+        printWindow.document.write(`
+      <html>
+        <head>
+          <title>${esc(title)} - ${date}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #334155; }
+            .header { border-bottom: 3px solid #0f172a; padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; }
+            .header h1 { margin: 0; font-size: 22px; color: #0f172a; }
+            .header p { margin: 5px 0 0; color: #64748b; font-size: 13px; }
+            .brand-mark { text-align: right; }
+            .brand-mark .mc { font-weight: 900; color: #0f172a; font-size: 20px; font-style: italic; }
+            .brand-mark .sub { color: #64748b; font-size: 10px; display: block; letter-spacing: 0.05em; }
+            .summary { display: flex; gap: 14px; margin-bottom: 26px; }
+            .summary .card { flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; }
+            .summary .card .label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin-bottom: 4px; }
+            .summary .card .value { font-size: 20px; font-weight: 800; color: #0f172a; }
+            table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+            th { background-color: #f8fafc; border-bottom: 2px solid #e2e8f0; padding: 10px 8px; text-align: left; font-size: 10px; text-transform: uppercase; color: #475569; letter-spacing: 0.05em; }
+            td { border-bottom: 1px solid #f1f5f9; padding: 9px 8px; font-size: 12px; }
+            .val { text-align: center; font-weight: 600; }
+            .code { font-family: monospace; color: #64748b; font-size: 10.5px; }
+            .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 9.5px; font-weight: 700; }
+            .badge-esgotado { background: #fef2f2; color: #b91c1c; }
+            .badge-critico { background: #fff7ed; color: #c2410c; }
+            .badge-baixo { background: #fffbeb; color: #b45309; }
+            .footer { margin-top: 32px; text-align: center; color: #94a3b8; font-size: 10.5px; border-top: 1px solid #f1f5f9; padding-top: 16px; }
+            @media print {
+              body { padding: 0; }
+              @page { margin: 1.3cm; }
+              tr { break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>${esc(title)}</h1>
+              <p>Emitido em ${date} · ${filteredItems.length} ${filteredItems.length === 1 ? 'item' : 'itens'} · estoque atual cruzado com o que já está em importação</p>
+            </div>
+            <div class="brand-mark">
+              <span class="mc">MC</span>
+              <span class="sub">ESTOQUE MCI</span>
+            </div>
+          </div>
+
+          <div class="summary">
+            <div class="card"><div class="label">Esgotados</div><div class="value">${summary.esgotado}</div></div>
+            <div class="card"><div class="label">Críticos</div><div class="value">${summary.critico}</div></div>
+            <div class="card"><div class="label">Baixo estoque</div><div class="value">${summary.baixo}</div></div>
+            <div class="card"><div class="label">Unidades sugeridas</div><div class="value">${summary.unidades}</div></div>
+            <div class="card"><div class="label">Valor estimado</div><div class="value">${summary.temValor ? `R$ ${summary.valor.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}` : '—'}</div></div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Produto</th>
+                <th>Marca</th>
+                <th class="val">Estoque</th>
+                <th class="val">Em Importação</th>
+                <th class="val">Projetado</th>
+                <th class="val">Sugestão</th>
+                <th>Urgência</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredItems.map((item) => {
+            const badgeClass = item.urgency === 'ESGOTADO' ? 'badge-esgotado' : item.urgency === 'CRITICO' ? 'badge-critico' : 'badge-baixo';
+            return `
+                <tr>
+                  <td class="code">${esc(item.productId)}</td>
+                  <td style="font-weight:600;color:#1e293b;">${esc(item.productName)}</td>
+                  <td>${esc(item.brand)}</td>
+                  <td class="val">${item.currentStock}</td>
+                  <td class="val">${item.incomingQty > 0 ? item.incomingQty : '—'}</td>
+                  <td class="val">${item.projectedStock}</td>
+                  <td class="val" style="color:#0f172a;">${item.suggestedQty ?? 'a definir'}</td>
+                  <td><span class="badge ${badgeClass}">${URGENCY_STYLE[item.urgency].label}</span></td>
+                </tr>`;
+        }).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            Estoque MCI — Gestão Corporativa. Relatório gerado automaticamente a partir do estoque e das importações em aberto no momento da emissão.
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+        printWindow.document.close();
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4 sm:p-6 transition-colors">
             <div className="max-w-7xl mx-auto">
@@ -118,6 +231,15 @@ export const SugestaoCompra: React.FC = () => {
                         >
                             <Download className="w-4 h-4" />
                             Exportar CSV
+                        </button>
+                        <button
+                            onClick={handlePrint}
+                            disabled={filteredItems.length === 0}
+                            className="flex items-center gap-2 px-5 py-3 bg-[#00a699] rounded-xl text-white hover:bg-[#008d82] transition-all text-sm font-bold shadow-lg shadow-[#00a699]/20 dark:shadow-none disabled:opacity-40"
+                            title="Gera um relatório formatado pronto para imprimir ou salvar em PDF"
+                        >
+                            <Printer className="w-4 h-4" />
+                            Imprimir Relatório
                         </button>
                     </div>
                 </div>
