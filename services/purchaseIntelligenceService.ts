@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { PurchaseOrder, PurchaseOrderItem } from '../types';
+import { PurchaseOrder, PurchaseOrderItem, PurchaseSuggestionItem } from '../types';
 import Papa from 'papaparse';
 
 export const purchaseIntelligenceService = {
@@ -76,6 +76,126 @@ export const purchaseIntelligenceService = {
             suggested_quantity: Math.max(0, (Number(p.max_stock) || 0) - Number(p.total)),
             urgency: Number(p.total) <= (Number(p.safety_stock) || 0) ? 'CRITICAL' : 'LOW'
         }));
+    },
+
+    /**
+     * Relatório de Sugestão de Compra por Marca.
+     *
+     * Cruza o estoque físico atual de cada produto com o que já está em
+     * importação (projetos "open" em import_items) antes de sugerir compra —
+     * um item que já tem reposição suficiente a caminho não entra na lista.
+     *
+     * Regras de urgência (nessa ordem):
+     *  - ESGOTADO: estoque disponível (total - reservado) <= 0
+     *  - CRITICO:  safety_stock definido e total <= safety_stock
+     *  - BAIXO:    min_stock definido e total <= min_stock
+     *
+     * Quantidade sugerida = meta - (estoque atual + o que já está importando),
+     * onde a meta é max_stock, ou 2x min_stock, ou 3x safety_stock (o que
+     * existir primeiro, nessa ordem). Sem nenhuma meta cadastrada, o item
+     * ainda aparece (para não esconder um esgotado), mas suggestedQty vem
+     * null — "a definir manualmente" em vez de um número inventado.
+     */
+    async getPurchaseSuggestionsByBrand(): Promise<PurchaseSuggestionItem[]> {
+        if (!supabase) return [];
+
+        // 1. Todos os produtos (sem o limite padrão de 100 usado nas listagens da UI)
+        const { data: products, error: productsError } = await supabase
+            .from('products')
+            .select('id, name, brand, brand_logo, stock_ce, stock_sc, stock_sp, total, reserved, min_stock, max_stock, safety_stock, last_purchase_price')
+            .not('id', 'like', '%.0')
+            .order('brand', { ascending: true })
+            .limit(5000);
+
+        if (productsError || !products) {
+            console.error('Error fetching products for purchase suggestions:', productsError);
+            return [];
+        }
+
+        // 2. Quantidades já em importação (projetos abertos), somadas por produto
+        const { data: openProjects } = await supabase
+            .from('import_projects')
+            .select('id')
+            .eq('status', 'open');
+
+        const incomingByProduct = new Map<string, number>();
+        const openProjectIds = (openProjects || []).map((p: any) => p.id);
+        if (openProjectIds.length > 0) {
+            const { data: items } = await supabase
+                .from('import_items')
+                .select('product_id, quantity')
+                .in('project_id', openProjectIds);
+
+            for (const item of items || []) {
+                const prev = incomingByProduct.get(item.product_id) || 0;
+                incomingByProduct.set(item.product_id, prev + (Number(item.quantity) || 0));
+            }
+        }
+
+        // 3. Monta o relatório
+        const suggestions: PurchaseSuggestionItem[] = [];
+
+        for (const p of products) {
+            const currentStock = Number(p.total) || 0;
+            const reserved = Number(p.reserved) || 0;
+            const available = currentStock - reserved;
+            const minStock = Number(p.min_stock) || 0;
+            const maxStock = Number(p.max_stock) || 0;
+            const safetyStock = Number(p.safety_stock) || 0;
+            const rawId = String(p.id);
+            const incomingQty = incomingByProduct.get(rawId) || 0;
+            const projectedStock = currentStock + incomingQty;
+
+            let urgency: PurchaseSuggestionItem['urgency'] | null = null;
+            if (available <= 0) urgency = 'ESGOTADO';
+            else if (safetyStock > 0 && currentStock <= safetyStock) urgency = 'CRITICO';
+            else if (minStock > 0 && currentStock <= minStock) urgency = 'BAIXO';
+
+            if (!urgency) continue; // estoque saudável, não entra no relatório
+
+            const target = maxStock > 0 ? maxStock : minStock > 0 ? minStock * 2 : safetyStock > 0 ? safetyStock * 3 : null;
+            const suggestedQty = target !== null ? Math.max(0, target - projectedStock) : null;
+
+            // Já tem importação suficiente a caminho para cobrir a meta: não sugere comprar
+            if (target !== null && suggestedQty === 0) continue;
+
+            const lastPurchasePrice = p.last_purchase_price != null ? Number(p.last_purchase_price) : undefined;
+            const estimatedCost = suggestedQty != null && lastPurchasePrice != null ? suggestedQty * lastPurchasePrice : null;
+
+            suggestions.push({
+                productId: rawId,
+                productName: p.name || 'Produto',
+                brand: p.brand || 'Sem marca',
+                brandLogo: p.brand_logo || undefined,
+                stockCe: Number(p.stock_ce) || 0,
+                stockSc: Number(p.stock_sc) || 0,
+                stockSp: Number(p.stock_sp) || 0,
+                currentStock,
+                reserved,
+                available,
+                minStock,
+                maxStock,
+                safetyStock,
+                incomingQty,
+                projectedStock,
+                suggestedQty,
+                urgency,
+                lastPurchasePrice,
+                estimatedCost,
+            });
+        }
+
+        // Esgotado primeiro, depois crítico, depois baixo; dentro do grupo, marca e nome
+        const urgencyRank: Record<PurchaseSuggestionItem['urgency'], number> = { ESGOTADO: 0, CRITICO: 1, BAIXO: 2 };
+        suggestions.sort((a, b) => {
+            const ur = urgencyRank[a.urgency] - urgencyRank[b.urgency];
+            if (ur !== 0) return ur;
+            const br = a.brand.localeCompare(b.brand);
+            if (br !== 0) return br;
+            return a.productName.localeCompare(b.productName);
+        });
+
+        return suggestions;
     },
 
     /**

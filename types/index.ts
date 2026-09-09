@@ -94,6 +94,30 @@ export interface PendingImportItem extends ImportItem {
     imageUrl?: string;
 }
 
+// Uma linha do relatório de Sugestão de Compra: cruza estoque atual + o que já
+// está em importação (para não sugerir comprar o que já está a caminho).
+export interface PurchaseSuggestionItem {
+    productId: string;
+    productName: string;
+    brand: string;
+    brandLogo?: string;
+    stockCe: number;
+    stockSc: number;
+    stockSp: number;
+    currentStock: number;
+    reserved: number;
+    available: number;
+    minStock: number;
+    maxStock: number;
+    safetyStock: number;
+    incomingQty: number;
+    projectedStock: number;
+    suggestedQty: number | null;
+    urgency: 'ESGOTADO' | 'CRITICO' | 'BAIXO';
+    lastPurchasePrice?: number;
+    estimatedCost: number | null;
+}
+
 export interface SeasonalBackground {
     id: string;
     name: string;

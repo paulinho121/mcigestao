@@ -9,6 +9,7 @@ import { Importacoes } from './pages/Importacoes';
 import { ImportManagement } from './pages/ImportManagement';
 import { RentalManagement } from './pages/RentalManagement';
 import { Shopping } from './pages/Shopping';
+import { SugestaoCompra } from './pages/SugestaoCompra';
 import { Suppliers } from './pages/Suppliers';
 import { Brands } from './pages/Brands';
 import { ActivityLogs } from './pages/ActivityLogs';
@@ -38,7 +39,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 import MacOSDock from './components/ui/mac-os-dock';
 
-type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'importacoes' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas' | 'etiqueta_personalizada' | 'marketing_sc' | 'prepostagem';
+type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'importacoes' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'sugestao_compra' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas' | 'etiqueta_personalizada' | 'marketing_sc' | 'prepostagem';
 
 function BackgroundMesh() {
   return null;
@@ -296,7 +297,11 @@ function App() {
         icon: <ShoppingBag size={20} />,
         onClick: () => navigate('shopping'),
         colorClass: 'bg-rose-600 hover:bg-rose-700',
-        tabs: ['shopping'] as Tab[],
+        tabs: ['shopping', 'sugestao_compra'] as Tab[],
+        subItems: [
+          { label: 'Compras', icon: <ShoppingBag size={20} />, onClick: () => navigate('shopping'), colorClass: 'bg-rose-600 hover:bg-rose-700' },
+          { label: 'Sugestão de Compra', icon: <ShoppingCart size={20} />, onClick: () => navigate('sugestao_compra'), colorClass: 'bg-rose-500 hover:bg-rose-600' },
+        ],
       },
       {
         label: 'Pré-Venda',
@@ -503,6 +508,7 @@ function App() {
           {activeTab === 'import_management' && <ImportManagement />}
           {activeTab === 'rental_management' && <RentalManagement />}
           {activeTab === 'shopping' && <Shopping />}
+          {activeTab === 'sugestao_compra' && isMaster && <SugestaoCompra />}
           {activeTab === 'suppliers' && <Suppliers />}
           {activeTab === 'brands' && <Brands />}
           {activeTab === 'logs' && <ActivityLogs />}
