@@ -151,13 +151,26 @@ export const purchaseIntelligenceService = {
             else if (safetyStock > 0 && currentStock <= safetyStock) urgency = 'CRITICO';
             else if (minStock > 0 && currentStock <= minStock) urgency = 'BAIXO';
 
-            if (!urgency) continue; // estoque saudável, não entra no relatório
+            const hasImportActivity = incomingQty > 0;
 
-            const target = maxStock > 0 ? maxStock : minStock > 0 ? minStock * 2 : safetyStock > 0 ? safetyStock * 3 : null;
-            const suggestedQty = target !== null ? Math.max(0, target - projectedStock) : null;
+            // Estoque saudável e nada em importação: não há nada a reportar sobre esse item
+            if (!urgency && !hasImportActivity) continue;
 
-            // Já tem importação suficiente a caminho para cobrir a meta: não sugere comprar
-            if (target !== null && suggestedQty === 0) continue;
+            let suggestedQty: number | null = null;
+            let coveredByImport = false;
+
+            if (urgency) {
+                const target = maxStock > 0 ? maxStock : minStock > 0 ? minStock * 2 : safetyStock > 0 ? safetyStock * 3 : null;
+                suggestedQty = target !== null ? Math.max(0, target - projectedStock) : null;
+
+                // Já tem importação a caminho suficiente pra cobrir a meta: não precisa comprar mais,
+                // mas o item continua na lista (marcado como coberto) — um relatório pra liderança não
+                // pode esconder que algo está baixo só porque já tem reposição em trânsito.
+                coveredByImport = hasImportActivity && target !== null && suggestedQty === 0;
+            }
+            // Sem urgência mas com importação em andamento: estoque está bem, mas entra na lista
+            // só pra dar visibilidade de que a marca tem algo a caminho (útil ao filtrar por marca).
+            const finalUrgency = urgency ?? 'OK';
 
             const lastPurchasePrice = p.last_purchase_price != null ? Number(p.last_purchase_price) : undefined;
             const estimatedCost = suggestedQty != null && lastPurchasePrice != null ? suggestedQty * lastPurchasePrice : null;
@@ -179,17 +192,21 @@ export const purchaseIntelligenceService = {
                 incomingQty,
                 projectedStock,
                 suggestedQty,
-                urgency,
+                coveredByImport,
+                urgency: finalUrgency,
                 lastPurchasePrice,
                 estimatedCost,
             });
         }
 
-        // Esgotado primeiro, depois crítico, depois baixo; dentro do grupo, marca e nome
-        const urgencyRank: Record<PurchaseSuggestionItem['urgency'], number> = { ESGOTADO: 0, CRITICO: 1, BAIXO: 2 };
+        // Esgotado primeiro, depois crítico, baixo, e por último os "OK" (só em importação);
+        // dentro de cada grupo, o que realmente precisa de compra vem antes do que já está coberto
+        const urgencyRank: Record<PurchaseSuggestionItem['urgency'], number> = { ESGOTADO: 0, CRITICO: 1, BAIXO: 2, OK: 3 };
         suggestions.sort((a, b) => {
             const ur = urgencyRank[a.urgency] - urgencyRank[b.urgency];
             if (ur !== 0) return ur;
+            const cr = Number(a.coveredByImport) - Number(b.coveredByImport);
+            if (cr !== 0) return cr;
             const br = a.brand.localeCompare(b.brand);
             if (br !== 0) return br;
             return a.productName.localeCompare(b.productName);
