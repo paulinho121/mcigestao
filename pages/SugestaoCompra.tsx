@@ -13,11 +13,22 @@ const URGENCY_STYLE: Record<PurchaseSuggestionItem['urgency'], { label: string; 
     OK: { label: 'Em importação', badge: 'bg-brand-50 text-brand-700 border-brand-200 dark:bg-brand-900/20 dark:text-brand-400 dark:border-brand-900/40', dot: 'bg-brand-500' },
 };
 
+// "OK" cobre dois casos: item saudável que tem importação a caminho ("Em importação")
+// e item saudável sem importação, mostrado só por causa do filtro de marca ("Estoque ok").
+const urgencyLabel = (item: PurchaseSuggestionItem) =>
+    item.urgency === 'OK' && item.incomingQty === 0 ? 'Estoque ok' : URGENCY_STYLE[item.urgency].label;
+
 export const SugestaoCompra: React.FC = () => {
-    const [items, setItems] = useState<PurchaseSuggestionItem[]>([]);
+    const [baseItems, setBaseItems] = useState<PurchaseSuggestionItem[]>([]);
+    const [brandItems, setBrandItems] = useState<PurchaseSuggestionItem[]>([]);
+    const [allBrands, setAllBrands] = useState<{ name: string; productCount: number }[]>([]);
     const [loading, setLoading] = useState(true);
+    const [brandLoading, setBrandLoading] = useState(false);
     const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
     const [search, setSearch] = useState('');
+
+    const brandMode = selectedBrands.size > 0;
+    const items = brandMode ? brandItems : baseItems;
 
     const toggleBrand = (brand: string) => {
         setSelectedBrands((prev) => {
@@ -31,8 +42,12 @@ export const SugestaoCompra: React.FC = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const data = await purchaseIntelligenceService.getPurchaseSuggestionsByBrand();
-            setItems(data);
+            const [data, brands] = await Promise.all([
+                purchaseIntelligenceService.getPurchaseSuggestionsByBrand(),
+                purchaseIntelligenceService.getProductBrands(),
+            ]);
+            setBaseItems(data);
+            setAllBrands(brands);
         } catch (error) {
             console.error('Failed to load purchase suggestions', error);
         } finally {
@@ -42,28 +57,46 @@ export const SugestaoCompra: React.FC = () => {
 
     useEffect(() => { loadData(); }, []);
 
-    const brandCounts = useMemo(() => {
-        const map = new Map<string, number>();
-        for (const item of items) map.set(item.brand, (map.get(item.brand) || 0) + 1);
-        return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    }, [items]);
+    const refreshAll = () => {
+        loadData();
+        if (selectedBrands.size > 0) {
+            setBrandLoading(true);
+            purchaseIntelligenceService.getBrandStockOverview(Array.from(selectedBrands))
+                .then(setBrandItems)
+                .catch((err) => console.error('Failed to load brand overview', err))
+                .finally(() => setBrandLoading(false));
+        }
+    };
+
+    // Quando há marcas selecionadas, busca o catálogo completo dessas marcas
+    // (itens saudáveis inclusos) para dar visão de tudo que elas têm + importação.
+    useEffect(() => {
+        if (selectedBrands.size === 0) { setBrandItems([]); return; }
+        let cancelled = false;
+        setBrandLoading(true);
+        purchaseIntelligenceService.getBrandStockOverview(Array.from(selectedBrands))
+            .then((data) => { if (!cancelled) setBrandItems(data); })
+            .catch((err) => console.error('Failed to load brand overview', err))
+            .finally(() => { if (!cancelled) setBrandLoading(false); });
+        return () => { cancelled = true; };
+    }, [selectedBrands]);
 
     const filteredItems = useMemo(() => {
         const q = search.trim().toLowerCase();
         return items.filter((item) => {
-            const matchesBrand = selectedBrands.size === 0 || selectedBrands.has(item.brand);
             const matchesSearch = !q || item.productName.toLowerCase().includes(q) || item.productId.toLowerCase().includes(q);
-            return matchesBrand && matchesSearch;
+            return matchesSearch;
         });
-    }, [items, selectedBrands, search]);
+    }, [items, search]);
 
     const summary = useMemo(() => {
-        const base = { esgotado: 0, critico: 0, baixo: 0, emImportacao: 0, unidades: 0, valor: 0, temValor: false };
+        const base = { esgotado: 0, critico: 0, baixo: 0, emImportacao: 0, estoqueOk: 0, unidades: 0, valor: 0, temValor: false };
         for (const item of filteredItems) {
             if (item.urgency === 'ESGOTADO') base.esgotado++;
             else if (item.urgency === 'CRITICO') base.critico++;
             else if (item.urgency === 'BAIXO') base.baixo++;
-            else base.emImportacao++;
+            else if (item.incomingQty > 0) base.emImportacao++;
+            else base.estoqueOk++;
             base.unidades += item.suggestedQty || 0;
             if (item.estimatedCost != null) { base.valor += item.estimatedCost; base.temValor = true; }
         }
@@ -87,7 +120,7 @@ export const SugestaoCompra: React.FC = () => {
             item.incomingQty,
             item.projectedStock,
             item.urgency === 'OK' ? '—' : item.coveredByImport ? 'Coberto pela importação' : item.suggestedQty ?? 'A definir',
-            URGENCY_STYLE[item.urgency].label,
+            urgencyLabel(item),
         ].join(';'));
         const csvContent = '﻿' + [headers.join(';'), ...rows].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -198,7 +231,7 @@ export const SugestaoCompra: React.FC = () => {
                   <td class="val">${item.incomingQty > 0 ? item.incomingQty : '—'}</td>
                   <td class="val">${item.projectedStock}</td>
                   <td class="val" style="color:#0f172a;">${sugestaoCell}</td>
-                  <td><span class="badge ${badgeClass}">${URGENCY_STYLE[item.urgency].label}</span></td>
+                  <td><span class="badge ${badgeClass}">${urgencyLabel(item)}</span></td>
                 </tr>`;
         }).join('')}
             </tbody>
@@ -237,12 +270,12 @@ export const SugestaoCompra: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={loadData}
-                            disabled={loading}
+                            onClick={refreshAll}
+                            disabled={loading || brandLoading}
                             className="p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 hover:text-[#00a699] hover:border-[#00a699]/30 transition-all disabled:opacity-50"
                             title="Atualizar"
                         >
-                            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                            <RefreshCw className={`w-4 h-4 ${loading || brandLoading ? 'animate-spin' : ''}`} />
                         </button>
                         <button
                             onClick={handleExportCSV}
@@ -265,7 +298,7 @@ export const SugestaoCompra: React.FC = () => {
                 </div>
 
                 {/* Summary cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+                <div className={`grid grid-cols-2 ${brandMode ? 'lg:grid-cols-7' : 'lg:grid-cols-6'} gap-4 mb-6`}>
                     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
                         <div className="flex items-center gap-2 text-red-600 dark:text-red-400 mb-1">
                             <PackageX className="w-4 h-4" />
@@ -294,6 +327,15 @@ export const SugestaoCompra: React.FC = () => {
                         </div>
                         <div className="text-2xl font-black text-slate-900 dark:text-white">{summary.emImportacao}</div>
                     </div>
+                    {brandMode && (
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
+                            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 mb-1">
+                                <ShoppingCart className="w-4 h-4" />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Estoque ok</span>
+                            </div>
+                            <div className="text-2xl font-black text-slate-900 dark:text-white">{summary.estoqueOk}</div>
+                        </div>
+                    )}
                     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
                         <div className="flex items-center gap-2 text-[#00a699] mb-1">
                             <ShoppingCart className="w-4 h-4" />
@@ -332,21 +374,21 @@ export const SugestaoCompra: React.FC = () => {
                                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-[#00a699]/40'
                                     }`}
                             >
-                                Todas as marcas ({items.length})
+                                {selectedBrands.size === 0 ? `Todas as marcas (${baseItems.length})` : 'Limpar marcas'}
                             </button>
-                            {brandCounts.map(([brand, count]) => {
-                                const active = selectedBrands.has(brand);
+                            {allBrands.map(({ name, productCount }) => {
+                                const active = selectedBrands.has(name);
                                 return (
                                     <button
-                                        key={brand}
-                                        onClick={() => toggleBrand(brand)}
+                                        key={name}
+                                        onClick={() => toggleBrand(name)}
                                         className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold border transition-all ${active
                                             ? 'bg-[#00a699] text-white border-[#00a699]'
                                             : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-[#00a699]/40'
                                             }`}
                                     >
                                         <Building2 className="w-3 h-3 opacity-60" />
-                                        {brand} ({count})
+                                        {name} ({productCount})
                                     </button>
                                 );
                             })}
@@ -368,10 +410,10 @@ export const SugestaoCompra: React.FC = () => {
 
                 {/* Table */}
                 <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    {loading ? (
+                    {loading || brandLoading ? (
                         <div className="text-center py-24">
                             <div className="w-12 h-12 border-4 border-[#00a699]/10 border-t-[#00a699] rounded-full animate-spin mx-auto mb-4" />
-                            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Calculando sugestões</p>
+                            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">{brandMode ? 'Carregando marcas' : 'Calculando sugestões'}</p>
                         </div>
                     ) : filteredItems.length === 0 ? (
                         <div className="text-center py-24">
@@ -379,12 +421,16 @@ export const SugestaoCompra: React.FC = () => {
                                 <ShoppingCart className="w-10 h-10 text-[#00a699]" />
                             </div>
                             <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-1">
-                                {items.length === 0 ? 'Nenhuma compra necessária no momento' : 'Nada encontrado com esse filtro'}
+                                {brandMode
+                                    ? 'Nenhum produto encontrado para as marcas selecionadas'
+                                    : items.length === 0 ? 'Nenhuma compra necessária no momento' : 'Nada encontrado com esse filtro'}
                             </h3>
                             <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                                {items.length === 0
-                                    ? 'Todo o estoque está em nível saudável, considerando o que já está em importação.'
-                                    : 'Tente outra marca ou termo de busca.'}
+                                {brandMode
+                                    ? 'Verifique se essas marcas têm produtos cadastrados ou tente outra.'
+                                    : items.length === 0
+                                        ? 'Todo o estoque está em nível saudável, considerando o que já está em importação.'
+                                        : 'Ajuste o termo de busca.'}
                             </p>
                         </div>
                     ) : (
@@ -453,7 +499,7 @@ export const SugestaoCompra: React.FC = () => {
                                                 <td className="py-4 px-4">
                                                     <span className={`inline-flex items-center gap-1.5 text-[10.5px] font-bold px-2.5 py-1 rounded-full border ${style.badge}`}>
                                                         <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
-                                                        {style.label}
+                                                        {urgencyLabel(item)}
                                                     </span>
                                                 </td>
                                             </tr>

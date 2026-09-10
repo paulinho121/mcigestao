@@ -2,6 +2,98 @@ import { supabase } from '../lib/supabase';
 import { PurchaseOrder, PurchaseOrderItem, PurchaseSuggestionItem } from '../types';
 import Papa from 'papaparse';
 
+// Colunas de produto usadas pelo relatório de Sugestão de Compra
+const SUGGESTION_PRODUCT_COLS =
+    'id, name, brand, brand_logo, stock_ce, stock_sc, stock_sp, total, reserved, min_stock, max_stock, safety_stock, last_purchase_price';
+
+// Monta uma linha do relatório a partir de um produto + quantidade já em importação.
+// `needsAction` = true quando o item tem urgência (esgotado/crítico/baixo).
+function buildSuggestionRow(p: any, incomingQty: number): { row: PurchaseSuggestionItem; needsAction: boolean } {
+    const currentStock = Number(p.total) || 0;
+    const reserved = Number(p.reserved) || 0;
+    const available = currentStock - reserved;
+    const minStock = Number(p.min_stock) || 0;
+    const maxStock = Number(p.max_stock) || 0;
+    const safetyStock = Number(p.safety_stock) || 0;
+    const projectedStock = currentStock + incomingQty;
+    const hasImportActivity = incomingQty > 0;
+
+    let urgency: 'ESGOTADO' | 'CRITICO' | 'BAIXO' | null = null;
+    if (available <= 0) urgency = 'ESGOTADO';
+    else if (safetyStock > 0 && currentStock <= safetyStock) urgency = 'CRITICO';
+    else if (minStock > 0 && currentStock <= minStock) urgency = 'BAIXO';
+
+    let suggestedQty: number | null = null;
+    let coveredByImport = false;
+    if (urgency) {
+        const target = maxStock > 0 ? maxStock : minStock > 0 ? minStock * 2 : safetyStock > 0 ? safetyStock * 3 : null;
+        suggestedQty = target !== null ? Math.max(0, target - projectedStock) : null;
+        coveredByImport = hasImportActivity && target !== null && suggestedQty === 0;
+    }
+
+    const lastPurchasePrice = p.last_purchase_price != null ? Number(p.last_purchase_price) : undefined;
+    const estimatedCost = suggestedQty != null && lastPurchasePrice != null ? suggestedQty * lastPurchasePrice : null;
+
+    return {
+        needsAction: urgency !== null,
+        row: {
+            productId: String(p.id),
+            productName: p.name || 'Produto',
+            brand: (p.brand && String(p.brand).trim()) || 'Sem marca',
+            brandLogo: p.brand_logo || undefined,
+            stockCe: Number(p.stock_ce) || 0,
+            stockSc: Number(p.stock_sc) || 0,
+            stockSp: Number(p.stock_sp) || 0,
+            currentStock,
+            reserved,
+            available,
+            minStock,
+            maxStock,
+            safetyStock,
+            incomingQty,
+            projectedStock,
+            suggestedQty,
+            coveredByImport,
+            urgency: urgency ?? 'OK',
+            lastPurchasePrice,
+            estimatedCost,
+        },
+    };
+}
+
+const URGENCY_RANK: Record<PurchaseSuggestionItem['urgency'], number> = { ESGOTADO: 0, CRITICO: 1, BAIXO: 2, OK: 3 };
+function sortSuggestions(list: PurchaseSuggestionItem[]): PurchaseSuggestionItem[] {
+    return list.sort((a, b) => {
+        const ur = URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency];
+        if (ur !== 0) return ur;
+        const cr = Number(a.coveredByImport) - Number(b.coveredByImport);
+        if (cr !== 0) return cr;
+        const br = a.brand.localeCompare(b.brand);
+        if (br !== 0) return br;
+        return a.productName.localeCompare(b.productName);
+    });
+}
+
+// Soma o que está em importação (projetos "open") por produto. Se `productIds` vier,
+// limita a consulta a esses produtos.
+async function fetchIncomingByProduct(productIds?: string[]): Promise<Map<string, number>> {
+    const incoming = new Map<string, number>();
+    if (!supabase) return incoming;
+
+    const { data: openProjects } = await supabase.from('import_projects').select('id').eq('status', 'open');
+    const openProjectIds = (openProjects || []).map((p: any) => p.id);
+    if (openProjectIds.length === 0) return incoming;
+
+    let query = supabase.from('import_items').select('product_id, quantity').in('project_id', openProjectIds);
+    if (productIds && productIds.length > 0) query = query.in('product_id', productIds);
+    const { data: items } = await query;
+
+    for (const item of items || []) {
+        incoming.set(item.product_id, (incoming.get(item.product_id) || 0) + (Number(item.quantity) || 0));
+    }
+    return incoming;
+}
+
 export const purchaseIntelligenceService = {
     /**
      * Recalculate ABC Classification for all products
@@ -99,12 +191,10 @@ export const purchaseIntelligenceService = {
     async getPurchaseSuggestionsByBrand(): Promise<PurchaseSuggestionItem[]> {
         if (!supabase) return [];
 
-        // 1. Todos os produtos (sem o limite padrão de 100 usado nas listagens da UI)
         const { data: products, error: productsError } = await supabase
             .from('products')
-            .select('id, name, brand, brand_logo, stock_ce, stock_sc, stock_sp, total, reserved, min_stock, max_stock, safety_stock, last_purchase_price')
+            .select(SUGGESTION_PRODUCT_COLS)
             .not('id', 'like', '%.0')
-            .order('brand', { ascending: true })
             .limit(5000);
 
         if (productsError || !products) {
@@ -112,107 +202,90 @@ export const purchaseIntelligenceService = {
             return [];
         }
 
-        // 2. Quantidades já em importação (projetos abertos), somadas por produto
-        const { data: openProjects } = await supabase
-            .from('import_projects')
-            .select('id')
-            .eq('status', 'open');
+        const incomingByProduct = await fetchIncomingByProduct();
 
-        const incomingByProduct = new Map<string, number>();
-        const openProjectIds = (openProjects || []).map((p: any) => p.id);
-        if (openProjectIds.length > 0) {
-            const { data: items } = await supabase
-                .from('import_items')
-                .select('product_id, quantity')
-                .in('project_id', openProjectIds);
-
-            for (const item of items || []) {
-                const prev = incomingByProduct.get(item.product_id) || 0;
-                incomingByProduct.set(item.product_id, prev + (Number(item.quantity) || 0));
-            }
-        }
-
-        // 3. Monta o relatório
         const suggestions: PurchaseSuggestionItem[] = [];
-
         for (const p of products) {
-            const currentStock = Number(p.total) || 0;
-            const reserved = Number(p.reserved) || 0;
-            const available = currentStock - reserved;
-            const minStock = Number(p.min_stock) || 0;
-            const maxStock = Number(p.max_stock) || 0;
-            const safetyStock = Number(p.safety_stock) || 0;
-            const rawId = String(p.id);
-            const incomingQty = incomingByProduct.get(rawId) || 0;
-            const projectedStock = currentStock + incomingQty;
-
-            let urgency: PurchaseSuggestionItem['urgency'] | null = null;
-            if (available <= 0) urgency = 'ESGOTADO';
-            else if (safetyStock > 0 && currentStock <= safetyStock) urgency = 'CRITICO';
-            else if (minStock > 0 && currentStock <= minStock) urgency = 'BAIXO';
-
-            const hasImportActivity = incomingQty > 0;
-
+            const incomingQty = incomingByProduct.get(String(p.id)) || 0;
+            const { row, needsAction } = buildSuggestionRow(p, incomingQty);
             // Estoque saudável e nada em importação: não há nada a reportar sobre esse item
-            if (!urgency && !hasImportActivity) continue;
-
-            let suggestedQty: number | null = null;
-            let coveredByImport = false;
-
-            if (urgency) {
-                const target = maxStock > 0 ? maxStock : minStock > 0 ? minStock * 2 : safetyStock > 0 ? safetyStock * 3 : null;
-                suggestedQty = target !== null ? Math.max(0, target - projectedStock) : null;
-
-                // Já tem importação a caminho suficiente pra cobrir a meta: não precisa comprar mais,
-                // mas o item continua na lista (marcado como coberto) — um relatório pra liderança não
-                // pode esconder que algo está baixo só porque já tem reposição em trânsito.
-                coveredByImport = hasImportActivity && target !== null && suggestedQty === 0;
-            }
-            // Sem urgência mas com importação em andamento: estoque está bem, mas entra na lista
-            // só pra dar visibilidade de que a marca tem algo a caminho (útil ao filtrar por marca).
-            const finalUrgency = urgency ?? 'OK';
-
-            const lastPurchasePrice = p.last_purchase_price != null ? Number(p.last_purchase_price) : undefined;
-            const estimatedCost = suggestedQty != null && lastPurchasePrice != null ? suggestedQty * lastPurchasePrice : null;
-
-            suggestions.push({
-                productId: rawId,
-                productName: p.name || 'Produto',
-                brand: p.brand || 'Sem marca',
-                brandLogo: p.brand_logo || undefined,
-                stockCe: Number(p.stock_ce) || 0,
-                stockSc: Number(p.stock_sc) || 0,
-                stockSp: Number(p.stock_sp) || 0,
-                currentStock,
-                reserved,
-                available,
-                minStock,
-                maxStock,
-                safetyStock,
-                incomingQty,
-                projectedStock,
-                suggestedQty,
-                coveredByImport,
-                urgency: finalUrgency,
-                lastPurchasePrice,
-                estimatedCost,
-            });
+            if (!needsAction && incomingQty === 0) continue;
+            suggestions.push(row);
         }
 
-        // Esgotado primeiro, depois crítico, baixo, e por último os "OK" (só em importação);
-        // dentro de cada grupo, o que realmente precisa de compra vem antes do que já está coberto
-        const urgencyRank: Record<PurchaseSuggestionItem['urgency'], number> = { ESGOTADO: 0, CRITICO: 1, BAIXO: 2, OK: 3 };
-        suggestions.sort((a, b) => {
-            const ur = urgencyRank[a.urgency] - urgencyRank[b.urgency];
-            if (ur !== 0) return ur;
-            const cr = Number(a.coveredByImport) - Number(b.coveredByImport);
-            if (cr !== 0) return cr;
-            const br = a.brand.localeCompare(b.brand);
-            if (br !== 0) return br;
-            return a.productName.localeCompare(b.productName);
-        });
+        return sortSuggestions(suggestions);
+    },
 
-        return suggestions;
+    /**
+     * Lista as marcas cadastradas nos produtos (deduplicadas ignorando maiúsc./minúsc.
+     * e espaços — a base tem "APUTURE" e "Aputure", "7 Artizans"/"7Artisans" etc.),
+     * com a contagem de produtos de cada uma. Usada para o filtro de marcas.
+     */
+    async getProductBrands(): Promise<{ name: string; productCount: number }[]> {
+        if (!supabase) return [];
+
+        const { data, error } = await supabase
+            .from('products')
+            .select('brand')
+            .not('id', 'like', '%.0')
+            .limit(5000);
+
+        if (error || !data) {
+            console.error('Error fetching product brands:', error);
+            return [];
+        }
+
+        // Escolhe a grafia "mais bonita" entre variações da mesma marca (título > minúscula > tudo maiúsculo)
+        const niceness = (s: string) => (/[a-z]/.test(s) && /^[A-Z0-9]/.test(s) ? 2 : /[a-z]/.test(s) ? 1 : 0);
+
+        const map = new Map<string, { name: string; count: number }>();
+        for (const r of data) {
+            const raw = (r.brand ? String(r.brand) : '').trim();
+            if (!raw || raw.toLowerCase() === 'sem marca') continue;
+            const key = raw.toLowerCase();
+            const entry = map.get(key);
+            if (entry) {
+                entry.count++;
+                if (niceness(raw) > niceness(entry.name)) entry.name = raw;
+            } else {
+                map.set(key, { name: raw, count: 1 });
+            }
+        }
+
+        return Array.from(map.values())
+            .map((e) => ({ name: e.name, productCount: e.count }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+    },
+
+    /**
+     * Visão de estoque + importação de TODOS os produtos das marcas escolhidas,
+     * independente de estarem baixos ou não. Item sem urgência e sem importação
+     * aparece como "OK" (só pra dar visão do catálogo da marca). Usada quando o
+     * usuário seleciona marcas específicas no relatório.
+     */
+    async getBrandStockOverview(brands: string[]): Promise<PurchaseSuggestionItem[]> {
+        if (!supabase || brands.length === 0) return [];
+
+        const wanted = new Set(brands.map((b) => b.trim().toLowerCase()));
+
+        const { data: products, error } = await supabase
+            .from('products')
+            .select(SUGGESTION_PRODUCT_COLS)
+            .not('id', 'like', '%.0')
+            .limit(5000);
+
+        if (error || !products) {
+            console.error('Error fetching products for brand overview:', error);
+            return [];
+        }
+
+        const matched = products.filter((p: any) => wanted.has((p.brand ? String(p.brand) : '').trim().toLowerCase()));
+        if (matched.length === 0) return [];
+
+        const incomingByProduct = await fetchIncomingByProduct(matched.map((p: any) => String(p.id)));
+
+        const rows = matched.map((p: any) => buildSuggestionRow(p, incomingByProduct.get(String(p.id)) || 0).row);
+        return sortSuggestions(rows);
     },
 
     /**
