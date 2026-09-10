@@ -3,6 +3,7 @@ import { Product, Reservation, ImportProject, ImportItem, PendingImportItem, Wit
 import { MOCK_INVENTORY } from './mockData';
 import { logService } from './logService';
 import { preSaleService } from './preSaleService';
+import { ImportStage, normalizeStage, IN_TRANSIT_STAGES } from '../config/importStages';
 
 // In-memory reservation storage
 let reservations: Reservation[] = [];
@@ -1240,12 +1241,12 @@ export const inventoryService = {
   /**
    * Create a new Import Project
    */
-  async createImportProject(manufacturer: string, importNumber: string): Promise<ImportProject | null> {
+  async createImportProject(manufacturer: string, importNumber: string, stage: ImportStage = 'negociacao'): Promise<ImportProject | null> {
     if (!supabase) return null;
 
     const { data, error } = await supabase
       .from('import_projects')
-      .insert({ manufacturer, import_number: importNumber })
+      .insert({ manufacturer, import_number: importNumber, stage })
       .select()
       .single();
 
@@ -1256,6 +1257,7 @@ export const inventoryService = {
       manufacturer: data.manufacturer,
       importNumber: data.import_number,
       status: data.status,
+      stage: normalizeStage(data.stage),
       createdAt: data.created_at
     };
   },
@@ -1281,6 +1283,7 @@ export const inventoryService = {
       manufacturer: p.manufacturer,
       importNumber: p.import_number,
       status: p.status,
+      stage: normalizeStage(p.stage),
       createdAt: p.created_at
     }));
   },
@@ -1388,12 +1391,15 @@ export const inventoryService = {
   /**
    * Update Import Project
    */
-  async updateImportProject(id: string, manufacturer: string, importNumber: string): Promise<boolean> {
+  async updateImportProject(id: string, manufacturer: string, importNumber: string, stage?: ImportStage): Promise<boolean> {
     if (!supabase) return false;
+
+    const patch: Record<string, any> = { manufacturer, import_number: importNumber };
+    if (stage) patch.stage = stage;
 
     const { error } = await supabase
       .from('import_projects')
-      .update({ manufacturer, import_number: importNumber })
+      .update(patch)
       .eq('id', id);
 
     if (error) {
@@ -1401,6 +1407,19 @@ export const inventoryService = {
       return false;
     }
 
+    return true;
+  },
+
+  /**
+   * Atualiza só a fase (lifecycle) de um projeto de importação.
+   */
+  async updateImportProjectStage(id: string, stage: ImportStage): Promise<boolean> {
+    if (!supabase) return false;
+    const { error } = await supabase.from('import_projects').update({ stage }).eq('id', id);
+    if (error) {
+      console.error('Error updating import project stage:', error);
+      return false;
+    }
     return true;
   },
 
@@ -1506,11 +1525,13 @@ export const inventoryService = {
   async getAllPendingImportItems(): Promise<PendingImportItem[]> {
     if (!supabase) return [];
 
-    // 1. Projetos em aberto
+    // 1. Projetos cuja carga já está confirmada e a caminho (embarcado / em trânsito).
+    //    "Em negociação" e "Concluído" não contam como reposição em andamento.
+    //    `stage.is.null` cobre linhas legadas (antes da coluna existir) = tratadas como embarcadas.
     const { data: projects, error: projectsError } = await supabase
       .from('import_projects')
       .select('id, manufacturer, import_number')
-      .eq('status', 'open');
+      .or(`stage.in.(${IN_TRANSIT_STAGES.join(',')}),stage.is.null`);
 
     if (projectsError) {
       console.error('Error fetching open import projects:', projectsError);

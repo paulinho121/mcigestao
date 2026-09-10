@@ -71,6 +71,7 @@ export interface ImportProject {
     manufacturer: string;
     importNumber: string;
     status: 'open' | 'closed';
+    stage: 'negociacao' | 'embarcado' | 'transito' | 'concluido';
     createdAt: string;
 }
 

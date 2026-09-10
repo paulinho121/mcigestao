@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { PurchaseOrder, PurchaseOrderItem, PurchaseSuggestionItem } from '../types';
+import { IN_TRANSIT_STAGES } from '../config/importStages';
 import Papa from 'papaparse';
 
 // Colunas de produto usadas pelo relatório de Sugestão de Compra
@@ -80,7 +81,12 @@ async function fetchIncomingByProduct(productIds?: string[]): Promise<Map<string
     const incoming = new Map<string, number>();
     if (!supabase) return incoming;
 
-    const { data: openProjects } = await supabase.from('import_projects').select('id').eq('status', 'open');
+    // Só conta o que já está confirmado e a caminho (embarcado / trânsito).
+    // Negociação e concluído ficam de fora. `stage.is.null` = linha legada, tratada como embarcada.
+    const { data: openProjects } = await supabase
+        .from('import_projects')
+        .select('id')
+        .or(`stage.in.(${IN_TRANSIT_STAGES.join(',')}),stage.is.null`);
     const openProjectIds = (openProjects || []).map((p: any) => p.id);
     if (openProjectIds.length === 0) return incoming;
 
