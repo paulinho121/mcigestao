@@ -4,6 +4,17 @@ import { ImportProject, ImportItem, Product } from '../types';
 import { inventoryService } from '../services/inventoryService';
 import { isMasterUser } from '../config/masterUsers';
 import { supabase } from '../lib/supabase';
+import { IMPORT_STAGES, ImportStage, importStageMeta } from '../config/importStages';
+
+function StageBadge({ stage }: { stage: ImportStage }) {
+    const meta = importStageMeta(stage);
+    return (
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide ${meta.badge}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+            {meta.short}
+        </span>
+    );
+}
 
 type SubTab = 'view' | 'maintenance';
 
@@ -54,6 +65,10 @@ export const InImport: React.FC = () => {
     const [showNewProjectForm, setShowNewProjectForm] = useState(false);
     const [manufacturer, setManufacturer] = useState('');
     const [importNumber, setImportNumber] = useState('');
+    const [newProjectStage, setNewProjectStage] = useState<ImportStage>('negociacao');
+
+    // Filtro de fase (aba Visualização)
+    const [stageFilter, setStageFilter] = useState<ImportStage | 'all'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<Product[]>([]);
     const [searching, setSearching] = useState(false);
@@ -69,6 +84,7 @@ export const InImport: React.FC = () => {
     const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
     const [editManufacturer, setEditManufacturer] = useState('');
     const [editImportNumber, setEditImportNumber] = useState('');
+    const [editProjectStage, setEditProjectStage] = useState<ImportStage>('negociacao');
 
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editItemQuantity, setEditItemQuantity] = useState(0);
@@ -132,13 +148,25 @@ export const InImport: React.FC = () => {
         if (!manufacturer.trim() || !importNumber.trim()) return;
 
         try {
-            await inventoryService.createImportProject(manufacturer, importNumber);
+            await inventoryService.createImportProject(manufacturer, importNumber, newProjectStage);
             setManufacturer('');
             setImportNumber('');
+            setNewProjectStage('negociacao');
             setShowNewProjectForm(false);
             await loadProjects();
         } catch (error) {
             console.error('Failed to create project', error);
+        }
+    };
+
+    const handleChangeStage = async (project: ImportProject, stage: ImportStage) => {
+        try {
+            await inventoryService.updateImportProjectStage(project.id, stage);
+            setProjects(prev => prev.map(p => p.id === project.id ? { ...p, stage } : p));
+            if (selectedProject?.id === project.id) setSelectedProject(prev => prev ? { ...prev, stage } : null);
+            setActionStatus({ type: 'success', message: `Fase atualizada para "${importStageMeta(stage).label}"` });
+        } catch {
+            setActionStatus({ type: 'error', message: 'Erro ao atualizar a fase' });
         }
     };
 
@@ -240,16 +268,17 @@ export const InImport: React.FC = () => {
         setEditingProjectId(project.id);
         setEditManufacturer(project.manufacturer);
         setEditImportNumber(project.importNumber);
+        setEditProjectStage(project.stage);
     };
 
     const handleSaveProject = async (id: string) => {
         if (!editManufacturer.trim() || !editImportNumber.trim()) return;
         try {
-            await inventoryService.updateImportProject(id, editManufacturer, editImportNumber);
+            await inventoryService.updateImportProject(id, editManufacturer, editImportNumber, editProjectStage);
             setEditingProjectId(null);
             await loadProjects();
             if (selectedProject?.id === id) {
-                setSelectedProject(prev => prev ? { ...prev, manufacturer: editManufacturer, importNumber: editImportNumber } : null);
+                setSelectedProject(prev => prev ? { ...prev, manufacturer: editManufacturer, importNumber: editImportNumber, stage: editProjectStage } : null);
             }
             setActionStatus({ type: 'success', message: 'Projeto atualizado com sucesso' });
         } catch (error) {
@@ -276,6 +305,8 @@ export const InImport: React.FC = () => {
             setActionStatus({ type: 'error', message: 'Erro ao atualizar item' });
         }
     };
+
+    const viewProjects = stageFilter === 'all' ? projects : projects.filter((p) => p.stage === stageFilter);
 
 
     return (
@@ -337,25 +368,47 @@ export const InImport: React.FC = () => {
                         {/* Projects List */}
                         <div className="lg:col-span-4">
                             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 transition-colors overflow-hidden">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="font-bold text-slate-800 dark:text-white uppercase tracking-wider text-xs">Projetos Ativos</h3>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="font-bold text-slate-800 dark:text-white uppercase tracking-wider text-xs">Projetos</h3>
                                     <span className="px-2 py-0.5 bg-[#00a699]/10 dark:bg-[#00a699]/20 text-[#00a699] dark:text-[#00d1c1] text-[10px] font-black rounded-full border border-[#00a699]/20 dark:border-[#00a699]/30">
-                                        {projects.length} TOTAL
+                                        {viewProjects.length} {stageFilter === 'all' ? 'TOTAL' : importStageMeta(stageFilter).short.toUpperCase()}
                                     </span>
                                 </div>
-                                
+
+                                {/* Filtro de fase */}
+                                <div className="flex flex-wrap gap-1.5 mb-5">
+                                    <button
+                                        onClick={() => setStageFilter('all')}
+                                        className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide transition-all ${stageFilter === 'all' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'}`}
+                                    >
+                                        Todas ({projects.length})
+                                    </button>
+                                    {IMPORT_STAGES.map((s) => {
+                                        const count = projects.filter((p) => p.stage === s.value).length;
+                                        return (
+                                            <button
+                                                key={s.value}
+                                                onClick={() => setStageFilter(s.value)}
+                                                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide transition-all ${stageFilter === s.value ? 'bg-[#00a699] text-white' : `${s.badge} opacity-80 hover:opacity-100`}`}
+                                            >
+                                                {s.short} ({count})
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
                                 {loading ? (
                                     <div className="text-center py-12">
                                         <div className="w-10 h-10 border-4 border-[#00a699]/10 border-t-[#00a699] rounded-full animate-spin mx-auto"></div>
                                     </div>
-                                ) : projects.length === 0 ? (
+                                ) : viewProjects.length === 0 ? (
                                     <div className="text-center py-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
                                         <FolderOpen className="w-12 h-12 mx-auto mb-3 text-slate-300 dark:text-slate-700" />
-                                        <p className="text-slate-400 font-medium text-sm">Nenhum projeto encontrado</p>
+                                        <p className="text-slate-400 font-medium text-sm">Nenhum projeto {stageFilter === 'all' ? 'encontrado' : `em "${importStageMeta(stageFilter).label}"`}</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                                        {projects.map((project) => (
+                                        {viewProjects.map((project) => (
                                             <div
                                                 key={project.id}
                                                 onClick={() => handleSelectProject(project)}
@@ -364,11 +417,18 @@ export const InImport: React.FC = () => {
                                                     : 'bg-white hover:bg-[#00a699]/5 border border-slate-200 hover:border-[#00a699]/30 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700 dark:hover:border-[#00a699]/50'
                                                     }`}
                                             >
-                                                <div className={`font-bold ${selectedProject?.id === project.id ? 'text-white' : 'text-slate-800 dark:text-white'}`}>
-                                                    {project.manufacturer}
-                                                </div>
-                                                <div className={`text-sm font-medium ${selectedProject?.id === project.id ? 'text-[#00d1c1]' : 'text-slate-500 dark:text-slate-400'}`}>
-                                                    {project.importNumber}
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="min-w-0">
+                                                        <div className={`font-bold ${selectedProject?.id === project.id ? 'text-white' : 'text-slate-800 dark:text-white'}`}>
+                                                            {project.manufacturer}
+                                                        </div>
+                                                        <div className={`text-sm font-medium ${selectedProject?.id === project.id ? 'text-[#00d1c1]' : 'text-slate-500 dark:text-slate-400'}`}>
+                                                            {project.importNumber}
+                                                        </div>
+                                                    </div>
+                                                    <div className={selectedProject?.id === project.id ? 'brightness-200 contrast-125' : ''}>
+                                                        <StageBadge stage={project.stage} />
+                                                    </div>
                                                 </div>
                                                 <div className={`flex items-center gap-1.5 text-[10px] mt-3 font-bold uppercase tracking-tight ${selectedProject?.id === project.id ? 'text-[#00a699]/20' : 'text-slate-400'}`}>
                                                     <Calendar className="w-3 h-3" />
@@ -400,15 +460,31 @@ export const InImport: React.FC = () => {
                                                 </p>
                                             </div>
                                         </div>
-                                        {items.length > 0 && (
-                                            <button
-                                                onClick={handleExportCSV}
-                                                className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-700 dark:text-white hover:bg-[#00a699]/5 dark:hover:bg-slate-600 hover:text-[#00a699] dark:hover:text-[#00d1c1] hover:border-[#00a699]/30 transition-all text-xs font-black shadow-sm uppercase tracking-wider"
-                                            >
-                                                <Download className="w-4 h-4" />
-                                                <span className="hidden sm:inline">Exportar</span>
-                                            </button>
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            {isMaster ? (
+                                                <select
+                                                    value={selectedProject.stage}
+                                                    onChange={(e) => handleChangeStage(selectedProject, e.target.value as ImportStage)}
+                                                    className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs font-black uppercase tracking-wide text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#00a699]/30"
+                                                    title="Fase da importação"
+                                                >
+                                                    {IMPORT_STAGES.map((s) => (
+                                                        <option key={s.value} value={s.value}>{s.label}</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <StageBadge stage={selectedProject.stage} />
+                                            )}
+                                            {items.length > 0 && (
+                                                <button
+                                                    onClick={handleExportCSV}
+                                                    className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-700 dark:text-white hover:bg-[#00a699]/5 dark:hover:bg-slate-600 hover:text-[#00a699] dark:hover:text-[#00d1c1] hover:border-[#00a699]/30 transition-all text-xs font-black shadow-sm uppercase tracking-wider"
+                                                >
+                                                    <Download className="w-4 h-4" />
+                                                    <span className="hidden sm:inline">Exportar</span>
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="p-6">
                                         {loadingItems ? (
@@ -538,6 +614,22 @@ export const InImport: React.FC = () => {
                                             placeholder="Ex: IMP 09/26"
                                         />
                                     </div>
+                                    <div className="space-y-2 sm:col-span-2">
+                                        <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Fase</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {IMPORT_STAGES.map((s) => (
+                                                <button
+                                                    key={s.value}
+                                                    type="button"
+                                                    onClick={() => setNewProjectStage(s.value)}
+                                                    className={`px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wide transition-all border-2 ${newProjectStage === s.value ? 'bg-[#00a699] text-white border-[#00a699]' : 'bg-slate-50 dark:bg-slate-900/50 border-transparent text-slate-500 dark:text-slate-400 hover:border-[#00a699]/30'}`}
+                                                >
+                                                    {s.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 ml-1">Comece em "Em negociação" — só passa a contar como reposição a caminho ao marcar "Embarcado".</p>
+                                    </div>
                                 </div>
                                 <div className="flex justify-end gap-3">
                                     <button
@@ -596,6 +688,15 @@ export const InImport: React.FC = () => {
                                                                 onChange={(e) => setEditImportNumber(e.target.value)}
                                                                 className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-[#00a699]/30 dark:border-[#00a699]/50 rounded-xl text-sm font-bold dark:text-white focus:ring-2 focus:ring-[#00a699]"
                                                             />
+                                                            <select
+                                                                value={editProjectStage}
+                                                                onChange={(e) => setEditProjectStage(e.target.value as ImportStage)}
+                                                                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase tracking-wide dark:text-white focus:ring-2 focus:ring-[#00a699]"
+                                                            >
+                                                                {IMPORT_STAGES.map((s) => (
+                                                                    <option key={s.value} value={s.value}>{s.label}</option>
+                                                                ))}
+                                                            </select>
                                                             <div className="flex gap-2">
                                                                 <button
                                                                     onClick={() => handleSaveProject(project.id)}
@@ -617,7 +718,10 @@ export const InImport: React.FC = () => {
                                                                 onClick={() => handleSelectProject(project)}
                                                                 className="cursor-pointer flex-1"
                                                             >
-                                                                <div className="font-extrabold text-slate-900 dark:text-white text-base group-hover:text-[#00a699] transition-colors">{project.manufacturer}</div>
+                                                                <div className="flex items-start justify-between gap-2">
+                                                                    <div className="font-extrabold text-slate-900 dark:text-white text-base group-hover:text-[#00a699] transition-colors">{project.manufacturer}</div>
+                                                                    <StageBadge stage={project.stage} />
+                                                                </div>
                                                                 <div className="text-sm font-bold text-[#00a699] dark:text-[#00d1c1] mt-0.5">{project.importNumber}</div>
                                                             </div>
                                                             <div className="mt-5 flex gap-2 pt-4 border-t border-slate-100 dark:border-slate-700/50">
