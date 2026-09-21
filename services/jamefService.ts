@@ -286,7 +286,9 @@ export const jamefService = {
             cepDestino: params.cepDestino.replace(/\D/g, ''),
             peso: params.peso,
             valorMercadoria: params.valorMercadoria,
-            quantidadeVolumes: params.volumes,
+            // A API espera `quantidadeVolume` (singular). Com o plural o campo chega nulo
+            // no servidor da Jamef e a cotação estoura HTTP 500 sem mensagem.
+            quantidadeVolume: params.volumes,
             // Campos exigidos pela API (retornados como "required key" quando ausentes)
             pesoMercadoria: params.peso,
             valorNotaFiscal: params.valorMercadoria,
