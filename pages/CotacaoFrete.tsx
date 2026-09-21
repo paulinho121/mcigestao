@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { jamefService, CotacaoResponse } from '../services/jamefService';
 import { correiosService, CorreiosCotacaoResultado } from '../services/correiosService';
+import { braspressService, BraspressCotacaoResultado } from '../services/braspressService';
 import { inventoryService } from '../services/inventoryService';
 import { Product } from '../types';
 
@@ -292,6 +293,80 @@ function ResultCard({ result, origem, cepDestino, peso, valor, volumes }: Result
 }
 
 // ── Card de resultado dos Correios (um ou mais serviços: SEDEX, PAC…) ─────────
+function BraspressResultCard({ resultados, loading, error }: {
+    resultados: BraspressCotacaoResultado[] | null;
+    loading: boolean;
+    error: string | null;
+}) {
+    const ordenados = [...(resultados || [])].filter(r => r.valorFrete > 0).sort((a, b) => a.valorFrete - b.valorFrete);
+
+    return (
+        <div className="relative overflow-hidden bg-white dark:bg-gradient-to-br dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl p-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <div className="absolute -top-12 -right-12 w-56 h-56 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 space-y-6">
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div className="w-10 h-10 rounded-2xl bg-sky-500/15 flex items-center justify-center shrink-0">
+                        <Truck className="w-5 h-5 text-sky-500" />
+                    </div>
+                    <div>
+                        <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight">Braspress</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rodoviário + Aéreo · API Braspress</p>
+                    </div>
+                </div>
+
+                {loading && (
+                    <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 py-6">
+                        <Loader2 className="w-5 h-5 animate-spin text-sky-500" />
+                        <span className="text-sm font-bold">Consultando a Braspress...</span>
+                    </div>
+                )}
+
+                {!loading && error && (
+                    <div className="flex items-start gap-3 p-4 bg-red-500/5 border border-red-500/20 rounded-2xl">
+                        <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                        <p className="text-sm text-red-500/90 font-medium">{error}</p>
+                    </div>
+                )}
+
+                {!loading && !error && ordenados.length > 0 && (
+                    <div className="space-y-3">
+                        {ordenados.map((r, idx) => (
+                            <div key={r.modal}
+                                className={`flex items-center gap-4 p-4 rounded-2xl border ${
+                                    idx === 0
+                                        ? 'bg-emerald-500/5 border-emerald-500/30'
+                                        : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10'
+                                }`}
+                            >
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-sm font-black text-slate-900 dark:text-white">{r.servico}</span>
+                                        {idx === 0 && ordenados.length > 1 && (
+                                            <span className="text-[9px] font-black px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                                                Mais barato
+                                            </span>
+                                        )}
+                                    </div>
+                                    {r.prazoEntrega > 0 && (
+                                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                            <Clock className="w-3 h-3" />
+                                            {r.prazoEntrega} {r.prazoEntrega === 1 ? 'dia' : 'dias'} de prazo
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <div className="text-lg font-black text-slate-900 dark:text-white">{formatCurrency(r.valorFrete)}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function CorreiosResultCard({ resultados, loading, error }: {
     resultados: CorreiosCotacaoResultado[] | null;
     loading: boolean;
@@ -427,6 +502,12 @@ export function CotacaoFrete() {
     const [correiosError, setCorreiosError] = useState<string | null>(null);
     const correiosAtivo = correiosService.credenciaisConfiguradas();
 
+    // Braspress (Rodoviário + Aéreo em paralelo à Jamef). Exige CNPJ/CPF do destinatário.
+    const [cnpjDestinatario, setCnpjDestinatario] = useState('');
+    const [braspressResults, setBraspressResults] = useState<BraspressCotacaoResultado[] | null>(null);
+    const [braspressError, setBraspressError] = useState<string | null>(null);
+    const braspressAtivo = braspressService.habilitado();
+
     // Busca de produtos para preenchimento automático de peso/medidas
     const [produtoQuery, setProdutoQuery] = useState('');
     const [produtoResults, setProdutoResults] = useState<Product[]>([]);
@@ -556,6 +637,8 @@ export function CotacaoFrete() {
         setJamefResults([]);
         setCorreiosResults(null);
         setCorreiosError(null);
+        setBraspressResults(null);
+        setBraspressError(null);
 
         const pesoNum = parseFloat(peso);
         const valorNum = parseFloat(valor.replace(',', '.'));
@@ -612,7 +695,41 @@ export function CotacaoFrete() {
                 .catch((e: any) => setCorreiosError(e.message || 'Erro ao consultar Correios.'))
             : Promise.resolve();
 
-        await Promise.allSettled([jamefPromise, correiosPromise]);
+        // Braspress: cota Rodoviário ("R") e Aéreo ("A") para comparar.
+        // Só roda se o CNPJ/CPF do destinatário foi informado (a API exige).
+        const destDigits = cnpjDestinatario.replace(/\D/g, '');
+        const braspressPromise = braspressAtivo && destDigits
+            ? (async () => {
+                const modais: ('R' | 'A')[] = ['R', 'A'];
+                const settled = await Promise.allSettled(
+                    modais.map(modal => braspressService.cotar({
+                        cnpjRemetente: filial.cnpj,
+                        cnpjDestinatario: destDigits,
+                        cepOrigem: filial.cep,
+                        cepDestino,
+                        peso: pesoNum,
+                        valorMercadoria: valorNum,
+                        volumes: parseInt(volumes) || 1,
+                        volumesCubagem: volumesValidos.length > 0
+                            ? volumesValidos
+                            : (alturaNum && larguraNum && comprimentoNum
+                                ? [{ quantidade: parseInt(volumes) || 1, altura: alturaNum, largura: larguraNum, comprimento: comprimentoNum }]
+                                : undefined),
+                        modal,
+                    }))
+                );
+                const ok = settled
+                    .filter((s): s is PromiseFulfilledResult<BraspressCotacaoResultado> => s.status === 'fulfilled')
+                    .map(s => s.value);
+                setBraspressResults(ok);
+                if (ok.length === 0) {
+                    const firstErr = settled.find(s => s.status === 'rejected') as PromiseRejectedResult | undefined;
+                    setBraspressError(firstErr?.reason?.message || 'Erro ao consultar a Braspress.');
+                }
+            })()
+            : Promise.resolve();
+
+        await Promise.allSettled([jamefPromise, correiosPromise, braspressPromise]);
         setLoading(false);
     };
 
@@ -621,6 +738,9 @@ export function CotacaoFrete() {
         setError(null);
         setCorreiosResults(null);
         setCorreiosError(null);
+        setBraspressResults(null);
+        setBraspressError(null);
+        setCnpjDestinatario('');
         setCepDestino('');
         setPeso('');
         setValor('');
@@ -739,6 +859,15 @@ export function CotacaoFrete() {
                                 placeholder="00000-000"
                                 hint="Apenas números. Ex: 01310100"
                             />
+                            {braspressAtivo && (
+                                <InputField
+                                    label="CNPJ / CPF do Destinatário (Braspress)"
+                                    value={cnpjDestinatario}
+                                    onChange={setCnpjDestinatario}
+                                    placeholder="00.000.000/0000-00"
+                                    hint="Opcional — a Braspress só cota se este campo for preenchido."
+                                />
+                            )}
                         </div>
 
                         {/* Mercadoria */}
@@ -934,7 +1063,7 @@ export function CotacaoFrete() {
                                 }
                             </button>
 
-                            {(jamefResults.length > 0 || correiosResults || error) && (
+                            {(jamefResults.length > 0 || correiosResults || braspressResults || error) && (
                                 <button
                                     type="button" onClick={handleReset}
                                     className="p-5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
@@ -966,6 +1095,15 @@ export function CotacaoFrete() {
                         resultados={correiosResults}
                         loading={loading && !correiosResults && !correiosError}
                         error={correiosError}
+                    />
+                )}
+
+                {/* Resultado Braspress (paralelo à Jamef) */}
+                {braspressAtivo && (loading || braspressResults || braspressError) && cnpjDestinatario.replace(/\D/g, '') && (
+                    <BraspressResultCard
+                        resultados={braspressResults}
+                        loading={loading && !braspressResults && !braspressError}
+                        error={braspressError}
                     />
                 )}
 
