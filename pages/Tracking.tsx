@@ -24,6 +24,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { jamefService, JamefTrackingItem } from '../services/jamefService';
 import { correiosRastroService, CorreiosObjetoRastreado } from '../services/correiosRastroService';
+import { braspressRastroService, BraspressConhecimento } from '../services/braspressRastroService';
 import { detectFilialFromNF } from '../config/filiais';
 
 // ─── Gerar Link de Rastreio ───────────────────────────────────────────────────
@@ -436,6 +437,216 @@ function CorreiosRastreio() {
     );
 }
 
+function braspressStatusColor(status?: string) {
+    const s = (status || '').toUpperCase();
+    if (s.includes('ENTREG')) return 'text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20';
+    if (s.includes('TRANSPORTE') || s.includes('TRANSITO') || s.includes('VIAGEM')) return 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/20';
+    if (s.includes('DEVOLU') || s.includes('PROBLEMA') || s.includes('AVARIA') || s.includes('EXTRAVIA')) return 'text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20';
+    return 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
+}
+
+function BraspressConhecimentoCard({ c }: { c: BraspressConhecimento }) {
+    const [expanded, setExpanded] = useState(true);
+    const formatDate = (d?: string) => {
+        if (!d) return null;
+        const parsed = new Date(d);
+        return isNaN(parsed.getTime()) ? d : parsed.toLocaleDateString('pt-BR');
+    };
+    const previsao = formatDate(c.previsaoEntrega);
+    const entrega = formatDate(c.dataEntrega);
+    // Prefere a timeline (só na v3); sem ela, cai para a lista de ocorrências.
+    const passos = (c.timeline && c.timeline.length > 0) ? c.timeline : (c.ocorrencias || []);
+
+    return (
+        <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-white dark:border-white/5 overflow-hidden shadow-2xl">
+            <div className="p-6 sm:p-8 border-b border-slate-100 dark:border-slate-900 flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-sky-500/15 flex items-center justify-center shrink-0">
+                        <Truck className="w-6 h-6 text-sky-500" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Conhecimento {c.numero}</h3>
+                        <p className="text-xs text-slate-400 font-bold mt-0.5">
+                            {c.cidadeColeta && c.ufColeta ? `${c.cidadeColeta}/${c.ufColeta}` : c.origem || '—'}
+                            {' → '}
+                            {c.cidade && c.uf ? `${c.cidade}/${c.uf}` : '—'}
+                        </p>
+                        {entrega ? (
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">Entregue em {entrega}</p>
+                        ) : previsao ? (
+                            <p className="text-xs text-slate-400 font-bold mt-0.5">Previsão de entrega: {previsao}</p>
+                        ) : null}
+                    </div>
+                </div>
+                {c.status && (
+                    <div className={`inline-flex px-4 py-2 rounded-full text-xs font-black border uppercase tracking-wider ${braspressStatusColor(c.status)}`}>
+                        {c.status}
+                    </div>
+                )}
+            </div>
+
+            <div className="px-6 sm:px-8 py-5 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-slate-100 dark:border-slate-900">
+                {c.volumes != null && (
+                    <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Volumes</p>
+                        <p className="text-sm font-black text-slate-800 dark:text-white mt-0.5">{c.volumes}</p>
+                    </div>
+                )}
+                {c.peso != null && (
+                    <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Peso</p>
+                        <p className="text-sm font-black text-slate-800 dark:text-white mt-0.5">{c.peso} kg</p>
+                    </div>
+                )}
+                {c.totalFrete != null && (
+                    <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Frete</p>
+                        <p className="text-sm font-black text-slate-800 dark:text-white mt-0.5">{c.totalFrete.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    </div>
+                )}
+                {c.destinatario && (
+                    <div className="col-span-2 sm:col-span-1">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Destinatário</p>
+                        <p className="text-sm font-black text-slate-800 dark:text-white mt-0.5 truncate" title={c.destinatario}>{c.destinatario}</p>
+                    </div>
+                )}
+            </div>
+
+            {passos.length === 0 ? (
+                <p className="text-sm text-slate-400 font-medium p-8">
+                    {c.ultimaOcorrencia || 'Nenhum evento encontrado para este conhecimento ainda.'}
+                </p>
+            ) : (
+                <>
+                    <button type="button" onClick={() => setExpanded(v => !v)} className="w-full flex items-center justify-between px-6 sm:px-8 py-4 text-left">
+                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Histórico ({passos.length})</span>
+                        {expanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                    </button>
+                    {expanded && (
+                        <div className="px-6 sm:px-8 pb-8 space-y-0">
+                            {passos.map((p, i) => {
+                                const data = formatDate(p.data);
+                                return (
+                                    <div key={i} className="flex gap-4">
+                                        <div className="flex flex-col items-center shrink-0">
+                                            <div className={`w-3 h-3 rounded-full mt-1.5 ${i === 0 ? 'bg-sky-500' : 'bg-slate-300 dark:bg-slate-700'}`} />
+                                            {i < passos.length - 1 && <div className="w-0.5 flex-1 bg-slate-200 dark:bg-slate-800 my-1" />}
+                                        </div>
+                                        <div className="pb-6 min-w-0 flex-1">
+                                            <p className="text-sm font-black text-slate-800 dark:text-white">{p.descricao}</p>
+                                            {data && <span className="text-[11px] font-bold text-slate-400">{data}</span>}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
+}
+
+function BraspressRastreio() {
+    const [nf, setNf] = useState('');
+    const [cnpj, setCnpj] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [conhecimentos, setConhecimentos] = useState<BraspressConhecimento[]>([]);
+    const [error, setError] = useState<string | null>(null);
+    const [buscou, setBuscou] = useState(false);
+
+    // Auto-detecta a filial (CNPJ tomador do frete) pelo prefixo da NF
+    useEffect(() => {
+        if (!nf) { setCnpj(''); return; }
+        const detected = detectStateFromNF(nf);
+        if (detected) setCnpj(detected.cnpj);
+    }, [nf]);
+
+    const buscar = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const nfLimpa = nf.replace(/\D/g, '');
+        const cnpjLimpo = cnpj.replace(/\D/g, '');
+        if (!nfLimpa) { setError('Informe o número da nota fiscal.'); return; }
+        if (!cnpjLimpo) { setError('Não foi possível identificar a filial pela NF. Confira o número.'); return; }
+
+        setLoading(true); setError(null); setConhecimentos([]); setBuscou(true);
+        try {
+            const result = await braspressRastroService.rastrear(cnpjLimpo, nfLimpa);
+            setConhecimentos(result);
+            if (result.length === 0) setError('Nenhum conhecimento encontrado para esta nota fiscal nos últimos 90 dias.');
+        } catch (e: any) {
+            setError(e.message || 'Falha ao consultar rastreio da Braspress.');
+        }
+        setLoading(false);
+    };
+
+    return (
+        <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] pb-20 transition-colors duration-500 font-sans">
+            <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+                <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-sky-500/5 dark:bg-sky-500/10 rounded-full blur-[120px]" />
+                <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-500/5 dark:bg-brand-500/10 rounded-full blur-[120px]" />
+            </div>
+
+            <div className="relative pt-12 pb-24 sm:pt-16 sm:pb-32 px-4 text-center overflow-hidden">
+                <div className="max-w-3xl mx-auto relative z-10">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-sky-500/10 dark:bg-sky-500/20 border border-sky-500/20 rounded-full text-sky-600 dark:text-sky-400 text-[10px] font-black uppercase tracking-widest mb-8">
+                        <Truck className="w-3.5 h-3.5" /> Braspress
+                    </div>
+                    <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tighter mb-4 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-600 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">
+                        Rastreio <span className="text-sky-500 italic font-medium">Braspress</span>
+                    </h1>
+                    <p className="text-slate-500 dark:text-slate-400 text-base sm:text-lg max-w-xl mx-auto leading-relaxed font-medium opacity-80">
+                        Digite o número da nota fiscal para ver o histórico de entrega.
+                    </p>
+                </div>
+            </div>
+
+            <main className="max-w-2xl mx-auto px-4 -mt-16 sm:-mt-24 relative z-20 space-y-6">
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] dark:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)] border border-white dark:border-white/5 p-8 sm:p-10">
+                    <form onSubmit={buscar} className="space-y-5">
+                        <div className="relative group">
+                            <FileText className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-300 dark:text-slate-600 group-focus-within:text-sky-500 transition-colors" />
+                            <input
+                                value={nf} onChange={e => setNf(e.target.value)}
+                                placeholder="Número da Nota Fiscal..."
+                                autoFocus
+                                className="w-full pl-16 pr-6 py-5 bg-slate-50 dark:bg-slate-950 border-2 border-transparent dark:border-slate-800/50 rounded-2xl focus:border-sky-500/40 focus:bg-white dark:focus:bg-slate-900 focus:ring-[12px] focus:ring-sky-500/5 transition-all outline-none text-lg font-bold dark:text-white dark:placeholder-slate-700 shadow-sm tracking-tight"
+                            />
+                        </div>
+                        {nf && (
+                            <p className="text-[11px] text-slate-400 font-bold px-1">
+                                {cnpj ? `Filial identificada pela NF: CNPJ ${cnpj}` : 'Filial não identificada automaticamente — confira o número da NF.'}
+                            </p>
+                        )}
+                        <button type="submit" disabled={loading || !nf.trim()}
+                            className="group relative w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-sm uppercase tracking-[0.2em] transition-all duration-300 overflow-hidden active:scale-[0.97] bg-sky-500 hover:bg-sky-600 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-xl shadow-sky-500/20">
+                            {loading
+                                ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /><span>Consultando...</span></>
+                                : <><Search className="w-4 h-4" /><span>Rastrear</span></>
+                            }
+                        </button>
+                    </form>
+
+                    {error && (
+                        <div className="mt-6 p-5 bg-red-500/5 border border-red-500/20 rounded-2xl flex items-start gap-3">
+                            <Warehouse className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                            <p className="text-sm text-red-600 dark:text-red-400 font-medium">{error}</p>
+                        </div>
+                    )}
+                </div>
+
+                {!loading && buscou && !error && conhecimentos.length === 0 && (
+                    <p className="text-center text-sm text-slate-400 font-medium">Nenhum conhecimento encontrado.</p>
+                )}
+
+                <div className="space-y-6">
+                    {conhecimentos.map(c => <BraspressConhecimentoCard key={c.numero} c={c} />)}
+                </div>
+            </main>
+        </div>
+    );
+}
+
 // Detecção de filial centralizada em config/filiais.ts
 function detectStateFromNF(nf: string): { cnpj: string; label: string } | null {
     const filial = detectFilialFromNF(nf);
@@ -545,6 +756,31 @@ function LocationMapCard({ cidade, uf }: { cidade?: string; uf?: string }) {
     );
 }
 
+type TrackingView = 'rastrear' | 'gerar_link' | 'correios' | 'braspress';
+
+const TRACKING_TAB_ITEMS: { view: TrackingView; icon: typeof Search; label: string; activeColor: string }[] = [
+    { view: 'rastrear', icon: Search, label: 'Rastrear', activeColor: 'text-brand-600 dark:text-brand-400' },
+    { view: 'gerar_link', icon: Link2, label: 'Gerar Link', activeColor: 'text-emerald-600 dark:text-emerald-400' },
+    { view: 'correios', icon: Package, label: 'Correios', activeColor: 'text-amber-600 dark:text-amber-400' },
+    { view: 'braspress', icon: Truck, label: 'Braspress', activeColor: 'text-sky-600 dark:text-sky-400' },
+];
+
+function TrackingTabs({ active, onChange }: { active: TrackingView; onChange: (v: TrackingView) => void }) {
+    return (
+        <div className="flex gap-1 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md p-1 rounded-2xl shadow-sm flex-wrap justify-center">
+            {TRACKING_TAB_ITEMS.map(({ view, icon: Icon, label, activeColor }) => (
+                <button key={view} onClick={() => onChange(view)}
+                    className={`flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all ${active === view
+                        ? `bg-white dark:bg-slate-700 shadow-sm ${activeColor}`
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                        }`}>
+                    <Icon className="w-4 h-4" /> {label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
 interface TrackingProps {
     initialNF?: string;
     initialCNPJ?: string;
@@ -560,7 +796,7 @@ export const Tracking: React.FC<TrackingProps> = ({
     initialDocType,
     isPublic = false,
 }) => {
-    const [activeView, setActiveView] = useState<'rastrear' | 'gerar_link' | 'correios'>('rastrear');
+    const [activeView, setActiveView] = useState<TrackingView>('rastrear');
     const [document, setDocument] = useState(initialCNPJ || '');
     const docType: 'remetente' | 'destinatario' = initialDocType || 'remetente';
     const [number, setNumber] = useState(initialNF || '');
@@ -642,20 +878,7 @@ export const Tracking: React.FC<TrackingProps> = ({
             <>
                 {!isPublic && (
                     <div className="sticky top-0 z-30 flex justify-center pt-4 pb-2 bg-[#f8fafc]/80 dark:bg-[#020617]/80 backdrop-blur-md">
-                        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl shadow-sm">
-                            <button onClick={() => setActiveView('rastrear')}
-                                className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
-                                <Search className="w-4 h-4" /> Rastrear
-                            </button>
-                            <button onClick={() => setActiveView('gerar_link')}
-                                className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm">
-                                <Link2 className="w-4 h-4" /> Gerar Link
-                            </button>
-                            <button onClick={() => setActiveView('correios')}
-                                className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
-                                <Package className="w-4 h-4" /> Correios
-                            </button>
-                        </div>
+                        <TrackingTabs active={activeView} onChange={setActiveView} />
                     </div>
                 )}
                 <GerarLink />
@@ -668,23 +891,23 @@ export const Tracking: React.FC<TrackingProps> = ({
             <>
                 {!isPublic && (
                     <div className="sticky top-0 z-30 flex justify-center pt-4 pb-2 bg-[#f8fafc]/80 dark:bg-[#020617]/80 backdrop-blur-md">
-                        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl shadow-sm">
-                            <button onClick={() => setActiveView('rastrear')}
-                                className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
-                                <Search className="w-4 h-4" /> Rastrear
-                            </button>
-                            <button onClick={() => setActiveView('gerar_link')}
-                                className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
-                                <Link2 className="w-4 h-4" /> Gerar Link
-                            </button>
-                            <button onClick={() => setActiveView('correios')}
-                                className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm">
-                                <Package className="w-4 h-4" /> Correios
-                            </button>
-                        </div>
+                        <TrackingTabs active={activeView} onChange={setActiveView} />
                     </div>
                 )}
                 <CorreiosRastreio />
+            </>
+        );
+    }
+
+    if (activeView === 'braspress') {
+        return (
+            <>
+                {!isPublic && (
+                    <div className="sticky top-0 z-30 flex justify-center pt-4 pb-2 bg-[#f8fafc]/80 dark:bg-[#020617]/80 backdrop-blur-md">
+                        <TrackingTabs active={activeView} onChange={setActiveView} />
+                    </div>
+                )}
+                <BraspressRastreio />
             </>
         );
     }
@@ -693,19 +916,8 @@ export const Tracking: React.FC<TrackingProps> = ({
         <div className="relative min-h-screen bg-[#f8fafc] dark:bg-[#020617] pb-20 transition-colors duration-500 font-sans selection:bg-brand-500/30 selection:text-brand-900">
             {/* Tabs — só para usuários internos */}
             {!isPublic && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex gap-1 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md p-1 rounded-2xl shadow-sm">
-                    <button onClick={() => setActiveView('rastrear')}
-                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm">
-                        <Search className="w-4 h-4" /> Rastrear
-                    </button>
-                    <button onClick={() => setActiveView('gerar_link')}
-                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
-                        <Link2 className="w-4 h-4" /> Gerar Link
-                    </button>
-                    <button onClick={() => setActiveView('correios')}
-                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
-                        <Package className="w-4 h-4" /> Correios
-                    </button>
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
+                    <TrackingTabs active={activeView} onChange={setActiveView} />
                 </div>
             )}
 
