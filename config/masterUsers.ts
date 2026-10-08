@@ -17,6 +17,7 @@ export const MASTER_USERS = [
     'felipe@mcistore.com.br',
     'bianca@mcistore.com.br',
     'logisticasp@mcistore.com.br',
+    'logistica.sp@mcistore.com.br', // Pedro Missias Mendes (is_master = true em profiles)
     'logistica@mcistore.com.br',
     'contabilidade@mcistore.com.br',
     // Add more master user emails below:
