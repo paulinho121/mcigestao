@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Barcode from 'react-barcode';
 import { QRCodeSVG } from 'qrcode.react';
+import { consultarCnpj } from '../services/cnpjService';
 import {
     Tag,
     Printer,
@@ -19,18 +20,13 @@ import {
     AlertCircle,
 } from 'lucide-react';
 
-// ─── Lookup CNPJ via BrasilAPI ────────────────────────────────────────────────
+// ─── Lookup CNPJ (BrasilAPI com provedor de reserva — ver services/cnpjService.ts) ──
 
 async function lookupCNPJ(cnpj: string): Promise<string | null> {
-    const clean = cnpj.replace(/\D/g, '');
-    if (clean.length !== 14) return null;
     try {
-        const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${clean}`);
-        if (!res.ok) return null;
-        const data = await res.json();
-        return (data.nome_fantasia && data.nome_fantasia.trim())
-            ? data.nome_fantasia.trim()
-            : data.razao_social?.trim() ?? null;
+        const d = await consultarCnpj(cnpj);
+        if (!d) return null;
+        return d.nomeFantasia || d.razaoSocial || null;
     } catch {
         return null;
     }
