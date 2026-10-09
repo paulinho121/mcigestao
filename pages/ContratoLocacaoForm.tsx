@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Printer, ArrowLeft, FileText, Search, Save, CheckCircle, DollarSign, X } from 'lucide-react';
 import { clienteService, Cliente } from '../services/clienteService';
+import { consultarCnpj } from '../services/cnpjService';
 import { vendedorService, Vendedor } from '../services/vendedorService';
 import { inventoryService } from '../services/inventoryService';
 import { contratoLocacaoService, gerarNumeroContrato } from '../services/contratoLocacaoService';
@@ -338,26 +339,26 @@ export function ContratoLocacaoForm({ onBack }: Props) {
         setBuscandoCnpj(true);
         setErroCnpj('');
         try {
-            const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
-            if (!res.ok) { setErroCnpj('CNPJ não encontrado.'); return; }
-            const d = await res.json();
+            const d = await consultarCnpj(digits);
+            if (!d) { setErroCnpj('CNPJ não encontrado.'); return; }
+            const nome = d.razaoSocial || d.nomeFantasia;
             setContrato(prev => ({
                 ...prev,
-                locatariaNome: d.razao_social || d.nome_fantasia || '',
+                locatariaNome: nome,
                 locatariaCnpj: cnpj,
-                locatariaEndereco: `${d.logradouro || ''}${d.numero ? ', ' + d.numero : ''}`,
-                locatariaComp: d.complemento || '',
-                locatariaBairro: d.bairro || '',
-                locatariaCidade: d.municipio || '',
-                locatariaUf: d.uf || '',
-                locatariaCep: d.cep ? d.cep.replace(/\D/g, '').replace(/(\d{5})(\d{3})/, '$1-$2') : '',
-                locatariaTelefone: d.ddd_telefone_1 || '',
-                locatariaEmail: d.email || '',
+                locatariaEndereco: `${d.logradouro}${d.numero ? ', ' + d.numero : ''}`,
+                locatariaComp: d.complemento,
+                locatariaBairro: d.bairro,
+                locatariaCidade: d.municipio,
+                locatariaUf: d.uf,
+                locatariaCep: d.cep ? d.cep.replace(/(\d{5})(\d{3})/, '$1-$2') : '',
+                locatariaTelefone: d.telefone,
+                locatariaEmail: d.email,
             }));
-            setClienteSearch(d.razao_social || d.nome_fantasia || cnpj);
+            setClienteSearch(nome || cnpj);
             setShowClienteDropdown(false);
-        } catch {
-            setErroCnpj('Erro ao consultar CNPJ.');
+        } catch (e: any) {
+            setErroCnpj(e?.message || 'Erro ao consultar CNPJ.');
         } finally {
             setBuscandoCnpj(false);
         }
