@@ -8,9 +8,33 @@ interface SCProduct {
   name: string;
   brand: string;
   stock_sc: number;
+  stock_ce: number;
+  stock_sp: number;
   image_url?: string;
   price?: number;
   updated_at: string;
+}
+
+type Branch = 'SC' | 'CE' | 'SP';
+const BRANCHES: Branch[] = ['SC', 'CE', 'SP'];
+const STOCK_KEY: Record<Branch, 'stock_sc' | 'stock_ce' | 'stock_sp'> = { SC: 'stock_sc', CE: 'stock_ce', SP: 'stock_sp' };
+
+// Estoque negativo não conta (não "abate" o saldo de outra filial)
+const branchQty = (p: SCProduct, b: Branch) => Math.max(0, Number(p[STOCK_KEY[b]]) || 0);
+
+// Produto + quantidade somada só das filiais selecionadas
+type Row = SCProduct & { qty: number };
+
+function BranchBreakdown({ product, selected }: { product: SCProduct; selected: Set<Branch> }) {
+  return (
+    <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">
+      {BRANCHES.map((b, i) => (
+        <span key={b} className={selected.has(b) ? '' : 'opacity-40'}>
+          {i > 0 && ' · '}{b} {branchQty(product, b)}
+        </span>
+      ))}
+    </p>
+  );
 }
 
 // Um SKU é um código curto, sem espaços e com pelo menos um dígito (ex.: 5818, K3-65, M11-034).
@@ -76,7 +100,7 @@ function ProductImage({ src, name }: { src?: string; name: string }) {
   );
 }
 
-function ProductRow({ product, showQty = false, showZeroedAt = false }: { product: SCProduct; showQty?: boolean; showZeroedAt?: boolean }) {
+function ProductRow({ product, selected, showQty = false, showZeroedAt = false }: { product: Row; selected: Set<Branch>; showQty?: boolean; showZeroedAt?: boolean }) {
   const zeroedAt = showZeroedAt && product.updated_at
     ? new Date(product.updated_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
     : null;
@@ -93,10 +117,11 @@ function ProductRow({ product, showQty = false, showZeroedAt = false }: { produc
           {product.brand && product.brand !== 'SC API' && <> · {product.brand}</>}
           {product.price ? <> · R$ {product.price.toFixed(2)}</> : null}
         </p>
+        {showQty && <BranchBreakdown product={product} selected={selected} />}
       </div>
       {showQty && (
         <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-full shrink-0">
-          {product.stock_sc} un.
+          {product.qty} un.
         </span>
       )}
       {zeroedAt && (
@@ -107,9 +132,9 @@ function ProductRow({ product, showQty = false, showZeroedAt = false }: { produc
 }
 
 export function MarketingSC() {
-  const [inStock, setInStock] = useState<SCProduct[]>([]);
-  const [outOfStock, setOutOfStock] = useState<SCProduct[]>([]);
-  const [lowStock, setLowStock] = useState<SCProduct[]>([]);
+  const [products, setProducts] = useState<SCProduct[]>([]);
+  // Filiais cujo estoque entra na conta (padrão: todas). Ao menos uma fica sempre marcada.
+  const [selected, setSelected] = useState<Set<Branch>>(new Set(BRANCHES));
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
@@ -122,17 +147,15 @@ export function MarketingSC() {
     if (!supabase) return;
     setLoading(true);
     try {
-      const cols = 'id, name, brand, stock_sc, image_url, price, updated_at';
-      // `id` como desempate: sem isso a paginação com .range() pode repetir/pular linhas
-      const [inData, outData, lowData] = await Promise.all([
-        fetchAllPages(() => supabase!.from('products').select(cols).gt('stock_sc', 0).not('id', 'like', '%.0').order('name').order('id')),
-        fetchAllPages(() => supabase!.from('products').select(cols).eq('stock_sc', 0).not('id', 'like', '%.0').order('updated_at', { ascending: false }).order('id')),
-        fetchAllPages(() => supabase!.from('products').select(cols).gte('stock_sc', 1).lte('stock_sc', 3).not('id', 'like', '%.0').order('stock_sc', { ascending: true }).order('id')),
-      ]);
-
-      setInStock(inData);
-      setOutOfStock(outData);
-      setLowStock(lowData);
+      // Uma única busca com o estoque das 3 filiais; a classificação (manter/remover/atenção)
+      // é feita aqui, conforme as filiais selecionadas. Ordena por `id` (estável p/ paginação).
+      const data = await fetchAllPages(() =>
+        supabase!.from('products')
+          .select('id, name, brand, stock_sc, stock_ce, stock_sp, image_url, price, updated_at')
+          .not('id', 'like', '%.0')
+          .order('id')
+      );
+      setProducts(data);
       setLastSync(new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }));
     } finally {
       setLoading(false);
@@ -158,6 +181,27 @@ export function MarketingSC() {
       setSyncing(false);
     }
   };
+
+  const toggleBranch = (b: Branch) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(b)) { if (next.size > 1) next.delete(b); } else next.add(b);
+      return next;
+    });
+  };
+
+  // Soma o estoque só das filiais selecionadas e separa nas 3 colunas
+  const { inStock, outOfStock, lowStock } = useMemo(() => {
+    const rows: Row[] = products.map(p => ({
+      ...p,
+      qty: BRANCHES.reduce((sum, b) => sum + (selected.has(b) ? branchQty(p, b) : 0), 0),
+    }));
+    return {
+      inStock: rows.filter(r => r.qty > 0).sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+      outOfStock: rows.filter(r => r.qty === 0).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || '')),
+      lowStock: rows.filter(r => r.qty >= 1 && r.qty <= 3).sort((a, b) => a.qty - b.qty),
+    };
+  }, [products, selected]);
 
   const filteredIn = useMemo(() =>
     inStock.filter(p =>
@@ -208,6 +252,31 @@ export function MarketingSC() {
           {syncMsg}
         </p>
       )}
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-slate-500 dark:text-slate-400">Estoque considerado de:</span>
+        {BRANCHES.map(b => {
+          const on = selected.has(b);
+          return (
+            <button
+              key={b}
+              onClick={() => toggleBranch(b)}
+              aria-pressed={on}
+              title={on ? `Clique para ignorar o estoque de ${b}` : `Clique para considerar o estoque de ${b}`}
+              className={`text-xs font-medium px-3 py-1 rounded-full border transition-colors ${on
+                ? 'bg-purple-600 text-white border-purple-600'
+                : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            >
+              {b}
+            </button>
+          );
+        })}
+        {selected.size < BRANCHES.length && (
+          <span className="text-[11px] text-amber-600 dark:text-amber-400">
+            só {BRANCHES.filter(b => selected.has(b)).join(' + ')}
+          </span>
+        )}
+      </div>
 
       <div className="flex gap-3 flex-wrap">
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 dark:bg-green-900/30 border border-green-100 dark:border-green-800">
@@ -261,7 +330,7 @@ export function MarketingSC() {
             ) : filteredIn.length === 0 ? (
               <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-6">Nenhum produto encontrado</p>
             ) : filteredIn.map(p => (
-              <ProductRow key={p.id} product={p} showQty />
+              <ProductRow key={p.id} product={p} selected={selected} showQty />
             ))}
           </div>
         </div>
@@ -301,7 +370,7 @@ export function MarketingSC() {
             ) : filteredOut.length === 0 ? (
               <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-6">Nenhum produto sem estoque</p>
             ) : filteredOut.map(p => (
-              <ProductRow key={p.id} product={p} showZeroedAt />
+              <ProductRow key={p.id} product={p} selected={selected} showZeroedAt />
             ))}
           </div>
         </div>
@@ -353,9 +422,10 @@ export function MarketingSC() {
                     {p.brand && p.brand !== 'SC API' && <> · {p.brand}</>}
                     {p.price ? <> · R$ {p.price.toFixed(2)}</> : null}
                   </p>
+                  <BranchBreakdown product={p} selected={selected} />
                 </div>
                 <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 rounded-full shrink-0">
-                  {p.stock_sc} un.
+                  {p.qty} un.
                 </span>
               </div>
             ))}
