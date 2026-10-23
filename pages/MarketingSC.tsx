@@ -13,20 +13,46 @@ interface SCProduct {
   updated_at: string;
 }
 
+// Um SKU é um código curto, sem espaços e com pelo menos um dígito (ex.: 5818, K3-65, M11-034).
+// A sincronização com a API do SC cria produtos com o TEXTO INTEIRO da descrição no `id`
+// quando o item vem sem código — esses não são SKU e não podem ir para a lista de códigos.
+export function isSku(id: string): boolean {
+  const v = (id || '').trim();
+  return v.length > 0 && v.length <= 20 && !/\s/.test(v) && /\d/.test(v);
+}
+
+// O Supabase devolve no máximo 1000 linhas por consulta; busca página a página até acabar.
+const PAGE_SIZE = 1000;
+async function fetchAllPages(buildQuery: () => any): Promise<SCProduct[]> {
+  const all: SCProduct[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await buildQuery().range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all.push(...(data as SCProduct[]));
+    if (data.length < PAGE_SIZE) break;
+  }
+  return all;
+}
+
 function CopyButton({ ids, label = 'Copiar códigos' }: { ids: string[]; label?: string }) {
   const [copied, setCopied] = useState(false);
+  const skus = ids.filter(isSku).map(id => id.trim());
+  const ignorados = ids.length - skus.length;
   const handleCopy = () => {
-    navigator.clipboard.writeText(ids.join(', '));
+    navigator.clipboard.writeText(skus.join(', '));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
   return (
     <button
       onClick={handleCopy}
-      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors whitespace-nowrap"
+      disabled={skus.length === 0}
+      title={ignorados > 0 ? `Copia só o SKU de ${skus.length} itens. ${ignorados} item(ns) sem SKU (só descrição) ficam de fora.` : `Copia o SKU de ${skus.length} itens`}
+      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors whitespace-nowrap disabled:opacity-40"
     >
       {copied ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
-      {copied ? 'Copiado!' : label}
+      {copied ? `Copiado! ${skus.length} SKUs` : label}
     </button>
   );
 }
@@ -61,7 +87,9 @@ function ProductRow({ product, showQty = false, showZeroedAt = false }: { produc
       <div className="flex-1 min-w-0">
         <p className="text-sm text-slate-700 dark:text-slate-200 truncate font-medium">{product.name}</p>
         <p className="text-xs text-slate-400 dark:text-slate-500">
-          <span className="font-mono">{product.id}</span>
+          {isSku(product.id)
+            ? <span className="font-mono">{product.id}</span>
+            : <span className="text-amber-500 dark:text-amber-400" title="Item sem SKU: o ERP enviou só a descrição">sem SKU</span>}
           {product.brand && product.brand !== 'SC API' && <> · {product.brand}</>}
           {product.price ? <> · R$ {product.price.toFixed(2)}</> : null}
         </p>
@@ -94,31 +122,17 @@ export function MarketingSC() {
     if (!supabase) return;
     setLoading(true);
     try {
-      const [inRes, outRes, lowRes] = await Promise.all([
-        supabase
-          .from('products')
-          .select('id, name, brand, stock_sc, image_url, price, updated_at')
-          .gt('stock_sc', 0)
-          .not('id', 'like', '%.0')
-          .order('name'),
-        supabase
-          .from('products')
-          .select('id, name, brand, stock_sc, image_url, price, updated_at')
-          .eq('stock_sc', 0)
-          .not('id', 'like', '%.0')
-          .order('updated_at', { ascending: false }),
-        supabase
-          .from('products')
-          .select('id, name, brand, stock_sc, image_url, price, updated_at')
-          .gte('stock_sc', 1)
-          .lte('stock_sc', 3)
-          .not('id', 'like', '%.0')
-          .order('stock_sc', { ascending: true }),
+      const cols = 'id, name, brand, stock_sc, image_url, price, updated_at';
+      // `id` como desempate: sem isso a paginação com .range() pode repetir/pular linhas
+      const [inData, outData, lowData] = await Promise.all([
+        fetchAllPages(() => supabase!.from('products').select(cols).gt('stock_sc', 0).not('id', 'like', '%.0').order('name').order('id')),
+        fetchAllPages(() => supabase!.from('products').select(cols).eq('stock_sc', 0).not('id', 'like', '%.0').order('updated_at', { ascending: false }).order('id')),
+        fetchAllPages(() => supabase!.from('products').select(cols).gte('stock_sc', 1).lte('stock_sc', 3).not('id', 'like', '%.0').order('stock_sc', { ascending: true }).order('id')),
       ]);
 
-      if (inRes.data) setInStock(inRes.data as SCProduct[]);
-      if (outRes.data) setOutOfStock(outRes.data as SCProduct[]);
-      if (lowRes.data) setLowStock(lowRes.data as SCProduct[]);
+      setInStock(inData);
+      setOutOfStock(outData);
+      setLowStock(lowData);
       setLastSync(new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }));
     } finally {
       setLoading(false);
@@ -333,7 +347,9 @@ export function MarketingSC() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-slate-700 dark:text-slate-200 truncate font-medium">{p.name}</p>
                   <p className="text-xs text-slate-400 dark:text-slate-500">
-                    <span className="font-mono">{p.id}</span>
+                    {isSku(p.id)
+                      ? <span className="font-mono">{p.id}</span>
+                      : <span className="text-amber-500 dark:text-amber-400" title="Item sem SKU: o ERP enviou só a descrição">sem SKU</span>}
                     {p.brand && p.brand !== 'SC API' && <> · {p.brand}</>}
                     {p.price ? <> · R$ {p.price.toFixed(2)}</> : null}
                   </p>
