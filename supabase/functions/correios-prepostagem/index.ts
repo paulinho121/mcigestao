@@ -12,6 +12,9 @@
  * Segredos (Supabase → Edge Functions → Secrets): CORREIOS_USUARIO,
  * CORREIOS_CODIGO_ACESSO, CORREIOS_CARTAO_POSTAGEM, CORREIOS_CONTRATO, CORREIOS_DR.
  *
+ * Remetente contribuinte de ICMS: enviar `chaveNFe` (44 dígitos). Sem ela a API emite DCe
+ * e a SEFAZ rejeita (812), cancelando a pré-postagem segundos depois de criada.
+ *
  * Schema de criação validado ao vivo (campos obrigatórios):
  *   remetente/destinatario: nome, cpfCnpj, dddCelular, celular, email(rem),
  *     endereco{cep, logradouro, numero, bairro, cidade, uf}
@@ -114,6 +117,10 @@ async function criar(p: any, token: string) {
             valor: String(i.valor ?? '0').replace('.', ','),
         })),
     };
+    // Contribuinte de ICMS não pode emitir DCe (SEFAZ 812 → a pré-postagem é cancelada).
+    // Com a chave da NF-e informada, o documento fiscal é a NF-e e a API não emite DCe.
+    const chave = soDigitos(p.chaveNFe);
+    if (chave) body.chaveNFe = chave;
     if (p.numeroNotaFiscal) body.numeroNotaFiscal = String(p.numeroNotaFiscal);
 
     const res = await fetch(`${BASE}/prepostagem/v1/prepostagens`, {

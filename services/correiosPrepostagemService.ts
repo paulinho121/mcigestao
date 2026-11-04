@@ -42,6 +42,7 @@ export interface CriarPrePostagemInput {
     comprimento?: number;
     itens: ItemDeclaracao[];
     numeroNotaFiscal?: string;
+    chaveNFe?: string;       // 44 dígitos — obrigatória p/ contribuinte de ICMS (evita a emissão de DCe)
 }
 
 export interface CriarPrePostagemResult {
