@@ -266,6 +266,7 @@ export function PrePostagem() {
     const [largura, setLargura] = useState('');
     const [comprimento, setComprimento] = useState('');
     const [nf, setNf] = useState('');
+    const [chaveNFe, setChaveNFe] = useState('');
     const [itens, setItens] = useState<ItemDeclaracao[]>([]);
 
     const [produtoQuery, setProdutoQuery] = useState('');
@@ -315,6 +316,8 @@ export function PrePostagem() {
             if (!e.cep || !e.logradouro || !e.numero || !e.bairro || !e.cidade || !e.uf)
                 return `${nome}: endereço incompleto (CEP, logradouro, número, bairro, cidade, UF).`;
         }
+        if (chaveNFe.replace(/\D/g, '').length !== 44)
+            return 'Informe a chave da NF-e (44 dígitos). Sem ela os Correios tentam emitir DCe e cancelam a pré-postagem (empresa contribuinte de ICMS).';
         if (!pesoKg || parseFloat(pesoKg) <= 0) return 'Informe o peso da encomenda.';
         if (itens.length === 0) return 'Adicione ao menos um item na declaração de conteúdo.';
         if (itens.some(i => !i.conteudo)) return 'Todos os itens precisam de descrição.';
@@ -332,7 +335,7 @@ export function PrePostagem() {
                 altura: altura ? parseFloat(altura) : undefined,
                 largura: largura ? parseFloat(largura) : undefined,
                 comprimento: comprimento ? parseFloat(comprimento) : undefined,
-                itens, numeroNotaFiscal: nf || undefined,
+                itens, numeroNotaFiscal: nf || undefined, chaveNFe: chaveNFe.replace(/\D/g, ''),
             });
             if (res.erro) setError(res.erro);
             else setResult(res);
@@ -360,7 +363,7 @@ export function PrePostagem() {
 
     const handleReset = () => {
         setRemetente({ ...EMPTY_PESSOA }); setDestinatario({ ...EMPTY_PESSOA });
-        setPesoKg(''); setAltura(''); setLargura(''); setComprimento(''); setNf('');
+        setPesoKg(''); setAltura(''); setLargura(''); setComprimento(''); setNf(''); setChaveNFe('');
         setItens([]); setResult(null); setError(null); setRotuloUrl(null); setRotuloMsg(null);
     };
 
@@ -443,7 +446,16 @@ export function PrePostagem() {
                                 <Field label="Largura (cm)" value={largura} onChange={setLargura} placeholder="Ex: 15" type="number" />
                                 <Field label="Comprimento (cm)" value={comprimento} onChange={setComprimento} placeholder="Ex: 20" type="number" />
                             </div>
-                            <Field label="Nº Nota Fiscal (opcional)" value={nf} onChange={setNf} placeholder="Número da NF-e" className="sm:max-w-xs" />
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <Field label="Chave da NF-e (44 dígitos)" value={chaveNFe}
+                                    onChange={(v) => {
+                                        const d = v.replace(/\D/g, '').slice(0, 44);
+                                        setChaveNFe(d);
+                                        if (d.length === 44) setNf(String(parseInt(d.slice(25, 34), 10))); // nNF dentro da chave
+                                    }}
+                                    placeholder="Chave de acesso da NF-e" className="sm:col-span-2" />
+                                <Field label="Nº Nota Fiscal" value={nf} onChange={setNf} placeholder="Preenchido pela chave" />
+                            </div>
                         </div>
 
                         {/* Declaração de conteúdo */}
