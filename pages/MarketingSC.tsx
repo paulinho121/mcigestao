@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ShoppingCart, XCircle, CheckCircle, Clock, Copy, Check, RefreshCw, Search, Package, AlertTriangle } from 'lucide-react';
+import { ShoppingCart, XCircle, CheckCircle, Clock, Copy, Check, RefreshCw, Search, Package, AlertTriangle, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { scStockService } from '../services/scStockService';
 
@@ -12,6 +12,7 @@ interface SCProduct {
   stock_sp: number;
   image_url?: string;
   price?: number;
+  created_at?: string;
   updated_at: string;
 }
 
@@ -131,6 +132,24 @@ function ProductRow({ product, selected, showQty = false, showZeroedAt = false }
   );
 }
 
+const NEW_PERIODS = [7, 15, 30, 60];
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Dias de calendário entre a data do cadastro e hoje (0 = hoje, 1 = ontem...)
+function daysAgo(iso: string): number {
+  const d = new Date(iso); d.setHours(0, 0, 0, 0);
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  return Math.round((t.getTime() - d.getTime()) / DAY_MS);
+}
+
+function dayLabel(iso: string): string {
+  const n = daysAgo(iso);
+  const date = new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  if (n <= 0) return `Hoje · ${date}`;
+  if (n === 1) return `Ontem · ${date}`;
+  return `${date} · há ${n} dias`;
+}
+
 export function MarketingSC() {
   const [products, setProducts] = useState<SCProduct[]>([]);
   // Filiais cujo estoque entra na conta (padrão: todas). Ao menos uma fica sempre marcada.
@@ -142,6 +161,9 @@ export function MarketingSC() {
   const [searchOut, setSearchOut] = useState('');
   const [searchLow, setSearchLow] = useState('');
   const [lastSync, setLastSync] = useState('');
+  const [view, setView] = useState<'visao' | 'novidades'>('visao');
+  const [newDays, setNewDays] = useState(15);
+  const [searchNew, setSearchNew] = useState('');
 
   const fetchData = async () => {
     if (!supabase) return;
@@ -151,7 +173,7 @@ export function MarketingSC() {
       // é feita aqui, conforme as filiais selecionadas. Ordena por `id` (estável p/ paginação).
       const data = await fetchAllPages(() =>
         supabase!.from('products')
-          .select('id, name, brand, stock_sc, stock_ce, stock_sp, image_url, price, updated_at')
+          .select('id, name, brand, stock_sc, stock_ce, stock_sp, image_url, price, created_at, updated_at')
           .not('id', 'like', '%.0')
           .order('id')
       );
@@ -202,6 +224,30 @@ export function MarketingSC() {
       lowStock: rows.filter(r => r.qty >= 1 && r.qty <= 3).sort((a, b) => a.qty - b.qty),
     };
   }, [products, selected]);
+
+  // Itens cadastrados no período que têm estoque (nas filiais selecionadas), do mais novo ao mais antigo,
+  // agrupados por dia de cadastro
+  const newItems = useMemo(() => {
+    const cutoff = Date.now() - newDays * DAY_MS;
+    return products
+      .filter(p => p.created_at && new Date(p.created_at).getTime() >= cutoff)
+      .map(p => ({ ...p, qty: BRANCHES.reduce((sum, b) => sum + (selected.has(b) ? branchQty(p, b) : 0), 0) }))
+      .filter(r => r.qty > 0)
+      .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  }, [products, selected, newDays]);
+
+  const newGroups = useMemo(() => {
+    const q = searchNew.trim().toLowerCase();
+    const list = q ? newItems.filter(p => p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)) : newItems;
+    const groups: { label: string; items: Row[] }[] = [];
+    for (const p of list) {
+      const label = dayLabel(p.created_at!);
+      const last = groups[groups.length - 1];
+      if (last && last.label === label) last.items.push(p);
+      else groups.push({ label, items: [p] });
+    }
+    return { groups, total: list.length };
+  }, [newItems, searchNew]);
 
   const filteredIn = useMemo(() =>
     inStock.filter(p =>
@@ -278,6 +324,84 @@ export function MarketingSC() {
         )}
       </div>
 
+      <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700">
+        {([['visao', 'Visão geral', null], ['novidades', 'Novidades no estoque', newItems.length]] as const).map(([key, label, count]) => (
+          <button
+            key={key}
+            onClick={() => setView(key)}
+            className={`flex items-center gap-1.5 text-sm px-3 pb-2.5 -mb-px border-b-2 transition-colors ${view === key
+              ? 'border-purple-600 text-purple-600 dark:text-purple-400 font-medium'
+              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+          >
+            {key === 'novidades' && <Sparkles size={14} />}
+            {label}
+            {count != null && !loading && (
+              <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">{count}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {view === 'novidades' && (
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="flex items-center gap-3 flex-wrap px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Sparkles size={15} className="text-purple-500" />
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Cadastrados nos últimos</span>
+              {NEW_PERIODS.map(d => (
+                <button
+                  key={d}
+                  onClick={() => setNewDays(d)}
+                  aria-pressed={newDays === d}
+                  className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${newDays === d
+                    ? 'bg-purple-600 text-white border-purple-600'
+                    : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  {d} dias
+                </button>
+              ))}
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-xs text-slate-400">{newGroups.total} itens com estoque</span>
+              <CopyButton ids={newGroups.groups.flatMap(g => g.items.map(p => p.id))} />
+            </div>
+          </div>
+          <div className="px-3 py-2 border-b border-slate-50 dark:border-slate-800">
+            <div className="flex items-center gap-2 px-2 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <Search size={13} className="text-slate-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Buscar por nome ou código..."
+                value={searchNew}
+                onChange={e => setSearchNew(e.target.value)}
+                className="bg-transparent text-sm text-slate-600 dark:text-slate-300 placeholder-slate-400 outline-none w-full"
+              />
+            </div>
+          </div>
+          <div className="p-3 space-y-4 overflow-y-auto max-h-[640px]">
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-16 rounded-lg bg-slate-50 dark:bg-slate-800/50 animate-pulse" />
+              ))
+            ) : newGroups.groups.length === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">
+                Nenhum item novo com estoque nos últimos {newDays} dias
+              </p>
+            ) : newGroups.groups.map(g => (
+              <div key={g.label}>
+                <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 mb-1.5 px-1">
+                  {g.label} <span className="font-normal text-slate-400">· {g.items.length} {g.items.length === 1 ? 'item' : 'itens'}</span>
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                  {g.items.map(p => <ProductRow key={p.id} product={p} selected={selected} showQty />)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {view === 'visao' && <>
       <div className="flex gap-3 flex-wrap">
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 dark:bg-green-900/30 border border-green-100 dark:border-green-800">
           <CheckCircle size={14} className="text-green-500" />
@@ -433,6 +557,7 @@ export function MarketingSC() {
         </div>
 
       </div>
+      </>}
 
       <p className="text-xs text-center text-slate-400 dark:text-slate-600">
         Clique em "Sincronizar API" para buscar os dados mais recentes do estoque SC em tempo real.
