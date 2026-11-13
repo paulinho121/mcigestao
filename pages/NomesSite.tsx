@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Globe, RefreshCw, Check, AlertCircle, Loader2, ArrowRight, Search } from 'lucide-react';
-import { lojaIntegradaService, ResultadoComparacao, DiferencaNome } from '../services/lojaIntegradaService';
+import { lojaIntegradaService, ResultadoComparacao, DiferencaNome, ProdutoLoja, CategoriaLoja, DiferencaTipo } from '../services/lojaIntegradaService';
+
+const TIPOS_KEY = 'nomes_site_tipos_ids';
 
 export const NomesSite: React.FC = () => {
     const [loading, setLoading] = useState(false);
@@ -12,14 +14,26 @@ export const NomesSite: React.FC = () => {
     const [busca, setBusca] = useState('');
     const [aplicando, setAplicando] = useState(false);
 
+    // Tipos (categorias do site)
+    const [loja, setLoja] = useState<ProdutoLoja[]>([]);
+    const [categorias, setCategorias] = useState<CategoriaLoja[]>([]);
+    const [tiposIds, setTiposIds] = useState<Set<number>>(() => {
+        try { return new Set<number>(JSON.parse(localStorage.getItem(TIPOS_KEY) || '[]')); } catch { return new Set<number>(); }
+    });
+    const [difTipos, setDifTipos] = useState<DiferencaTipo[] | null>(null);
+    const [tipoBusy, setTipoBusy] = useState(false);
+    const [tipoMsg, setTipoMsg] = useState('');
+    const [tipoErro, setTipoErro] = useState('');
+
     const consultar = async () => {
         setLoading(true); setErro(''); setSucesso(''); setResultado(null); setSelecionados(new Set());
         try {
             setProgresso('Lendo catálogo da loja...');
-            const loja = await lojaIntegradaService.buscarCatalogo((lidos, total) =>
+            const catalogo = await lojaIntegradaService.buscarCatalogo((lidos, total) =>
                 setProgresso(`Lendo catálogo da loja... ${lidos}/${total}`));
+            setLoja(catalogo);
             setProgresso('Comparando com o estoque...');
-            const r = await lojaIntegradaService.comparar(loja);
+            const r = await lojaIntegradaService.comparar(catalogo);
             setResultado(r);
             setSelecionados(new Set(r.diferencas.map((d) => d.id)));
         } catch (e: any) {
@@ -36,6 +50,63 @@ export const NomesSite: React.FC = () => {
         return resultado.diferencas.filter((d) =>
             d.id.toLowerCase().includes(q) || d.nomeAtual.toLowerCase().includes(q) || d.nomeSite.toLowerCase().includes(q));
     }, [resultado, busca]);
+
+    // Categorias em ordem de árvore (pai antes dos filhos), com a contagem de produtos da loja em cada uma
+    const arvore = useMemo(() => {
+        const contagem = new Map<number, number>();
+        for (const p of loja) for (const c of p.categorias) contagem.set(c, (contagem.get(c) ?? 0) + 1);
+        const filhos = new Map<number | null, CategoriaLoja[]>();
+        for (const c of categorias) {
+            const k = c.pai != null && categorias.some((x) => x.id === c.pai) ? c.pai : null;
+            filhos.set(k, [...(filhos.get(k) ?? []), c]);
+        }
+        const linhas: { cat: CategoriaLoja; nivel: number; qtd: number }[] = [];
+        const visitar = (pai: number | null, nivel: number) => {
+            for (const c of (filhos.get(pai) ?? []).sort((a, b) => a.nome.localeCompare(b.nome))) {
+                linhas.push({ cat: c, nivel, qtd: contagem.get(c.id) ?? 0 });
+                visitar(c.id, nivel + 1);
+            }
+        };
+        visitar(null, 0);
+        return linhas;
+    }, [categorias, loja]);
+
+    const carregarCategorias = async () => {
+        setTipoBusy(true); setTipoErro(''); setTipoMsg(''); setDifTipos(null);
+        try { setCategorias(await lojaIntegradaService.buscarCategorias()); }
+        catch (e: any) { setTipoErro(e?.message || 'Falha ao ler as categorias.'); }
+        finally { setTipoBusy(false); }
+    };
+
+    const alternarTipo = (id: number) => {
+        setDifTipos(null);
+        setTiposIds((prev) => {
+            const n = new Set(prev);
+            if (n.has(id)) n.delete(id); else n.add(id);
+            try { localStorage.setItem(TIPOS_KEY, JSON.stringify([...n])); } catch { /* sem storage */ }
+            return n;
+        });
+    };
+
+    const previaTipos = async () => {
+        setTipoBusy(true); setTipoErro(''); setTipoMsg('');
+        try { setDifTipos(await lojaIntegradaService.compararTipos(loja, categorias, tiposIds)); }
+        catch (e: any) { setTipoErro(e?.message || 'Falha ao comparar os tipos.'); }
+        finally { setTipoBusy(false); }
+    };
+
+    const aplicarTipos = async () => {
+        if (!difTipos?.length) return;
+        if (!window.confirm(`Definir o tipo de ${difTipos.length} produto(s) conforme o site? Só o campo "tipo" é alterado.`)) return;
+        setTipoBusy(true); setTipoErro(''); setTipoMsg('');
+        try {
+            const { ok, falhas } = await lojaIntegradaService.aplicarTipos(difTipos);
+            setTipoMsg(`${ok} tipo(s) atualizado(s).`);
+            if (falhas.length) setTipoErro(`${falhas.length} falharam — a coluna "tipo" existe no banco? (${falhas.slice(0, 5).join(', ')})`);
+            setDifTipos(difTipos.filter((d) => falhas.includes(d.id)));
+        } catch (e: any) { setTipoErro(e?.message || 'Falha ao gravar os tipos.'); }
+        finally { setTipoBusy(false); }
+    };
 
     const alternar = (id: string) =>
         setSelecionados((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -162,6 +233,62 @@ export const NomesSite: React.FC = () => {
                         </div>
                     )}
                 </>
+            )}
+
+            {/* Tipos de produto (categorias do site) */}
+            {resultado && (
+                <div className="mt-10 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Tipo do produto (categorias do site)</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-4">
+                        Marque quais categorias do site são "tipos" (ex.: Modificadores, Tripés, Luminárias — não marque marcas ou promoções).
+                        O tipo aparece no card do produto no Estoque.
+                    </p>
+                    {categorias.length === 0 ? (
+                        <button onClick={carregarCategorias} disabled={tipoBusy}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium disabled:opacity-50">
+                            {tipoBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Carregar categorias
+                        </button>
+                    ) : (
+                        <>
+                            <ul className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700 border border-slate-100 dark:border-slate-700 rounded-lg">
+                                {arvore.map(({ cat, nivel, qtd }) => (
+                                    <li key={cat.id} className="px-3 py-1.5 flex items-center gap-2" style={{ paddingLeft: 12 + nivel * 20 }}>
+                                        <input type="checkbox" className="w-4 h-4" checked={tiposIds.has(cat.id)} onChange={() => alternarTipo(cat.id)} />
+                                        <span className="text-sm text-slate-800 dark:text-slate-200">{cat.nome}</span>
+                                        <span className="text-xs text-slate-400">{qtd} produtos</span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <div className="mt-4 flex flex-wrap items-center gap-3">
+                                <button onClick={previaTipos} disabled={tipoBusy || tiposIds.size === 0}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium disabled:opacity-50">
+                                    {tipoBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Ver prévia ({tiposIds.size} categorias)
+                                </button>
+                                {difTipos && difTipos.length > 0 && (
+                                    <button onClick={aplicarTipos} disabled={tipoBusy}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium disabled:opacity-50">
+                                        <Check className="w-4 h-4" /> Aplicar {difTipos.length} tipo(s)
+                                    </button>
+                                )}
+                                {difTipos && <span className="text-sm text-slate-500 dark:text-slate-400">{difTipos.length} produto(s) com tipo novo ou diferente</span>}
+                            </div>
+                            {difTipos && difTipos.length > 0 && (
+                                <ul className="mt-3 max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700 text-sm">
+                                    {difTipos.slice(0, 200).map((d) => (
+                                        <li key={d.id} className="py-1.5 flex gap-3">
+                                            <span className="font-mono text-xs text-slate-500 w-24 shrink-0">{d.id}</span>
+                                            <span className="text-slate-400 line-through">{d.tipoAtual || '(sem tipo)'}</span>
+                                            <span className="font-medium text-slate-900 dark:text-white">→ {d.tipoSite}</span>
+                                        </li>
+                                    ))}
+                                    {difTipos.length > 200 && <li className="py-1.5 text-xs text-slate-400">… e mais {difTipos.length - 200}</li>}
+                                </ul>
+                            )}
+                        </>
+                    )}
+                    {tipoErro && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{tipoErro}</p>}
+                    {tipoMsg && <p className="mt-3 text-sm text-green-600 dark:text-green-400">{tipoMsg}</p>}
+                </div>
             )}
         </div>
     );
