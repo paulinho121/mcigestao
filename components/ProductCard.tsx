@@ -187,6 +187,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                         <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug group-hover:text-brand-600 transition-colors break-words line-clamp-2 dark:text-white dark:group-hover:text-brand-400">
                             {product.name}
                         </h3>
+                        {product.tipo && (
+                            <span className="inline-block mt-1.5 px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-[10px] font-bold uppercase tracking-wider">
+                                {product.tipo}
+                            </span>
+                        )}
                         {product.location && (
                             <div className="flex items-center gap-1.5 mt-2">
                                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
@@ -331,11 +336,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                             {/* Right Side: Details & Quantities */}
                             <div className="md:w-1/2 p-6 sm:p-8 flex flex-col overflow-y-auto">
                                 <div className="flex justify-between items-start mb-2 group">
-                                    {product.brand && (
-                                        <span className="px-3 py-1 bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 text-xs font-bold uppercase tracking-widest rounded-md mb-2">
-                                            {product.brand}
-                                        </span>
-                                    )}
+                                    <div className="flex flex-wrap gap-2">
+                                        {product.brand && (
+                                            <span className="px-3 py-1 bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 text-xs font-bold uppercase tracking-widest rounded-md mb-2">
+                                                {product.brand}
+                                            </span>
+                                        )}
+                                        {product.tipo && (
+                                            <span className="px-3 py-1 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-bold uppercase tracking-widest rounded-md mb-2">
+                                                {product.tipo}
+                                            </span>
+                                        )}
+                                    </div>
                                     <button
                                         onClick={() => setIsSpotlightOpen(false)}
                                         className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"

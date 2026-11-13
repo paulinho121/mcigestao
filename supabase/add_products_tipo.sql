@@ -1,0 +1,3 @@
+-- Tipo do produto (categoria do site mci.tv): Modificador, Tripé, Luminária...
+-- Preenchido pela tela Manutenção > Nomes do Site. Rodar uma vez no SQL Editor do Supabase.
+alter table public.products add column if not exists tipo text;

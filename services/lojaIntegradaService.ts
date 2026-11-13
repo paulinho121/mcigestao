@@ -12,6 +12,19 @@ export interface ProdutoLoja {
     nome: string;
     ativo: boolean;
     url: string;
+    categorias: number[];
+}
+
+export interface CategoriaLoja {
+    id: number;
+    nome: string;
+    pai: number | null;
+}
+
+export interface DiferencaTipo {
+    id: string;
+    tipoAtual: string;
+    tipoSite: string;
 }
 
 export interface DiferencaNome {
@@ -82,6 +95,81 @@ export const lojaIntegradaService = {
             offset = proximo;
         }
         return todos;
+    },
+
+    /** Árvore de categorias da loja. */
+    async buscarCategorias(): Promise<CategoriaLoja[]> {
+        if (!supabase) throw new Error('Supabase não configurado.');
+        const { data, error } = await supabase.functions.invoke('loja-integrada-nomes', { body: { acao: 'categorias' } });
+        if (error) throw new Error(await extrairErro(error));
+        if (data?.configured === false) throw new Error(data.error || 'Loja Integrada não configurada.');
+        if (data?.error) throw new Error(data.error);
+        return (data?.categorias ?? []) as CategoriaLoja[];
+    },
+
+    /**
+     * Define o tipo de cada produto a partir das categorias da loja marcadas como "tipo".
+     * Se o produto está em mais de uma categoria de tipo, vale a mais específica (mais funda na árvore).
+     */
+    async compararTipos(loja: ProdutoLoja[], categorias: CategoriaLoja[], tiposIds: Set<number>): Promise<DiferencaTipo[]> {
+        if (!supabase) throw new Error('Supabase não configurado.');
+
+        const porId = new Map(categorias.map((c) => [c.id, c]));
+        const profundidade = (id: number): number => {
+            let n = 0;
+            for (let c = porId.get(id); c?.pai != null && n < 20; c = porId.get(c.pai)) n++;
+            return n;
+        };
+
+        const { data, error } = await (async () => {
+            const all: { id: string; tipo: string | null }[] = [];
+            const PAGE = 1000;
+            for (let from = 0; ; from += PAGE) {
+                const r = await supabase!.from('products').select('id, tipo').not('id', 'like', '%.0').order('id').range(from, from + PAGE - 1);
+                if (r.error) return { data: null, error: r.error };
+                all.push(...(r.data ?? []));
+                if (!r.data || r.data.length < PAGE) break;
+            }
+            return { data: all, error: null };
+        })();
+        if (error) throw new Error(error.message);
+        const atual = new Map((data ?? []).map((p) => [chave(p.id), p]));
+
+        const resultado: DiferencaTipo[] = [];
+        const vistos = new Set<string>();
+        for (const l of loja) {
+            const k = chave(l.sku);
+            if (!l.sku || vistos.has(k)) continue;
+            vistos.add(k);
+            const p = atual.get(k);
+            if (!p) continue;
+
+            const escolhida = l.categorias
+                .filter((id) => tiposIds.has(id) && porId.has(id))
+                .sort((a, b) => profundidade(b) - profundidade(a))[0];
+            if (escolhida === undefined) continue;
+
+            const tipoSite = porId.get(escolhida)!.nome;
+            if ((p.tipo ?? '') !== tipoSite) resultado.push({ id: p.id, tipoAtual: p.tipo ?? '', tipoSite });
+        }
+        return resultado.sort((a, b) => a.id.localeCompare(b.id));
+    },
+
+    /** Grava `products.tipo` (só esse campo). */
+    async aplicarTipos(itens: DiferencaTipo[], onProgress?: (feitos: number) => void): Promise<{ ok: number; falhas: string[] }> {
+        if (!supabase) throw new Error('Supabase não configurado.');
+        let ok = 0;
+        const falhas: string[] = [];
+        const LOTE = 10;
+        for (let i = 0; i < itens.length; i += LOTE) {
+            const res = await Promise.all(itens.slice(i, i + LOTE).map(async (it) => {
+                const { data, error } = await supabase!.from('products').update({ tipo: it.tipoSite }).eq('id', it.id).select('id');
+                return error || !data?.length ? it.id : null;
+            }));
+            for (const r of res) { if (r) falhas.push(r); else ok++; }
+            onProgress?.(ok + falhas.length);
+        }
+        return { ok, falhas };
     },
 
     /** Compara o catálogo da loja com os produtos do app (SKU ↔ id). */
