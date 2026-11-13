@@ -291,7 +291,7 @@ function App() {
           { label: 'Manutenção', icon: <Wrench size={20} />, onClick: () => navigate('maintenance'), colorClass: 'bg-amber-600 hover:bg-amber-700' },
           { label: 'NF-e', icon: <FileCode2 size={20} />, onClick: () => navigate('nfe_automation'), colorClass: 'bg-amber-500 hover:bg-amber-600' },
           { label: 'Logs', icon: <Activity size={20} />, onClick: () => navigate('logs'), colorClass: 'bg-amber-700 hover:bg-amber-800' },
-          { label: 'Nomes do Site', icon: <Globe size={20} />, onClick: () => navigate('nomes_site'), colorClass: 'bg-amber-800 hover:bg-amber-900' },
+          { label: 'Sync Site', icon: <Globe size={20} />, onClick: () => navigate('nomes_site'), colorClass: 'bg-amber-800 hover:bg-amber-900' },
         ],
       },
       {

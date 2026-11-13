@@ -13,7 +13,8 @@
  * Limite da API: 100 requisições/min por loja (HTTP 429).
  *
  * Ações (campo `acao` no body): omitida = produtos (SKU, nome, ids das categorias);
- * "categorias" = árvore de categorias da loja (id, nome, pai).
+ * "categorias" = árvore de categorias da loja (id, nome, pai);
+ * "precos" = preço cheio/promocional por produto da loja (GET /v1/produto_preco).
  *
  * Paginação: cada chamada lê até MAX_PAGINAS páginas a partir de `offset` e devolve
  * `proximoOffset` (null quando acabou); o front continua chamando até terminar.
@@ -76,6 +77,33 @@ async function categorias(auth: string) {
     return json({ configured: true, categorias: lista });
 }
 
+// Preço de cada produto da loja. `idProduto` casa com o `id` devolvido na lista de produtos.
+// "custo" não é lido de propósito: o app só precisa do preço de venda.
+async function precos(auth: string, inicio: number) {
+    const lista: { idProduto: number; cheio: string | null; promocional: string | null; sobConsulta: boolean }[] = [];
+    let offset = inicio;
+    let proximoOffset: number | null = offset;
+    for (let p = 0; p < MAX_PAGINAS && proximoOffset !== null; p++) {
+        const res = await getComRetry(`${LI_BASE}/v1/produto_preco?limit=${POR_PAGINA}&offset=${offset}`, auth);
+        if (res.status === 429) break; // o front retoma de `proximoOffset`
+        if (!res.ok) return erroHttp(res.status);
+        const data = await res.json();
+        for (const o of Array.isArray(data?.objects) ? data.objects : []) {
+            const idProduto = idDaUri(o.produto);
+            if (idProduto === null) continue;
+            lista.push({
+                idProduto,
+                cheio: o.cheio == null ? null : String(o.cheio),
+                promocional: o.promocional == null ? null : String(o.promocional),
+                sobConsulta: !!o.sob_consulta,
+            });
+        }
+        offset += POR_PAGINA;
+        proximoOffset = data?.meta?.next ? offset : null;
+    }
+    return json({ configured: true, precos: lista, proximoOffset });
+}
+
 function authHeader(): string | null {
     const token = Deno.env.get('LI_PERSONAL_TOKEN');
     if (token) return `Basic ${token}`;
@@ -99,8 +127,9 @@ Deno.serve(async (req) => {
     }
 
     if (body.acao === 'categorias') return await categorias(auth);
+    if (body.acao === 'precos') return await precos(auth, offset);
 
-    const items: { sku: string; nome: string; ativo: boolean; url: string; categorias: number[] }[] = [];
+    const items: { id: number; sku: string; nome: string; ativo: boolean; url: string; categorias: number[] }[] = [];
     let total = 0;
     let proximoOffset: number | null = offset;
 
@@ -116,6 +145,7 @@ Deno.serve(async (req) => {
             for (const o of Array.isArray(data?.objects) ? data.objects : []) {
                 if (o?.removido) continue;
                 items.push({
+                    id: Number(o?.id),
                     sku: String(o?.sku ?? '').trim(),
                     nome: String(o?.nome ?? '').trim(),
                     ativo: !!o?.ativo,
