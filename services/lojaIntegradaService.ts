@@ -7,7 +7,28 @@
 
 import { supabase } from '../lib/supabase';
 
+export interface PrecoLoja {
+    idProduto: number;
+    cheio: string | null;
+    promocional: string | null;
+    sobConsulta: boolean;
+}
+
+export interface DiferencaPreco {
+    id: string;
+    nome: string;
+    precoAtual: number | null;
+    precoSite: number;
+}
+
+export interface ResultadoPrecos {
+    diferencas: DiferencaPreco[];
+    iguais: number;
+    semPrecoNoSite: number; // produto casado, mas sem preço cheio válido na loja
+}
+
 export interface ProdutoLoja {
+    id?: number;
     sku: string;
     nome: string;
     ativo: boolean;
@@ -95,6 +116,80 @@ export const lojaIntegradaService = {
             offset = proximo;
         }
         return todos;
+    },
+
+    /** Preços (cheio/promocional) de todos os produtos da loja. */
+    async buscarPrecos(onProgress?: (lidos: number) => void): Promise<PrecoLoja[]> {
+        if (!supabase) throw new Error('Supabase não configurado.');
+        const todos: PrecoLoja[] = [];
+        let offset = 0;
+        for (let guarda = 0; guarda < 50; guarda++) {
+            const { data, error } = await supabase.functions.invoke('loja-integrada-nomes', { body: { acao: 'precos', offset } });
+            if (error) throw new Error(await extrairErro(error));
+            if (data?.configured === false) throw new Error(data.error || 'Loja Integrada não configurada.');
+            if (data?.error) throw new Error(data.error);
+            todos.push(...((data?.precos ?? []) as PrecoLoja[]));
+            onProgress?.(todos.length);
+            if (data?.proximoOffset == null) break;
+            offset = data.proximoOffset;
+        }
+        return todos;
+    },
+
+    /** Compara o preço cheio do site com `products.price` (SKU ↔ id). */
+    async compararPrecos(loja: ProdutoLoja[], precos: PrecoLoja[]): Promise<ResultadoPrecos> {
+        if (!supabase) throw new Error('Supabase não configurado.');
+
+        const cheioPorProduto = new Map<number, PrecoLoja>(precos.map((p) => [p.idProduto, p]));
+
+        const atual = new Map<string, { id: string; name: string; price: number | null }>();
+        const PAGE = 1000;
+        for (let from = 0; ; from += PAGE) {
+            const { data, error } = await supabase.from('products').select('id, name, price').not('id', 'like', '%.0').order('id').range(from, from + PAGE - 1);
+            if (error) throw new Error(error.message);
+            for (const p of data ?? []) atual.set(chave(p.id), { id: p.id, name: p.name ?? '', price: p.price == null ? null : Number(p.price) });
+            if (!data || data.length < PAGE) break;
+        }
+
+        const diferencas: DiferencaPreco[] = [];
+        let iguais = 0;
+        let semPrecoNoSite = 0;
+        const vistos = new Set<string>();
+        for (const l of loja) {
+            if (!l.sku || l.id == null) continue;
+            const k = chave(l.sku);
+            if (vistos.has(k)) continue;
+            vistos.add(k);
+            const p = atual.get(k);
+            if (!p) continue;
+
+            const pr = cheioPorProduto.get(l.id);
+            const site = pr && !pr.sobConsulta && pr.cheio != null ? Number(pr.cheio) : NaN;
+            if (!(site > 0)) { semPrecoNoSite++; continue; }
+
+            const precoSite = Math.round(site * 100) / 100;
+            if (p.price != null && Math.abs(p.price - precoSite) < 0.005) { iguais++; continue; }
+            diferencas.push({ id: p.id, nome: p.name, precoAtual: p.price, precoSite });
+        }
+        diferencas.sort((a, b) => a.id.localeCompare(b.id));
+        return { diferencas, iguais, semPrecoNoSite };
+    },
+
+    /** Grava `products.price` com o preço cheio do site (só esse campo). */
+    async aplicarPrecos(itens: DiferencaPreco[], onProgress?: (feitos: number) => void): Promise<{ ok: number; falhas: string[] }> {
+        if (!supabase) throw new Error('Supabase não configurado.');
+        let ok = 0;
+        const falhas: string[] = [];
+        const LOTE = 10;
+        for (let i = 0; i < itens.length; i += LOTE) {
+            const res = await Promise.all(itens.slice(i, i + LOTE).map(async (it) => {
+                const { data, error } = await supabase!.from('products').update({ price: it.precoSite }).eq('id', it.id).select('id');
+                return error || !data?.length ? it.id : null;
+            }));
+            for (const r of res) { if (r) falhas.push(r); else ok++; }
+            onProgress?.(ok + falhas.length);
+        }
+        return { ok, falhas };
     },
 
     /** Árvore de categorias da loja. */
