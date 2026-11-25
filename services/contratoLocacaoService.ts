@@ -63,6 +63,10 @@ export interface ContratoLocacao {
     parcelas?: ParcelaContrato[];
     created_at: string;
     status?: 'pendente' | 'aprovado' | 'negado' | 'incorreto';
+    // Assinatura digital (supabase/add_contratos_assinatura.sql)
+    pdf_assinado_path?: string | null;
+    assinado_em?: string | null;
+    assinado_por?: string | null;
 }
 
 const STORAGE_KEY = 'mci_contratos_locacao';
@@ -170,6 +174,29 @@ export const contratoLocacaoService = {
     async excluir(id: string): Promise<void> {
         if (supabase) await supabase.from('contratos_locacao').delete().eq('id', id);
         saveLocal(loadLocal().filter(c => c.id !== id));
+    },
+
+    /**
+     * Guarda o PDF assinado no Storage (bucket privado) e registra no contrato.
+     * Cada assinatura vira um arquivo novo (nada é sobrescrito). Não lança erro: devolve o motivo.
+     */
+    async salvarPdfAssinado(id: string, numero: string, pdf: Uint8Array, assinadoPor: string): Promise<{ ok: boolean; motivo?: string }> {
+        if (!supabase) return { ok: false, motivo: 'Supabase não configurado.' };
+        const path = `${id}/${numero}-assinado-${Date.now()}.pdf`;
+        const up = await supabase.storage.from('contratos-assinados').upload(path, pdf, { contentType: 'application/pdf', upsert: false });
+        if (up.error) return { ok: false, motivo: `Não foi possível guardar o PDF (${up.error.message}). Rodou o SQL de assinatura?` };
+        const { error } = await supabase.from('contratos_locacao')
+            .update({ pdf_assinado_path: path, assinado_em: new Date().toISOString(), assinado_por: assinadoPor })
+            .eq('id', id);
+        if (error) return { ok: false, motivo: `PDF guardado, mas o contrato não foi atualizado (${error.message}).` };
+        return { ok: true };
+    },
+
+    /** Link temporário (10 min) para baixar o PDF assinado. */
+    async urlPdfAssinado(path: string): Promise<string | null> {
+        if (!supabase) return null;
+        const { data } = await supabase.storage.from('contratos-assinados').createSignedUrl(path, 600);
+        return data?.signedUrl ?? null;
     },
 
     async atualizarStatus(id: string, status: 'pendente' | 'aprovado' | 'negado' | 'incorreto'): Promise<void> {
