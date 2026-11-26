@@ -264,6 +264,18 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
                                              c.status === 'negado'    ? 'Negado' :
                                              c.status === 'incorreto' ? 'Incorreto' : 'Pendente'}
                                         </button>
+                                        {(c.assinado_em || c.pdf_assinado_path) ? (
+                                            <button
+                                                onClick={() => c.pdf_assinado_path && handleBaixarAssinado(c.pdf_assinado_path)}
+                                                title={`Assinado digitalmente${c.assinado_por ? ` por ${c.assinado_por}` : ''}${c.assinado_em ? ` em ${new Date(c.assinado_em).toLocaleString('pt-BR')}` : ''} — clique para baixar o PDF`}
+                                                className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+                                            >
+                                                <ShieldCheck size={12} />
+                                                Assinado{c.assinado_em ? ` · ${new Date(c.assinado_em).toLocaleDateString('pt-BR')}` : ''}
+                                            </button>
+                                        ) : (
+                                            <div className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500 whitespace-nowrap">Não assinado</div>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-2 justify-end">
