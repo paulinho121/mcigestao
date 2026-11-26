@@ -72,9 +72,12 @@ export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, 
             else onAssinado();
             setEtapa('concluido');
         } catch (e: any) {
+            const msg = String(e?.message || '');
             setErro(e?.name === 'AssinadorOffline'
                 ? 'Perdi a conexão com o Assinador MCI. Confira se a janela dele continua aberta.'
-                : (e?.message || 'Falha ao assinar o contrato.'));
+                : /dynamically imported module|Importing a module script failed/i.test(msg)
+                    ? 'O sistema foi atualizado enquanto esta aba estava aberta. Recarregue a página (Ctrl+F5) e tente de novo.'
+                    : (msg || 'Falha ao assinar o contrato.'));
             setEtapa('pronto');
         } finally {
             setPasso('');
