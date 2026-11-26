@@ -15,10 +15,18 @@
 param(
     [int]$Porta = 47890,
     [string]$PfxTeste = '',
-    [string]$SenhaTeste = ''
+    [string]$SenhaTeste = '',
+    [switch]$Oculto          # modo segundo plano (instalado): sem janela, registra em assinador.log
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ($Oculto) {
+    $pastaLog = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $arqLog = Join-Path $pastaLog 'assinador.log'
+    if ((Test-Path $arqLog) -and ((Get-Item $arqLog).Length -gt 1MB)) { Remove-Item $arqLog -Force }
+    try { Start-Transcript -Path $arqLog -Append | Out-Null } catch { }
+}
 Add-Type -AssemblyName System.Security
 
 $Versao = '1.0'
@@ -68,9 +76,22 @@ function Get-CertPorThumbprint($thumb) {
     return $null
 }
 
+# Certificado emitido por AC da ICP-Brasil (o que vale para assinar contratos)?
+function Test-Icp($c) {
+    try {
+        $cadeia = New-Object System.Security.Cryptography.X509Certificates.X509Chain
+        $cadeia.ChainPolicy.RevocationMode = 'NoCheck'
+        [void]$cadeia.Build($c)
+        foreach ($e in $cadeia.ChainElements) { if ($e.Certificate.Subject -match 'ICP-?\s?Brasil') { return $true } }
+    } catch { }
+    return ($c.Issuer -match 'Autoridade Certificadora|(^|[, ])CN=AC |Serpro|Certisign|Serasa|Soluti|Safeweb|Syngular|Valid Certificadora')
+}
+
 function ConvertTo-Resumo($c) {
     $k = Get-InfoChave $c
     return @{
+        icp        = (Test-Icp $c)
+        autoassinado = ($c.Subject -eq $c.Issuer)
         thumbprint = $c.Thumbprint
         nome       = $c.GetNameInfo('SimpleName', $false)
         emissor    = $c.GetNameInfo('SimpleName', $true)

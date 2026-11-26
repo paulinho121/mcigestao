@@ -19,6 +19,8 @@ export interface CertificadoLocal {
     validade: string;
     provedor: string;
     hardware: boolean; // true = chave em token/cartão (o certificado do pendrive)
+    icp?: boolean;     // emitido por AC da ICP-Brasil
+    autoassinado?: boolean;
 }
 
 export class AssinadorOffline extends Error {
@@ -69,12 +71,18 @@ export const assinaturaDigitalService = {
         return (d.certificados ?? []) as CertificadoLocal[];
     },
 
-    /** Certificado a usar por padrão: o último escolhido; senão o do token/pendrive (A3). */
+    /**
+     * Certificado a usar por padrão: o último escolhido; senão o do token/pendrive (A3);
+     * senão um ICP-Brasil instalado; senão o primeiro que não seja autoassinado.
+     */
     escolherPadrao(certs: CertificadoLocal[]): CertificadoLocal | null {
         let lembrado = '';
         try { lembrado = localStorage.getItem(CERT_KEY) || ''; } catch { /* sem storage */ }
         return certs.find((c) => c.thumbprint === lembrado)
+            ?? certs.find((c) => c.hardware && c.icp !== false)
             ?? certs.find((c) => c.hardware)
+            ?? certs.find((c) => c.icp)
+            ?? certs.find((c) => !c.autoassinado)
             ?? certs[0]
             ?? null;
     },
