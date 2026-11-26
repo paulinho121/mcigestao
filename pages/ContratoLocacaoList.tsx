@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, FileText, Trash2, Printer, ArrowLeft, Plus, Eye, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Search, FileText, Trash2, Printer, ArrowLeft, Plus, Eye, CheckCircle, XCircle, Clock, AlertCircle, PenLine, ShieldCheck } from 'lucide-react';
 import { contratoLocacaoService, ContratoLocacao } from '../services/contratoLocacaoService';
+import { AssinarContratoModal } from '../components/modals/AssinarContratoModal';
 import { generateContratoHtml, imprimirContratoHtml, ContratoData, ContratoPreview } from './ContratoLocacaoForm';
 
 interface Props {
@@ -26,6 +27,7 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
     const [excluindo, setExcluindo] = useState<string | null>(null);
     const [imprimindo, setImprimindo] = useState<string | null>(null);
     const [preview, setPreview] = useState<{ dados: ContratoData; totalDiaria: number; valorTotal: number } | null>(null);
+    const [assinando, setAssinando] = useState<{ id: string; numero: string } | null>(null);
 
     const carregar = useCallback(async (termo = '') => {
         setLoading(true);
@@ -78,26 +80,38 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
         setPreview(resultado);
     };
 
+    // HTML do contrato (mesmo modelo da impressão), usado na reimpressão e na assinatura digital
+    const montarHtmlContrato = async (id: string): Promise<string | null> => {
+        const resultado = await carregarDadosContrato(id);
+        if (!resultado) return null;
+        let logoDataUrl = '';
+        try {
+            const resp = await fetch('/logo.png');
+            const blob = await resp.blob();
+            logoDataUrl = await new Promise<string>(resolve => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+            });
+        } catch { /* sem logo */ }
+        return generateContratoHtml(resultado.dados, resultado.totalDiaria, resultado.valorTotal, logoDataUrl);
+    };
+
     const handleReimprimir = async (id: string) => {
         setImprimindo(id);
         try {
-            const resultado = await carregarDadosContrato(id);
-            if (!resultado) { alert('Contrato não encontrado.'); return; }
-            let logoDataUrl = '';
-            try {
-                const resp = await fetch('/logo.png');
-                const blob = await resp.blob();
-                logoDataUrl = await new Promise<string>(resolve => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result as string);
-                    reader.readAsDataURL(blob);
-                });
-            } catch { /* sem logo */ }
-            const html = generateContratoHtml(resultado.dados, resultado.totalDiaria, resultado.valorTotal, logoDataUrl);
+            const html = await montarHtmlContrato(id);
+            if (!html) { alert('Contrato não encontrado.'); return; }
             await imprimirContratoHtml(html);
         } finally {
             setImprimindo(null);
         }
+    };
+
+    const handleBaixarAssinado = async (path: string) => {
+        const url = await contratoLocacaoService.urlPdfAssinado(path);
+        if (!url) { alert('Não foi possível abrir o PDF assinado.'); return; }
+        window.open(url, '_blank');
     };
 
     const handleExcluir = async (id: string, numero: string) => {
@@ -200,7 +214,7 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Vendedor</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Filial</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Status</th>
-                                <th className="px-4 py-3 w-28"></th>
+                                <th className="px-4 py-3 w-40"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -271,6 +285,22 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
                                                     : <Printer className="w-4 h-4" />
                                                 }
                                             </button>
+                                            {c.pdf_assinado_path && (
+                                                <button
+                                                    title={`Baixar PDF assinado${c.assinado_por ? ` (${c.assinado_por})` : ''}`}
+                                                    onClick={() => handleBaixarAssinado(c.pdf_assinado_path!)}
+                                                    className="text-green-600 hover:text-green-700 dark:text-green-400 transition-colors"
+                                                >
+                                                    <ShieldCheck className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                            <button
+                                                title={c.pdf_assinado_path ? 'Assinar de novo com certificado digital' : 'Assinar com certificado digital'}
+                                                onClick={() => setAssinando({ id: c.id, numero: c.numero })}
+                                                className="text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                                            >
+                                                <PenLine className="w-4 h-4" />
+                                            </button>
                                             <button
                                                 title="Excluir"
                                                 onClick={() => handleExcluir(c.id, c.numero)}
@@ -293,6 +323,20 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
                     </div>
                 )}
             </div>
+
+            {assinando && (
+                <AssinarContratoModal
+                    contratoId={assinando.id}
+                    numero={assinando.numero}
+                    montarHtml={async () => {
+                        const html = await montarHtmlContrato(assinando.id);
+                        if (!html) throw new Error('Contrato não encontrado.');
+                        return html;
+                    }}
+                    onClose={() => setAssinando(null)}
+                    onAssinado={() => carregar(search)}
+                />
+            )}
         </div>
     );
 }
