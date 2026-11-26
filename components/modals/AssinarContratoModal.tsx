@@ -26,12 +26,17 @@ function baixar(bytes: Uint8Array, nome: string) {
 }
 
 // Última posição usada (para o próximo contrato abrir no mesmo lugar)
-function posicaoLembrada(): { xMm: number; yMm: number } {
+const TAM_MIN = 60, TAM_MAX = 160, TAM_PADRAO = 100; // % do tamanho base (85 × 24 mm)
+
+function posicaoLembrada(): { xMm: number; yMm: number; tam: number } {
     try {
         const p = JSON.parse(localStorage.getItem(POS_KEY) || 'null');
-        if (p && Number.isFinite(p.xMm) && Number.isFinite(p.yMm)) return p;
+        if (p && Number.isFinite(p.xMm) && Number.isFinite(p.yMm)) {
+            const tam = Number.isFinite(p.tam) ? Math.max(TAM_MIN, Math.min(TAM_MAX, p.tam)) : TAM_PADRAO;
+            return { xMm: p.xMm, yMm: p.yMm, tam };
+        }
     } catch { /* sem storage */ }
-    return { xMm: 20, yMm: 200 };
+    return { xMm: 20, yMm: 200, tam: TAM_PADRAO };
 }
 
 export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, onAssinado }: Props) {
@@ -49,6 +54,9 @@ export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, 
     const [paginaAtual, setPaginaAtual] = useState(0);
     const [pos, setPos] = useState<{ pagina: number; xMm: number; yMm: number } | null>(null);
     const [semCarimbo, setSemCarimbo] = useState(false);
+    const [tam, setTam] = useState(TAM_PADRAO);
+    const larguraMm = (CARIMBO_LARGURA_MM * tam) / 100;
+    const alturaMm = (CARIMBO_ALTURA_MM * tam) / 100;
     const areaRef = useRef<HTMLDivElement>(null);
     const arrastando = useRef(false);
 
@@ -93,6 +101,7 @@ export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, 
             const lembrada = posicaoLembrada();
             const ultima = Math.max(0, previas.length - 1);
             setPaginaAtual(ultima);
+            setTam(lembrada.tam);
             setPos({ pagina: ultima, xMm: lembrada.xMm, yMm: lembrada.yMm });
             setEtapa('posicionar');
         } catch (e: any) {
@@ -107,9 +116,9 @@ export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, 
         setEtapa('assinando'); setErro('');
         try {
             const carimbo: Carimbo | null = semCarimbo || !pos ? null : {
-                pagina: pos.pagina, xMm: pos.xMm, yMm: pos.yMm, larguraMm: CARIMBO_LARGURA_MM, alturaMm: CARIMBO_ALTURA_MM,
+                pagina: pos.pagina, xMm: pos.xMm, yMm: pos.yMm, larguraMm, alturaMm,
             };
-            if (carimbo) { try { localStorage.setItem(POS_KEY, JSON.stringify({ xMm: carimbo.xMm, yMm: carimbo.yMm })); } catch { /* sem storage */ } }
+            if (carimbo) { try { localStorage.setItem(POS_KEY, JSON.stringify({ xMm: carimbo.xMm, yMm: carimbo.yMm, tam })); } catch { /* sem storage */ } }
 
             setPasso('Aguardando o PIN do certificado (janela do token)...');
             const assinado = await assinaturaDigitalService.assinarPdf(pdfBase, cert, { motivo: `Contrato de locação nº ${numero}`, carimbo });
@@ -136,13 +145,28 @@ export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, 
         const area = areaRef.current;
         if (!area) return;
         const r = area.getBoundingClientRect();
-        const xMm = (clientX - r.left) / r.width * 210 - CARIMBO_LARGURA_MM / 2;
-        const yMm = (clientY - r.top) / r.height * 297 - CARIMBO_ALTURA_MM / 2;
+        const xMm = (clientX - r.left) / r.width * 210 - larguraMm / 2;
+        const yMm = (clientY - r.top) / r.height * 297 - alturaMm / 2;
         setPos({
             pagina: paginaAtual,
-            xMm: Math.round(Math.max(0, Math.min(210 - CARIMBO_LARGURA_MM, xMm))),
-            yMm: Math.round(Math.max(0, Math.min(297 - CARIMBO_ALTURA_MM, yMm))),
+            xMm: Math.round(Math.max(0, Math.min(210 - larguraMm, xMm))),
+            yMm: Math.round(Math.max(0, Math.min(297 - alturaMm, yMm))),
         });
+    };
+
+    // Muda o tamanho mantendo o centro do carimbo no mesmo ponto (e dentro da página)
+    const mudarTamanho = (novo: number) => {
+        const t = Math.max(TAM_MIN, Math.min(TAM_MAX, Math.round(novo)));
+        if (pos) {
+            const cx = pos.xMm + larguraMm / 2, cy = pos.yMm + alturaMm / 2;
+            const nl = (CARIMBO_LARGURA_MM * t) / 100, na = (CARIMBO_ALTURA_MM * t) / 100;
+            setPos({
+                pagina: pos.pagina,
+                xMm: Math.round(Math.max(0, Math.min(210 - nl, cx - nl / 2))),
+                yMm: Math.round(Math.max(0, Math.min(297 - na, cy - na / 2))),
+            });
+        }
+        setTam(t);
     };
 
     const ocupado = etapa === 'assinando' || etapa === 'gerando';
@@ -274,13 +298,24 @@ export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, 
                                             className="absolute border-2 border-dashed border-brand-600 bg-brand-500/15 pointer-events-none flex items-center justify-center text-center overflow-hidden"
                                             style={{
                                                 left: `${(pos.xMm / 210) * 100}%`, top: `${(pos.yMm / 297) * 100}%`,
-                                                width: `${(CARIMBO_LARGURA_MM / 210) * 100}%`, height: `${(CARIMBO_ALTURA_MM / 297) * 100}%`,
+                                                width: `${(larguraMm / 210) * 100}%`, height: `${(alturaMm / 297) * 100}%`,
                                             }}
                                         >
-                                            <span className="text-[9px] leading-tight font-semibold text-brand-800 px-1">Assinado digitalmente por<br />{cert?.nome}</span>
+                                            <span className="leading-tight font-semibold text-brand-800 px-1" style={{ fontSize: `${(9 * tam) / 100}px` }}>Assinado digitalmente por<br />{cert?.nome}</span>
                                         </div>
                                     )}
                                 </div>
+                            </div>
+
+                            <div className={`flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300 ${semCarimbo ? 'opacity-40' : ''}`}>
+                                <span className="font-medium whitespace-nowrap">Tamanho da assinatura</span>
+                                <button type="button" onClick={() => mudarTamanho(tam - 10)} disabled={semCarimbo || etapa === 'assinando' || tam <= TAM_MIN}
+                                    className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-600 text-base leading-none disabled:opacity-30" aria-label="Diminuir">−</button>
+                                <input type="range" min={TAM_MIN} max={TAM_MAX} step={5} value={tam} onChange={(e) => mudarTamanho(Number(e.target.value))}
+                                    disabled={semCarimbo || etapa === 'assinando'} className="flex-1 accent-brand-600" aria-label="Tamanho da assinatura" />
+                                <button type="button" onClick={() => mudarTamanho(tam + 10)} disabled={semCarimbo || etapa === 'assinando' || tam >= TAM_MAX}
+                                    className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-600 text-base leading-none disabled:opacity-30" aria-label="Aumentar">+</button>
+                                <span className="w-24 text-right tabular-nums text-slate-500">{Math.round(larguraMm)} × {Math.round(alturaMm)} mm</span>
                             </div>
 
                             <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
