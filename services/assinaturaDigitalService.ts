@@ -227,7 +227,8 @@ export const assinaturaDigitalService = {
 
             page.drawRectangle({ x, y, width: w, height: h, borderColor: rgb(0.55, 0.55, 0.55), borderWidth: 0.6 }); // sem preenchimento: não esconde o texto embaixo
 
-            const margem = 5;
+            const k = c.larguraMm / CARIMBO_LARGURA_MM; // escala do carimbo (o usuário pode aumentar/diminuir)
+            const margem = 5 * k;
             const largUtil = w - margem * 2;
             // nome do certificado, quebrado em até 2 linhas
             const palavras = limpo(cert.nome).split(' ');
@@ -235,7 +236,7 @@ export const assinaturaDigitalService = {
             let atual = '';
             for (const pal of palavras) {
                 const teste = atual ? `${atual} ${pal}` : pal;
-                if (negrito.widthOfTextAtSize(teste, 8.5) <= largUtil || !atual) atual = teste;
+                if (negrito.widthOfTextAtSize(teste, 8.5 * k) <= largUtil || !atual) atual = teste;
                 else { linhasNome.push(atual); atual = pal; }
             }
             if (atual) linhasNome.push(atual);
@@ -246,17 +247,17 @@ export const assinaturaDigitalService = {
             const fuso = `${off >= 0 ? '+' : '-'}${dois(Math.floor(Math.abs(off) / 60))}:${dois(Math.abs(off) % 60)}`;
             const data = `${dois(d.getDate())}/${dois(d.getMonth() + 1)}/${d.getFullYear()} ${dois(d.getHours())}:${dois(d.getMinutes())}:${dois(d.getSeconds())} ${fuso}`;
 
-            let ty = y + h - 10;
-            page.drawText('Assinado digitalmente por', { x: x + margem, y: ty, size: 7, font: fonte, color: cinza });
+            let ty = y + h - 10 * k;
+            page.drawText('Assinado digitalmente por', { x: x + margem, y: ty, size: 7 * k, font: fonte, color: cinza });
             for (const linha of linhasNome.slice(0, 2)) {
-                ty -= 10;
-                const tam = negrito.widthOfTextAtSize(linha, 8.5) > largUtil ? 7 : 8.5;
+                ty -= 10 * k;
+                const tam = (negrito.widthOfTextAtSize(linha, 8.5 * k) > largUtil ? 7 : 8.5) * k;
                 page.drawText(linha, { x: x + margem, y: ty, size: tam, font: negrito, color: preto });
             }
-            ty -= 10;
-            page.drawText(`Data: ${data}`, { x: x + margem, y: ty, size: 7, font: fonte, color: preto });
-            ty -= 9;
-            page.drawText('Validar em validar.iti.gov.br', { x: x + margem, y: ty, size: 6.5, font: fonte, color: cinza });
+            ty -= 10 * k;
+            page.drawText(`Data: ${data}`, { x: x + margem, y: ty, size: 7 * k, font: fonte, color: preto });
+            ty -= 9 * k;
+            page.drawText('Validar em validar.iti.gov.br', { x: x + margem, y: ty, size: 6.5 * k, font: fonte, color: cinza });
 
             alvo = { pdfPage: page, widgetRect: [x, y, x + w, y + h] };
         }
