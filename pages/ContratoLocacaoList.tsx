@@ -193,7 +193,7 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
             </div>
 
             {/* Tabela */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-x-auto">
                 {loading ? (
                     <div className="p-12 text-center text-slate-400 dark:text-slate-500">Carregando...</div>
                 ) : contratos.length === 0 ? (
@@ -214,12 +214,12 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Vendedor</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Filial</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Status</th>
-                                <th className="px-4 py-3 w-40"></th>
+                                <th className="px-3 py-3 sticky right-0 bg-slate-50 dark:bg-slate-900"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                             {contratos.map(c => (
-                                <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                <tr key={c.id} className="group hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                                     <td className="px-4 py-3">
                                         <span className="font-mono font-semibold text-brand-600 dark:text-brand-400">{c.numero}</span>
                                         <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{formatDate(c.data)}</div>
@@ -271,14 +271,14 @@ export function ContratoLocacaoList({ onNovo, onBack }: Props) {
                                                 className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
                                             >
                                                 <ShieldCheck size={12} />
-                                                Assinado{c.assinado_em ? ` · ${new Date(c.assinado_em).toLocaleDateString('pt-BR')}` : ''}
+                                                Assinado{c.assinado_em ? ` · ${new Date(c.assinado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}
                                             </button>
                                         ) : (
                                             <div className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500 whitespace-nowrap">Não assinado</div>
                                         )}
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-2 justify-end">
+                                    <td className="px-3 py-3 sticky right-0 bg-white dark:bg-slate-800 group-hover:bg-slate-50 dark:group-hover:bg-slate-700 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.15)]">
+                                        <div className="flex items-center gap-2 justify-end whitespace-nowrap">
                                             <button
                                                 title="Visualizar contrato"
                                                 onClick={() => handleVisualizar(c.id)}
