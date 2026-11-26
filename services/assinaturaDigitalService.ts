@@ -40,7 +40,6 @@ export interface Carimbo {
 }
 
 export const CARIMBO_LARGURA_MM = 85;
-export const CARIMBO_ALTURA_MM = 24;
 
 export class AssinadorOffline extends Error {
     constructor() {
@@ -77,6 +76,34 @@ async function chamar(path: string, init?: RequestInit, timeoutMs = 20000): Prom
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.erro || `Assinador respondeu ${res.status}.`);
     return data;
+}
+
+const limparTexto = (t: string) => t.replace(/[^\x20-\x7E\u00A0-\u00FF]/g, '?');
+
+/**
+ * Altura sob medida do carimbo para uma largura dada: o retângulo abraça o texto (nome do
+ * certificado quebrado em até 3 linhas). Usada na pré-visualização e na hora de desenhar, para
+ * que os dois fiquem idênticos.
+ */
+export async function medirCarimbo(nome: string, larguraMm: number): Promise<{ alturaMm: number; linhasNome: string[]; k: number }> {
+    const { PDFDocument, StandardFonts } = await import('pdf-lib');
+    const doc = await PDFDocument.create();
+    const negrito = await doc.embedFont(StandardFonts.HelveticaBold);
+
+    const k = larguraMm / CARIMBO_LARGURA_MM;
+    const largUtil = (larguraMm * 72) / 25.4 - 2 * 5 * k;
+    const linhas: string[] = [];
+    let atual = '';
+    for (const pal of limparTexto(nome).split(' ')) {
+        const teste = atual ? `${atual} ${pal}` : pal;
+        if (negrito.widthOfTextAtSize(teste, 8.5 * k) <= largUtil || !atual) atual = teste;
+        else { linhas.push(atual); atual = pal; }
+    }
+    if (atual) linhas.push(atual);
+    const linhasNome = linhas.slice(0, 3);
+
+    const alturaPt = (8 + 10.5 * linhasNome.length + 10 + 8.5 + 5) * k;
+    return { alturaMm: (alturaPt * 25.4) / 72, linhasNome, k };
 }
 
 export const assinaturaDigitalService = {
@@ -218,28 +245,18 @@ export const assinaturaDigitalService = {
             const c = opcoes.carimbo;
             const page = pdfDoc.getPage(Math.max(0, Math.min(c.pagina, pdfDoc.getPageCount() - 1)));
             const pt = (mm: number) => (mm * 72) / 25.4;
-            const w = pt(c.larguraMm), h = pt(c.alturaMm);
+            // altura sob medida para o texto (a mesma conta da pré-visualização)
+            const { alturaMm, linhasNome, k } = await medirCarimbo(cert.nome, c.larguraMm);
+            const w = pt(c.larguraMm), h = pt(alturaMm);
             const x = pt(c.xMm), y = page.getHeight() - pt(c.yMm) - h;
             const fonte = await pdfDoc.embedFont(StandardFonts.Helvetica);
             const negrito = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-            const limpo = (t: string) => t.replace(/[^ -~ -ÿ]/g, '?');
             const preto = rgb(0.1, 0.1, 0.1), cinza = rgb(0.35, 0.35, 0.35);
 
             page.drawRectangle({ x, y, width: w, height: h, borderColor: rgb(0.55, 0.55, 0.55), borderWidth: 0.6 }); // sem preenchimento: não esconde o texto embaixo
 
-            const k = c.larguraMm / CARIMBO_LARGURA_MM; // escala do carimbo (o usuário pode aumentar/diminuir)
             const margem = 5 * k;
             const largUtil = w - margem * 2;
-            // nome do certificado, quebrado em até 2 linhas
-            const palavras = limpo(cert.nome).split(' ');
-            const linhasNome: string[] = [];
-            let atual = '';
-            for (const pal of palavras) {
-                const teste = atual ? `${atual} ${pal}` : pal;
-                if (negrito.widthOfTextAtSize(teste, 8.5 * k) <= largUtil || !atual) atual = teste;
-                else { linhasNome.push(atual); atual = pal; }
-            }
-            if (atual) linhasNome.push(atual);
 
             const d = new Date();
             const dois = (n: number) => String(n).padStart(2, '0');
@@ -247,16 +264,16 @@ export const assinaturaDigitalService = {
             const fuso = `${off >= 0 ? '+' : '-'}${dois(Math.floor(Math.abs(off) / 60))}:${dois(Math.abs(off) % 60)}`;
             const data = `${dois(d.getDate())}/${dois(d.getMonth() + 1)}/${d.getFullYear()} ${dois(d.getHours())}:${dois(d.getMinutes())}:${dois(d.getSeconds())} ${fuso}`;
 
-            let ty = y + h - 10 * k;
+            let ty = y + h - 8 * k;
             page.drawText('Assinado digitalmente por', { x: x + margem, y: ty, size: 7 * k, font: fonte, color: cinza });
-            for (const linha of linhasNome.slice(0, 2)) {
-                ty -= 10 * k;
+            for (const linha of linhasNome) {
+                ty -= 10.5 * k;
                 const tam = (negrito.widthOfTextAtSize(linha, 8.5 * k) > largUtil ? 7 : 8.5) * k;
                 page.drawText(linha, { x: x + margem, y: ty, size: tam, font: negrito, color: preto });
             }
             ty -= 10 * k;
             page.drawText(`Data: ${data}`, { x: x + margem, y: ty, size: 7 * k, font: fonte, color: preto });
-            ty -= 9 * k;
+            ty -= 8.5 * k;
             page.drawText('Validar em validar.iti.gov.br', { x: x + margem, y: ty, size: 6.5 * k, font: fonte, color: cinza });
 
             alvo = { pdfPage: page, widgetRect: [x, y, x + w, y + h] };
