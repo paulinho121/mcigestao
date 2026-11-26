@@ -23,6 +23,25 @@ export interface CertificadoLocal {
     autoassinado?: boolean;
 }
 
+/** Página do contrato em miniatura, para o usuário escolher onde a assinatura aparece. */
+export interface PaginaPrevia {
+    imagem: string;      // data URL (JPEG)
+    larguraMm: number;
+    alturaMm: number;
+}
+
+/** Posição do carimbo da assinatura (mm, a partir do canto superior esquerdo da página). */
+export interface Carimbo {
+    pagina: number;      // 0 = primeira
+    xMm: number;
+    yMm: number;
+    larguraMm: number;
+    alturaMm: number;
+}
+
+export const CARIMBO_LARGURA_MM = 85;
+export const CARIMBO_ALTURA_MM = 24;
+
 export class AssinadorOffline extends Error {
     constructor() {
         super('Assinador MCI não encontrado neste computador.');
@@ -92,7 +111,7 @@ export const assinaturaDigitalService = {
     },
 
     /** Renderiza o HTML do contrato em PDF A4 (páginas quebradas entre linhas de tabela). */
-    async htmlParaPdf(html: string, rodape: string): Promise<Uint8Array> {
+    async htmlParaPdf(html: string, rodape: string): Promise<{ pdf: Uint8Array; paginas: PaginaPrevia[] }> {
         const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
 
         const MARGEM_MM = 10;
@@ -112,6 +131,7 @@ export const assinaturaDigitalService = {
             try { await (doc as any).fonts?.ready; } catch { /* sem API de fontes */ }
             doc.body.style.width = `${LARG_PX}px`;
             doc.body.style.margin = '0';
+            doc.body.style.paddingBottom = '16px'; // o html2canvas desenha o texto ~4px abaixo da caixa: sem folga cortava a última linha
 
             const body = doc.body;
             const canvas = await html2canvas(body, { scale: ESCALA, useCORS: true, backgroundColor: '#ffffff', windowWidth: LARG_PX });
@@ -135,6 +155,7 @@ export const assinaturaDigitalService = {
             const linhaLimpa = (r: number) => r >= 0 && r + 2 < tinta.length && tinta[r] === 0 && tinta[r + 1] === 0 && tinta[r + 2] === 0;
 
             const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+            const paginas: PaginaPrevia[] = [];
             let inicio = 0;
             let pagina = 0;
             while (inicio < alturaTotal - 1) {
@@ -153,6 +174,15 @@ export const assinaturaDigitalService = {
                 ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, fatia.width, fatia.height);
                 ctx.drawImage(canvas, 0, Math.round(inicio * ESCALA), canvas.width, fatia.height, 0, 0, canvas.width, fatia.height);
 
+                // miniatura da página A4 completa (com margens) para o posicionamento da assinatura
+                const PW = 420, PH = Math.round(PW * 297 / 210);
+                const mini = document.createElement('canvas');
+                mini.width = PW; mini.height = PH;
+                const mctx = mini.getContext('2d')!;
+                mctx.fillStyle = '#fff'; mctx.fillRect(0, 0, PW, PH);
+                mctx.drawImage(fatia, (MARGEM_MM / 210) * PW, (MARGEM_MM / 297) * PH, (LARG_MM / 210) * PW, ((fim - inicio) / pxPorMm / 297) * PH);
+                paginas.push({ imagem: mini.toDataURL('image/jpeg', 0.75), larguraMm: 210, alturaMm: 297 });
+
                 if (pagina > 0) pdf.addPage();
                 pdf.addImage(fatia.toDataURL('image/jpeg', 0.92), 'JPEG', MARGEM_MM, MARGEM_MM, LARG_MM, (fim - inicio) / pxPorMm);
                 pdf.setFontSize(7); pdf.setTextColor(110);
@@ -163,17 +193,17 @@ export const assinaturaDigitalService = {
                 pagina++;
                 if (pagina > 40) break; // trava de segurança
             }
-            return new Uint8Array(pdf.output('arraybuffer'));
+            return { pdf: new Uint8Array(pdf.output('arraybuffer')), paginas };
         } finally {
             document.body.removeChild(iframe);
         }
     },
 
     /** Assina o PDF (PAdES, assinatura destacada CMS feita pelo Assinador com o certificado A3). */
-    async assinarPdf(pdf: Uint8Array, cert: CertificadoLocal, opcoes: { motivo: string; local?: string }): Promise<Uint8Array> {
+    async assinarPdf(pdf: Uint8Array, cert: CertificadoLocal, opcoes: { motivo: string; local?: string; carimbo?: Carimbo | null }): Promise<Uint8Array> {
         (globalThis as any).Buffer ??= Buffer; // @signpdf usa Buffer global
 
-        const [{ PDFDocument }, { pdflibAddPlaceholder }, { SignPdf }, { Signer }] = await Promise.all([
+        const [{ PDFDocument, StandardFonts, rgb }, { pdflibAddPlaceholder }, { SignPdf }, { Signer }] = await Promise.all([
             import('pdf-lib'),
             import('@signpdf/placeholder-pdf-lib'),
             import('@signpdf/signpdf'),
@@ -181,8 +211,58 @@ export const assinaturaDigitalService = {
         ]);
 
         const pdfDoc = await PDFDocument.load(pdf);
+
+        // Carimbo visível (como no Adobe) na posição escolhida; o campo de assinatura cobre a mesma área
+        let alvo: { pdfPage: ReturnType<typeof pdfDoc.getPage>; widgetRect: number[] } | null = null;
+        if (opcoes.carimbo) {
+            const c = opcoes.carimbo;
+            const page = pdfDoc.getPage(Math.max(0, Math.min(c.pagina, pdfDoc.getPageCount() - 1)));
+            const pt = (mm: number) => (mm * 72) / 25.4;
+            const w = pt(c.larguraMm), h = pt(c.alturaMm);
+            const x = pt(c.xMm), y = page.getHeight() - pt(c.yMm) - h;
+            const fonte = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            const negrito = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            const limpo = (t: string) => t.replace(/[^ -~ -ÿ]/g, '?');
+            const preto = rgb(0.1, 0.1, 0.1), cinza = rgb(0.35, 0.35, 0.35);
+
+            page.drawRectangle({ x, y, width: w, height: h, borderColor: rgb(0.55, 0.55, 0.55), borderWidth: 0.6 }); // sem preenchimento: não esconde o texto embaixo
+
+            const margem = 5;
+            const largUtil = w - margem * 2;
+            // nome do certificado, quebrado em até 2 linhas
+            const palavras = limpo(cert.nome).split(' ');
+            const linhasNome: string[] = [];
+            let atual = '';
+            for (const pal of palavras) {
+                const teste = atual ? `${atual} ${pal}` : pal;
+                if (negrito.widthOfTextAtSize(teste, 8.5) <= largUtil || !atual) atual = teste;
+                else { linhasNome.push(atual); atual = pal; }
+            }
+            if (atual) linhasNome.push(atual);
+
+            const d = new Date();
+            const dois = (n: number) => String(n).padStart(2, '0');
+            const off = -d.getTimezoneOffset();
+            const fuso = `${off >= 0 ? '+' : '-'}${dois(Math.floor(Math.abs(off) / 60))}:${dois(Math.abs(off) % 60)}`;
+            const data = `${dois(d.getDate())}/${dois(d.getMonth() + 1)}/${d.getFullYear()} ${dois(d.getHours())}:${dois(d.getMinutes())}:${dois(d.getSeconds())} ${fuso}`;
+
+            let ty = y + h - 10;
+            page.drawText('Assinado digitalmente por', { x: x + margem, y: ty, size: 7, font: fonte, color: cinza });
+            for (const linha of linhasNome.slice(0, 2)) {
+                ty -= 10;
+                const tam = negrito.widthOfTextAtSize(linha, 8.5) > largUtil ? 7 : 8.5;
+                page.drawText(linha, { x: x + margem, y: ty, size: tam, font: negrito, color: preto });
+            }
+            ty -= 10;
+            page.drawText(`Data: ${data}`, { x: x + margem, y: ty, size: 7, font: fonte, color: preto });
+            ty -= 9;
+            page.drawText('Validar em validar.iti.gov.br', { x: x + margem, y: ty, size: 6.5, font: fonte, color: cinza });
+
+            alvo = { pdfPage: page, widgetRect: [x, y, x + w, y + h] };
+        }
+
         pdflibAddPlaceholder({
-            pdfDoc,
+            ...(alvo ? { pdfPage: alvo.pdfPage, widgetRect: alvo.widgetRect } : { pdfDoc }),
             reason: opcoes.motivo,
             contactInfo: '',
             name: cert.nome,
