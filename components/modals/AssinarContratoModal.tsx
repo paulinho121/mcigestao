@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PenLine, X, Loader2, ShieldCheck, Usb, AlertCircle, RefreshCw, Download, CheckCircle, ChevronLeft, ChevronRight, MousePointerClick } from 'lucide-react';
 import {
-    assinaturaDigitalService, CertificadoLocal, PaginaPrevia, Carimbo, CARIMBO_LARGURA_MM, CARIMBO_ALTURA_MM,
+    assinaturaDigitalService, CertificadoLocal, PaginaPrevia, Carimbo, CARIMBO_LARGURA_MM, medirCarimbo,
 } from '../../services/assinaturaDigitalService';
 import { contratoLocacaoService } from '../../services/contratoLocacaoService';
 
@@ -26,7 +26,7 @@ function baixar(bytes: Uint8Array, nome: string) {
 }
 
 // Última posição usada (para o próximo contrato abrir no mesmo lugar)
-const TAM_MIN = 60, TAM_MAX = 160, TAM_PADRAO = 100; // % do tamanho base (85 × 24 mm)
+const TAM_MIN = 35, TAM_MAX = 160, TAM_PADRAO = 100; // % da largura base (85 mm); a altura acompanha o texto
 
 function posicaoLembrada(): { xMm: number; yMm: number; tam: number } {
     try {
@@ -56,7 +56,8 @@ export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, 
     const [semCarimbo, setSemCarimbo] = useState(false);
     const [tam, setTam] = useState(TAM_PADRAO);
     const larguraMm = (CARIMBO_LARGURA_MM * tam) / 100;
-    const alturaMm = (CARIMBO_ALTURA_MM * tam) / 100;
+    const [alturaMm, setAlturaMm] = useState(15); // altura sob medida do texto (mesma conta usada no PDF)
+    const redimensionando = useRef(false);
     const areaRef = useRef<HTMLDivElement>(null);
     const arrastando = useRef(false);
 
@@ -77,6 +78,13 @@ export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, 
     useEffect(() => { verificar(); }, [verificar]);
 
     const cert = certs.find((c) => c.thumbprint === thumb) ?? null;
+
+    useEffect(() => {
+        if (!cert) return;
+        let vivo = true;
+        medirCarimbo(cert.nome, larguraMm).then((r) => { if (vivo) setAlturaMm(r.alturaMm); }).catch(() => { /* mantém a altura anterior */ });
+        return () => { vivo = false; };
+    }, [cert?.nome, larguraMm]);
     const semToken = certs.length > 0 && !certs.some((c) => c.hardware);
 
     const traduzirErro = (e: any): string => {
@@ -116,7 +124,10 @@ export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, 
         setEtapa('assinando'); setErro('');
         try {
             const carimbo: Carimbo | null = semCarimbo || !pos ? null : {
-                pagina: pos.pagina, xMm: pos.xMm, yMm: pos.yMm, larguraMm, alturaMm,
+                pagina: pos.pagina,
+                xMm: Math.max(0, Math.min(pos.xMm, 210 - larguraMm)),
+                yMm: Math.max(0, Math.min(pos.yMm, 297 - alturaMm)),
+                larguraMm, alturaMm,
             };
             if (carimbo) { try { localStorage.setItem(POS_KEY, JSON.stringify({ xMm: carimbo.xMm, yMm: carimbo.yMm, tam })); } catch { /* sem storage */ } }
 
@@ -154,12 +165,22 @@ export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, 
         });
     };
 
+    // Arrastar o canto inferior direito: o canto superior esquerdo fica parado e a largura segue o ponteiro
+    const redimensionarPeloCanto = (clientX: number) => {
+        const area = areaRef.current;
+        if (!area || !pos) return;
+        const r = area.getBoundingClientRect();
+        const larguraDesejada = (clientX - r.left) / r.width * 210 - pos.xMm;
+        const maxPelaBorda = ((210 - pos.xMm) / CARIMBO_LARGURA_MM) * 100;
+        setTam(Math.round(Math.max(TAM_MIN, Math.min(TAM_MAX, maxPelaBorda, (larguraDesejada / CARIMBO_LARGURA_MM) * 100))));
+    };
+
     // Muda o tamanho mantendo o centro do carimbo no mesmo ponto (e dentro da página)
     const mudarTamanho = (novo: number) => {
         const t = Math.max(TAM_MIN, Math.min(TAM_MAX, Math.round(novo)));
         if (pos) {
             const cx = pos.xMm + larguraMm / 2, cy = pos.yMm + alturaMm / 2;
-            const nl = (CARIMBO_LARGURA_MM * t) / 100, na = (CARIMBO_ALTURA_MM * t) / 100;
+            const nl = (CARIMBO_LARGURA_MM * t) / 100, na = (alturaMm * t) / tam; // a altura acompanha a escala
             setPos({
                 pagina: pos.pagina,
                 xMm: Math.round(Math.max(0, Math.min(210 - nl, cx - nl / 2))),
@@ -260,7 +281,7 @@ export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, 
                         <div className="space-y-3">
                             <p className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-medium">
                                 <MousePointerClick className="w-4 h-4 text-brand-600" />
-                                Clique ou arraste na página para escolher onde a assinatura aparece.
+                                Clique ou arraste na página para escolher onde a assinatura aparece; arraste o quadradinho do canto para ajustar o tamanho.
                             </p>
 
                             <div className="flex items-center justify-center gap-3">
@@ -295,13 +316,25 @@ export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, 
                                     <img src={paginas[paginaAtual].imagem} alt={`Página ${paginaAtual + 1}`} className="absolute inset-0 w-full h-full pointer-events-none" draggable={false} />
                                     {!semCarimbo && pos && pos.pagina === paginaAtual && (
                                         <div
-                                            className="absolute border-2 border-dashed border-brand-600 bg-brand-500/15 pointer-events-none flex items-center justify-center text-center overflow-hidden"
+                                            className="absolute border-2 border-dashed border-brand-600 bg-brand-500/15 pointer-events-none"
                                             style={{
                                                 left: `${(pos.xMm / 210) * 100}%`, top: `${(pos.yMm / 297) * 100}%`,
                                                 width: `${(larguraMm / 210) * 100}%`, height: `${(alturaMm / 297) * 100}%`,
                                             }}
                                         >
-                                            <span className="leading-tight font-semibold text-brand-800 px-1" style={{ fontSize: `${(9 * tam) / 100}px` }}>Assinado digitalmente por<br />{cert?.nome}</span>
+                                            <div className="w-full h-full overflow-hidden flex items-center justify-center text-center">
+                                                <span className="leading-tight font-semibold text-brand-800 px-1" style={{ fontSize: `${(9 * tam) / 100}px` }}>Assinado digitalmente por<br />{cert?.nome}</span>
+                                            </div>
+                                            {etapa === 'posicionar' && (
+                                                <div
+                                                    title="Arraste para ajustar o tamanho"
+                                                    className="absolute -right-2 -bottom-2 w-4 h-4 rounded-sm bg-brand-600 border-2 border-white shadow pointer-events-auto cursor-nwse-resize touch-none"
+                                                    onPointerDown={(e) => { e.stopPropagation(); redimensionando.current = true; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); }}
+                                                    onPointerMove={(e) => { if (redimensionando.current) redimensionarPeloCanto(e.clientX); }}
+                                                    onPointerUp={() => { redimensionando.current = false; }}
+                                                    onPointerCancel={() => { redimensionando.current = false; }}
+                                                />
+                                            )}
                                         </div>
                                     )}
                                 </div>
