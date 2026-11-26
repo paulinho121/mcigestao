@@ -5,7 +5,7 @@ O navegador não enxerga o token; este programa roda só no seu computador (127.
 para assinar. A chave privada nunca sai do token e o PIN é pedido pela janela do fabricante.
 
 ## Instalação (uma vez só)
-1. Dê duplo clique em `Instalar-Assinador-MCI.bat`. Não precisa de administrador.
+1. Baixe `Instalar-Assinador-MCI.bat` pelo botão do modal de assinatura (ou `https://estoquemci.vercel.app/assinador/Instalar-Assinador-MCI.bat`) e abra. Não precisa de administrador.
 2. Pronto: o Assinador passa a abrir sozinho, escondido, sempre que o Windows iniciar.
 3. No app: Locação → Contratos → ícone de caneta → "Assinar e baixar PDF".
 

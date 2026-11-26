@@ -106,11 +106,14 @@ export function AssinarContratoModal({ contratoId, numero, montarHtml, onClose, 
                                 <p className="font-semibold flex items-center gap-2"><AlertCircle className="w-4 h-4" /> O Assinador MCI não está aberto</p>
                                 <p className="mt-1">Ele é o programa que usa o certificado do seu pendrive. Instale uma única vez, neste computador:</p>
                                 <ol className="list-decimal ml-5 mt-2 space-y-1">
-                                    <li>Dê duplo clique em <strong>Instalar-Assinador-MCI.bat</strong> (pasta <code>tools\assinador</code>).</li>
+                                    <li>
+                                        <a href="/assinador/Instalar-Assinador-MCI.bat" download className="font-semibold underline">Baixe o instalador</a> e abra o arquivo baixado
+                                        (se o navegador ou o Windows avisar, escolha "Manter" / "Executar assim mesmo").
+                                    </li>
                                     <li>Depois disso ele abre sozinho, escondido, sempre que o Windows iniciar.</li>
                                     <li>Volte aqui e clique em "Verificar de novo".</li>
                                 </ol>
-                                <p className="mt-2 text-xs">Já instalou e continua aparecendo? Reinicie o computador ou rode o instalador de novo.</p>
+                                <p className="mt-2 text-xs">Já instalou e continua aparecendo? Reinicie o computador ou rode o instalador de novo. Precisa do driver do token instalado.</p>
                             </div>
                             <button onClick={verificar} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium">
                                 <RefreshCw className="w-4 h-4" /> Verificar de novo
