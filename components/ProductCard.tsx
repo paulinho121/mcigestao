@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Product, Reservation } from '../types';
-import { MapPin, Box, AlertCircle, Package, Calendar, FileText, Share2, Instagram, Loader2, Hash } from 'lucide-react';
+import { MapPin, Box, AlertCircle, Package, Calendar, FileText, Share2, Instagram, Loader2, Hash, Smartphone } from 'lucide-react';
+import { ModeloARModal } from './ModeloAR';
 import { clsx } from 'clsx';
 import { inventoryService } from '../services/inventoryService';
 import { generateStoryImage } from '../utils/storyGenerator';
@@ -15,6 +16,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [importInfo, setImportInfo] = useState<{ quantity: number; expectedDate?: string } | null>(null);
     const [isGeneratingStory, setIsGeneratingStory] = useState(false);
+    const [arAberto, setArAberto] = useState(false);
+    const linkProduto = `${window.location.origin}${window.location.pathname}#/share/${product.id}`;
     const availableStock = product.total - (product.reserved || 0);
     const isLowStock = availableStock < 5 && availableStock > 0;
     const isOutOfStock = availableStock === 0;
@@ -152,6 +155,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                         )}
 
                         <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+                            {product.model_glb_url && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setArAberto(true); }}
+                                    className="p-1.5 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm"
+                                    title="Ver em 3D / Realidade Aumentada"
+                                >
+                                    <Smartphone className="w-4 h-4" />
+                                </button>
+                            )}
                             <button
                                 onClick={handleInstagramStory}
                                 disabled={isGeneratingStory}
@@ -493,7 +505,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                                     )}
                                 </div>
 
-                                <div className="mt-8 flex gap-3">
+                                {product.model_glb_url && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setArAberto(true); }}
+                                        className="mt-8 w-full bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-transform active:scale-[0.98]"
+                                    >
+                                        <Smartphone className="w-5 h-5" />
+                                        Ver em 3D / Realidade Aumentada
+                                    </button>
+                                )}
+
+                                <div className={`${product.model_glb_url ? 'mt-3' : 'mt-8'} flex gap-3`}>
                                     <button
                                         onClick={handleInstagramStory}
                                         disabled={isGeneratingStory}
@@ -523,6 +545,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     </div>
                 )}
             </>
+
+            {arAberto && product.model_glb_url && (
+                <ModeloARModal
+                    src={product.model_glb_url}
+                    nome={product.name}
+                    poster={product.image_url}
+                    linkCompartilhar={linkProduto}
+                    onClose={() => setArAberto(false)}
+                />
+            )}
         </div>
     );
 };
