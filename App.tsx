@@ -34,13 +34,14 @@ import { User } from './types';
 import { isMasterUser, isMarketingUser } from './config/masterUsers';
 import { MarketingSC } from './pages/MarketingSC';
 import { NomesSite } from './pages/NomesSite';
-import { Package, ClipboardList, Wrench, LogOut, Ship, ShoppingBag, FileText, Sun, Moon, Users, Truck, BookOpen, Menu, BarChart3, PackagePlus, Image as ImageIcon, Upload as UploadIcon, Layers, ArrowDownUp, CalendarClock, Tag, FileCode2, Activity, PackageSearch, Calculator, ShoppingCart, Globe, X } from 'lucide-react';
+import { Modelos3D } from './pages/Modelos3D';
+import { Package, ClipboardList, Wrench, LogOut, Ship, ShoppingBag, FileText, Sun, Moon, Users, Truck, BookOpen, Menu, BarChart3, PackagePlus, Image as ImageIcon, Upload as UploadIcon, Layers, ArrowDownUp, CalendarClock, Tag, FileCode2, Activity, PackageSearch, Calculator, ShoppingCart, Globe, Box, X } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { Analytics } from '@vercel/analytics/react';
 import { useTheme } from './context/ThemeContext';
 import MacOSDock from './components/ui/mac-os-dock';
 
-type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'importacoes' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'sugestao_compra' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas' | 'etiqueta_personalizada' | 'marketing_sc' | 'prepostagem' | 'nomes_site';
+type Tab = 'inventory' | 'reservations' | 'withdrawals' | 'in_import' | 'importacoes' | 'tracking' | 'catalogs' | 'upload' | 'maintenance' | 'import_management' | 'rental_management' | 'shopping' | 'sugestao_compra' | 'logs' | 'suppliers' | 'brands' | 'diretoria' | 'stock_management' | 'nfe_automation' | 'product_registration' | 'image_review' | 'pre_venda' | 'pedidos_cd' | 'cotacao_frete' | 'meus_pedidos' | 'etiquetas' | 'etiqueta_personalizada' | 'marketing_sc' | 'prepostagem' | 'nomes_site' | 'modelos_3d';
 
 function BackgroundMesh() {
   return null;
@@ -286,12 +287,13 @@ function App() {
         icon: <Wrench size={20} />,
         onClick: () => navigate('maintenance'),
         colorClass: 'bg-amber-600 hover:bg-amber-700',
-        tabs: ['maintenance', 'nfe_automation', 'logs', 'nomes_site'] as Tab[],
+        tabs: ['maintenance', 'nfe_automation', 'logs', 'nomes_site', 'modelos_3d'] as Tab[],
         subItems: [
           { label: 'Manutenção', icon: <Wrench size={20} />, onClick: () => navigate('maintenance'), colorClass: 'bg-amber-600 hover:bg-amber-700' },
           { label: 'NF-e', icon: <FileCode2 size={20} />, onClick: () => navigate('nfe_automation'), colorClass: 'bg-amber-500 hover:bg-amber-600' },
           { label: 'Logs', icon: <Activity size={20} />, onClick: () => navigate('logs'), colorClass: 'bg-amber-700 hover:bg-amber-800' },
           { label: 'Sync Site', icon: <Globe size={20} />, onClick: () => navigate('nomes_site'), colorClass: 'bg-amber-800 hover:bg-amber-900' },
+          { label: 'Modelos 3D', icon: <Box size={20} />, onClick: () => navigate('modelos_3d'), colorClass: 'bg-amber-900 hover:bg-amber-950' },
         ],
       },
       {
@@ -530,6 +532,7 @@ function App() {
           {activeTab === 'etiqueta_personalizada' && <EtiquetaPersonalizada />}
           {activeTab === 'marketing_sc' && isMarketing && <MarketingSC />}
           {activeTab === 'nomes_site' && isMaster && <NomesSite />}
+          {activeTab === 'modelos_3d' && isMaster && <Modelos3D />}
         </main>
       </div>
 

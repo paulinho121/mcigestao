@@ -37,6 +37,7 @@ export interface Product {
     location_sc?: string;
     location_sp?: string;
     is_future?: boolean;
+    model_glb_url?: string | null;   // modelo 3D (.glb) para o visualizador 3D/AR
     tipo?: string;           // tipo do produto (categoria do site mci.tv): Modificador, Tripé, Luminária...
     created_at?: string;
     updated_at?: string;
