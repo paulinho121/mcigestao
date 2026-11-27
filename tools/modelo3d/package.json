@@ -1,0 +1,14 @@
+{
+  "name": "preparar-modelo-3d",
+  "private": true,
+  "type": "module",
+  "description": "Prepara modelos .glb (escala real, base no chão, texturas e malha enxutas) para o AR do Estoque MCI",
+  "dependencies": {
+    "@gltf-transform/core": "^4.1.0",
+    "@gltf-transform/extensions": "^4.1.0",
+    "@gltf-transform/functions": "^4.1.0",
+    "draco3dgltf": "^1.5.7",
+    "meshoptimizer": "^0.22.0",
+    "sharp": "^0.35.5"
+  }
+}
