@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Product, Reservation } from '../types';
-import { MapPin, Box, AlertCircle, Package, Calendar, FileText, Share2, Instagram, Loader2, Hash, Smartphone } from 'lucide-react';
+import { MapPin, Box, AlertCircle, Package, Calendar, FileText, Share2, Instagram, Loader2, Hash, Smartphone, X } from 'lucide-react';
 import { ModeloARModal } from './ModeloAR';
 import { clsx } from 'clsx';
 import { inventoryService } from '../services/inventoryService';
@@ -297,9 +297,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                         }}
                     >
                         <div
-                            className="skeuo-flat w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row animate-in zoom-in-95 duration-300 border border-white/10"
+                            className="skeuo-flat relative w-full max-w-4xl max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row animate-in zoom-in-95 duration-300 border border-white/10"
                             onClick={(e) => e.stopPropagation()}
                         >
+                            {/* Botão X sempre visível (principalmente no celular, onde o conteúdo rola) */}
+                            <button
+                                type="button"
+                                aria-label="Fechar"
+                                onClick={(e) => { e.stopPropagation(); setIsSpotlightOpen(false); }}
+                                className="absolute top-3 right-3 z-30 w-10 h-10 flex items-center justify-center rounded-full bg-slate-900/70 hover:bg-slate-900/90 text-white shadow-lg backdrop-blur-sm active:scale-95 transition"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
                             {/* Left Side: Product Image (Large) */}
                             <div className="md:w-1/2 bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6 relative min-h-[300px]">
                                 {product.image_url ? (
@@ -360,12 +369,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                                             </span>
                                         )}
                                     </div>
-                                    <button
-                                        onClick={() => setIsSpotlightOpen(false)}
-                                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                                    >
-                                        <AlertCircle className="w-6 h-6 rotate-45" />
-                                    </button>
                                 </div>
 
                                 <h2 className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white leading-tight mb-2">
