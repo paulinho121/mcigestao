@@ -5,16 +5,14 @@ import { inventoryService } from '../services/inventoryService';
 import { Product } from '../types';
 import { isMasterUser } from '../config/masterUsers';
 import { StockInsights } from '../components/StockInsights';
-import { ImportacoesCTABanner } from '../components/ImportacoesCTABanner';
 
 interface InventoryProps {
   userEmail: string;
-  onNavigateToImports?: () => void;
 }
 
 import { RecentItemsCarousel } from '../components/RecentItemsCarousel';
 
-export const Inventory: React.FC<InventoryProps> = ({ userEmail, onNavigateToImports }) => {
+export const Inventory: React.FC<InventoryProps> = ({ userEmail }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -605,9 +603,6 @@ export const Inventory: React.FC<InventoryProps> = ({ userEmail, onNavigateToImp
         {/* Featured Carousel (Only shown on initial landing) */}
         {!searchQuery && !selectedBranch && !loading && (
           <div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-1000">
-            {onNavigateToImports && (
-              <ImportacoesCTABanner onNavigate={onNavigateToImports} />
-            )}
             <div className="text-center mb-10">
               <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2 tracking-tight">Novidades no Estoque</h3>
               <p className="text-base text-slate-500 dark:text-slate-400">Os últimos itens que chegaram ao nosso inventário global</p>

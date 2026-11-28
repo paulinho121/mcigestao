@@ -502,7 +502,7 @@ function App() {
 
         {/* Page Content */}
         <main className="flex-1">
-          {activeTab === 'inventory' && <Inventory userEmail={user.email} onNavigateToImports={() => navigate('importacoes')} />}
+          {activeTab === 'inventory' && <Inventory userEmail={user.email} />}
           {activeTab === 'reservations' && <Reservations userEmail={user.email} userName={user.name} isMasterUser={isMaster} />}
           {activeTab === 'withdrawals' && isMaster && <Withdrawals userEmail={user.email} />}
           {activeTab === 'in_import' && <InImport />}
