@@ -44,11 +44,12 @@ export function ModeloAR({ src, nome, poster, linkCompartilhar }: Props) {
                 poster={poster}
                 alt={`Modelo 3D de ${nome}`}
                 ar=""
-                ar-modes="webxr scene-viewer quick-look"
+                ar-modes="scene-viewer webxr quick-look"
                 ar-scale="fixed"
                 camera-controls=""
                 auto-rotate=""
                 shadow-intensity="1"
+                exposure="1.1"
                 touch-action="pan-y"
                 style={{ width: '100%', height: '340px', background: 'radial-gradient(circle at 50% 40%, #f1f5f9, #cbd5e1)', borderRadius: '12px' }}
             >
